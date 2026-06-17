@@ -1,0 +1,2077 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIMEC - AHU Fan Efficiency Analysis Tool</title>
+<style>
+/* ============================================================
+ * HIMEC - AHU Fan Efficiency Analysis Tool
+ * styles.css - 전체 스타일시트
+ * ============================================================ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Page container */
+  .page-container {
+    padding: 0 100px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    background: #fff;
+  }
+
+  /* Header */
+  .header {
+    background: #fff;
+    padding: 8px 20px;
+    border-bottom: 1px solid #ddd;
+    flex-shrink: 0;
+    margin-left: -100px;
+    margin-right: -100px;
+    padding-left: 120px;
+    padding-right: 120px;
+  }
+  .header h1 { font-size: 20px; font-weight: 700; color: #222; }
+  .header .sub { font-size: 11px; color: #888; margin-top: 2px; }
+  .header h2 { font-size: 15px; font-weight: 600; color: #333; margin-top: 4px; }
+  .header-right {
+    position: absolute;
+    bottom: 8px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+  }
+  .header-right button {
+    padding: 8px 0;
+    width: 90px;
+    border: none;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+  .btn-save { background: #e85d24; color: #fff; }
+  .btn-file { background: #e85d24; color: #fff; }
+  .btn-main { background: #555f; color: #fff; }
+  .btn-save:hover, .btn-file:hover { opacity: 0.85; }
+  .btn-main:hover { opacity: 0.85; }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    padding: 4px 20px 0;
+    background: #fff;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .tab {
+    padding: 5px 20px;
+    border-radius: 6px 6px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: #bbb;
+    color: #fff;
+    position: relative;
+    padding-right: 28px !important;
+  }
+  .tab.active { background: #00838f; color: #fff; }
+  .tab.add {
+    background: #999;
+    color: #fff;
+    font-size: 14px;
+    padding: 5px 16px;
+    padding-right: 16px !important;
+  }
+  .tab .tab-close {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+    line-height: 16px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .tab .tab-close:hover { background: rgba(255,0,0,0.6); color: #fff; }
+
+  /* Main 3-column layout */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr 0.9fr;
+    gap: 0;
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .panel {
+    background: #fff;
+    border: 1px solid transparent;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* Section titles */
+  .section-title {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #222;
+    flex-shrink: 0;
+  }
+
+  /* Table style */
+  .info-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    margin-bottom: 6px;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  .info-table th, .info-table td {
+    border: 1px solid #ffffff;
+    padding: 5px 4px;
+    border-bottom: 1.5px solid #ccc;
+    text-align: center;
+  }
+  .info-table th {
+    background: #e8e8e8;
+    color: #555;
+    font-weight: 600;
+    font-size: 10px;
+  }
+  .info-table tr:first-child th:first-child { border-top-left-radius: 8px; }
+  .info-table tr:first-child th:last-child { border-top-right-radius: 8px; }
+  .info-table td { background: #fff; }
+  .info-table .row-header {
+    background: #f0f0f0;
+    font-weight: 600;
+    color: #00838f;
+    font-size: 11px;
+    width: 40px;
+  }
+
+  /* Value + unit layout */
+  .value-unit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+  .value-unit input {
+    text-align: right;
+    padding-right: 2px;
+  }
+  .value-unit .unit {
+    font-size: 10px;
+    color: #888;
+    white-space: nowrap;
+  }
+  .info-table input {
+    width: 100%;
+    border: none;
+    text-align: center;
+    font-size: 11px;
+    background: transparent;
+    outline: none;
+    padding: 3px 2px;
+  }
+  .info-table .highlight-cell {
+    background: #e0f7fa;
+    color: #00838f;
+    font-weight: 700;
+  }
+  .note {
+    font-size: 9px;
+    color: #888;
+    margin: 4px 0 6px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  #left-panel .info-table th:first-child,
+  #left-panel .info-table td:first-child {
+    border-left-color: transparent;
+  }
+  #left-panel .info-table th:last-child,
+  #left-panel .info-table td:last-child {
+    border-right-color: transparent;
+  }
+
+  /* Bar Chart */
+  .bar-chart-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .bar-chart-area {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 0;
+    padding: 1px 1px 1px 1px;
+    border-left: 1px solid #999;
+    border-bottom: 1px solid #999;
+    margin: 6px 2px 0 2px;
+    min-height: 0;
+  }
+  .bar-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    max-width: none;
+    height: 100%;
+    padding: 0 2px;
+  }
+  .bar-pair {
+    display: flex;
+    gap: 4px;
+    align-items: flex-end;
+    width: 100%;
+    justify-content: center;
+    flex: 1;
+    height: 100%;
+  }
+  .bar {
+    width: 30px;
+    min-width: 18px;
+    border-radius: 3px 3px 0 0;
+    position: relative;
+    transition: height 0.5s ease;
+  }
+  .bar-design { background: #ccc; }
+  .bar-measure-sa { background: #00838f; }
+  .bar-measure-ra { background: #e85d24; }
+  .bar-value {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .bar-label {
+    font-size: 8px;
+    color: #666;
+    margin-top: 2px;
+    text-align: center;
+    line-height: 1.1;
+  }
+  .bar-category-label {
+    font-size: 9px;
+    color: #333;
+    font-weight: 600;
+    margin-top: 1px;
+  }
+  .y-axis-labels {
+    position: absolute;
+    left: -32px;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: space-between;
+    font-size: 9px;
+    color: #666;
+  }
+  .bar-legend {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 4px;
+    font-size: 9px;
+    color: #555;
+    flex-shrink: 0;
+  }
+  .bar-legend-item { display: flex; align-items: center; gap: 3px; }
+  .bar-legend-color { width: 10px; height: 8px; border-radius: 2px; }
+
+  /* Center Panel - Radar Chart */
+  .center-panel {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .chart-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .chart-canvas-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+  .chart-canvas-container canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Fan selector tabs in center */
+  .fan-selector {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+  }
+  .fan-btn {
+    padding: 3px 14px;
+    border: 1.5px solid #00838f;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #fff;
+    color: #00838f;
+  }
+  .fan-btn.active {
+    background: #00838f;
+    color: #fff;
+  }
+
+  /* Right Panel */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+  }
+  .metrics-area {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .metric-card {
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid #ccc;
+    border-radius: 5px;
+    padding: 8px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .metric-label {
+    font-size: 10px;
+    color: #00838f;
+    flex: 1;
+    line-height: 1.2;
+    font-weight: bold;
+  }
+  .metric-values-group {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .metric-val-wrap {
+    text-align: right;
+    min-width: 55px;
+  }
+  .metric-val-label {
+    font-size: 8px;
+    color: #888;
+    font-weight: 600;
+  }
+  .metric-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #ff8c00;
+    min-width: 35px;
+    text-align: right;
+  }
+  .metric-value.sa-color { color: #00838f; }
+  .metric-value.ra-color { color: #e85d24; }
+  .metric-unit {
+    font-size: 10px;
+    color: #888;
+    margin-left: 1px;
+    vertical-align: super;
+  }
+
+  /* Donut Chart */
+  .donut-container {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    padding: 0px;
+    min-height: 10px;
+    overflow: hidden;
+    gap: 4px;
+  }
+  .donut-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .donut-item-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 2px;
+  }
+  .donut-wrapper {
+    position: relative;
+    width: 90%;
+    max-width: 180px;
+    aspect-ratio: 1;
+  }
+  .donut-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .donut-center-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .donut-percent { font-size: 24px; font-weight: 800; }
+  .donut-percent-unit { font-size: 16px; font-weight: 600; }
+  .donut-status { font-size: 14px; font-weight: 700; margin-top: 2px; }
+
+ /* ---- Footer Copyright ---- */
+.footer-copyright {
+    flex-shrink: 0;
+    background: #f8fafc;
+    border-top: none;
+    padding: 8px 100px;
+    text-align: center;
+}
+
+.footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 10px;
+    color: #e0e0e0;
+    letter-spacing: 0.01em;
+}
+
+.footer-divider {
+    color: var(--border);
+}
+
+  /* Responsive */
+  @media (max-width: 1600px) {
+    .page-container { padding: 0 60px; }
+    .header { margin-left: -60px; margin-right: -60px; padding-left: 80px; padding-right: 80px; }
+    .footer-copyright { padding: 6px 80px; margin-left: -60px; margin-right: -60px; }
+  }
+  @media (max-width: 1300px) {
+    .page-container { padding: 0 30px; }
+    .header { margin-left: -30px; margin-right: -30px; padding-left: 50px; padding-right: 50px; }
+    .footer-copyright { padding: 6px 50px; margin-left: -30px; margin-right: -30px; }
+  }
+  @media (max-width: 1100px) {
+    .page-container { padding: 0 15px; }
+    .header { margin-left: -15px; margin-right: -15px; padding-left: 35px; padding-right: 35px; }
+    .footer-copyright { padding: 6px 35px; margin-left: -15px; margin-right: -15px; }
+    .main { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+    .center-panel { grid-column: 1 / -1; grid-row: 1; }
+  }
+  @media (max-width: 700px) {
+    .page-container { padding: 0 10px; }
+    .header { margin-left: -10px; margin-right: -10px; padding-left: 30px; padding-right: 30px; }
+    .footer-copyright { padding: 6px 30px; margin-left: -10px; margin-right: -10px; }
+    .main { grid-template-columns: 1fr; }
+    .center-panel { grid-column: 1; }
+  }
+
+  .info-table input::placeholder {
+    color: #aaa;
+    font-style: italic;
+    font-size: 10px;
+  }
+
+
+  /* ========== 프로젝트 정보 배지 ========== */
+  .project-info {
+    margin-top: 4px;
+  }
+  .project-badge {
+    display: inline-block;
+    background: #e8f0fe;
+    color: #1a73e8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 4px;
+  }
+
+  /* ========== 토스트 알림 ========== */
+  .toast {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #333;
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+  }
+
+  /* ========== 로딩 오버레이 ========== */
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255, 255, 255, 0.7);
+    z-index: 9998;
+    justify-content: center;
+    align-items: center;
+  }
+  .loading-overlay.active {
+    display: flex;
+  }
+  .loading-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #ddd;
+    border-top-color: #00838f;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .loading-text {
+    font-size: 12px;
+    color: #555;
+    font-weight: 500;
+  }
+
+
+/* 헤더 제목 앞 프로젝트명 라벨 */
+.pj-name-label { color: #333; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="page-container">
+<!-- Header -->
+<div class="header" style="position:relative;">
+  <h1>HIMEC − Mechanical Facility Aging Diagnosis System</h1>
+  <div class="sub">(주)하이멕 − 기계설비 노후화 진단</div>
+  <h2><span class="pj-name-label" id="projectNameLabel"></span>AHU Fan Efficiency Analysis Tool</h2>
+  <div class="project-info" id="projectInfo" style="display:none;">
+    <span class="project-badge" id="projectBadge"></span>
+  </div>
+  <div class="header-right">
+    <button class="btn-save" onclick="saveData()">Save</button>
+    <button class="btn-file" onclick="exportFile()">File Trans</button>
+    <button class="btn-main" onclick="goMain()">Main</button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+  <button class="tab active" id="tab-1" onclick="switchTab(1)">AHU-01 #01<span class="tab-close" onclick="event.stopPropagation();removeTab(1)">✕</span></button>
+  <button class="tab add" onclick="addTab()">+</button>
+</div>
+
+<!-- Main Layout -->
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <div class="panel" id="left-panel">
+    <div class="section-title">■ 장비 개요</div>
+    <table class="info-table">
+      <tr><th>장비명</th><th>장비번호</th><th>용도</th><th>비고</th></tr>
+      <tr>
+        <td><input id="inp-name" value="AHU-01" onchange="recalc()"></td>
+        <td><input id="inp-no" value="#01" onchange="recalc()"></td>
+        <td><input id="inp-use" value="저층부 냉수순환용" onchange="recalc()"></td>
+        <td><input id="inp-note" value="60Hz, 단독기동" onchange="recalc()"></td>
+      </tr>
+    </table>
+
+    <div class="section-title" style="margin-top:4px;">■ 설계 Data</div>
+    <table class="info-table">
+      <tr>
+        <th style="width:35px;">구분</th>
+        <th>풍량<br>[CMH]</th>
+        <th>정압<br>[mmAq]</th>
+        <th>전압<br>[V]</th>
+        <th>전류<br>[A]</th>
+        <th>동력<br>[kW]</th>
+        <th>정격효율<br>[%]</th>
+      </tr>
+      <tr>
+        <td class="row-header">SA</td>
+        <td><input id="inp-sa-design-flow" type="text" inputmode="numeric" value="25500" onchange="recalc()"></td>
+        <td><input id="inp-sa-design-press" type="text" inputmode="numeric" value="100" onchange="recalc()"></td>
+        <td><input id="inp-sa-design-voltage" type="text" inputmode="numeric" value="380" onchange="recalc()"></td>
+        <td><input id="inp-sa-design-current" type="text" inputmode="numeric" value="23.7" onchange="recalc()"></td>
+        <td><input id="inp-sa-design-power" type="text" inputmode="numeric" value="11.3" onchange="recalc()"></td>
+        <td><input id="inp-sa-design-eff" type="text" inputmode="numeric" value="65" onchange="recalc()"></td>
+      </tr>
+      <tr>
+        <td class="row-header">RA</td>
+        <td><input id="inp-ra-design-flow" type="text" inputmode="numeric" value="21600" onchange="recalc()"></td>
+        <td><input id="inp-ra-design-press" type="text" inputmode="numeric" value="35" onchange="recalc()"></td>
+        <td><input id="inp-ra-design-voltage" type="text" inputmode="numeric" value="380" onchange="recalc()"></td>
+        <td><input id="inp-ra-design-current" type="text" inputmode="numeric" value="11.9" onchange="recalc()"></td>
+        <td><input id="inp-ra-design-power" type="text" inputmode="numeric" value="5.6" onchange="recalc()"></td>
+        <td><input id="inp-ra-design-eff" type="text" inputmode="numeric" value="45" onchange="recalc()"></td>
+      </tr>
+    </table>
+
+    <div class="section-title" style="margin-top:4px;">■ 측정 Data</div>
+    <table class="info-table">
+      <tr>
+        <th style="width:35px;">구분</th>
+        <th>풍량<br>[CMH]</th>
+        <th>정압<br>[mmAq]</th>
+        <th>전압<br>[V]</th>
+        <th>전류<br>[A]</th>
+        <th class="highlight-cell">축동력<br>[kW]</th>
+        <th class="highlight-cell">팬효율<br>[%]</th>
+      </tr>
+      <tr>
+        <td class="row-header">SA</td>
+        <td><input id="inp-sa-meas-flow" type="text" inputmode="numeric" value="10093" onchange="recalc()"></td>
+        <td><input id="inp-sa-meas-press" type="text" inputmode="numeric" value="132" onchange="recalc()"></td>
+        <td><input id="inp-sa-meas-voltage" type="text" inputmode="numeric" value="375" onchange="recalc()"></td>
+        <td><input id="inp-sa-meas-current" type="text" inputmode="numeric" value="19.2" onchange="recalc()"></td>
+        <td style="background:#e0f7fa;"><input id="calc-sa-power" type="text" inputmode="numeric" readonly style="font-weight:700; color:#00838f; background:#e0f7fa; cursor:default;" value=""></td>
+        <td style="background:#e0f7fa;"><input id="calc-sa-eff" type="text" inputmode="numeric" readonly style="font-weight:700; color:#00838f; background:#e0f7fa; cursor:default;" value=""></td>
+      </tr>
+      <tr>
+        <td class="row-header">RA</td>
+        <td><input id="inp-ra-meas-flow" type="text" inputmode="numeric" value="13114" onchange="recalc()"></td>
+        <td><input id="inp-ra-meas-press" type="text" inputmode="numeric" value="26" onchange="recalc()"></td>
+        <td><input id="inp-ra-meas-voltage" type="text" inputmode="numeric" value="378" onchange="recalc()"></td>
+        <td><input id="inp-ra-meas-current" type="text" inputmode="numeric" value="11.5" onchange="recalc()"></td>
+        <td style="background:#e0f7fa;"><input id="calc-ra-power" type="text" inputmode="numeric" readonly style="font-weight:700; color:#00838f; background:#e0f7fa; cursor:default;" value=""></td>
+        <td style="background:#e0f7fa;"><input id="calc-ra-eff" type="text" inputmode="numeric" readonly style="font-weight:700; color:#00838f; background:#e0f7fa; cursor:default;" value=""></td>
+      </tr>
+    </table>
+    <div class="note">※ 축동력 = √3 × 전압 × 전류 × 역률(0.9) / 1000 &nbsp; | &nbsp; 팬효율 = (Q/3600 × P×9.81) / (W×1000) × 100</div>
+
+    <!-- Bar Chart -->
+    <div class="bar-chart-container">
+      <div class="bar-chart-area" id="barChartArea">
+        <div class="y-axis-labels" id="yAxisLabels"></div>
+        <!-- 풍량 group -->
+        <div class="bar-group">
+          <div class="bar-pair">
+            <div class="bar bar-design" id="bar-d-flow-sa"><div class="bar-value" id="bv-d-flow-sa"></div></div>
+            <div class="bar bar-measure-sa" id="bar-m-flow-sa"><div class="bar-value" id="bv-m-flow-sa"></div></div>
+            <div class="bar bar-design" id="bar-d-flow-ra" style="background:#e0c89a;"><div class="bar-value" id="bv-d-flow-ra"></div></div>
+            <div class="bar bar-measure-ra" id="bar-m-flow-ra"><div class="bar-value" id="bv-m-flow-ra"></div></div>
+          </div>
+          <div class="bar-label">설계 SA RA</div>
+          <div class="bar-category-label">풍량</div>
+        </div>
+        <!-- 정압 group -->
+        <div class="bar-group">
+          <div class="bar-pair">
+            <div class="bar bar-design" id="bar-d-press-sa"><div class="bar-value" id="bv-d-press-sa"></div></div>
+            <div class="bar bar-measure-sa" id="bar-m-press-sa"><div class="bar-value" id="bv-m-press-sa"></div></div>
+            <div class="bar bar-design" id="bar-d-press-ra" style="background:#e0c89a;"><div class="bar-value" id="bv-d-press-ra"></div></div>
+            <div class="bar bar-measure-ra" id="bar-m-press-ra"><div class="bar-value" id="bv-m-press-ra"></div></div>
+          </div>
+          <div class="bar-label">설계 SA RA</div>
+          <div class="bar-category-label">정압</div>
+        </div>
+        <!-- 전류 group -->
+        <div class="bar-group">
+          <div class="bar-pair">
+            <div class="bar bar-design" id="bar-d-curr-sa"><div class="bar-value" id="bv-d-curr-sa"></div></div>
+            <div class="bar bar-measure-sa" id="bar-m-curr-sa"><div class="bar-value" id="bv-m-curr-sa"></div></div>
+            <div class="bar bar-design" id="bar-d-curr-ra" style="background:#e0c89a;"><div class="bar-value" id="bv-d-curr-ra"></div></div>
+            <div class="bar bar-measure-ra" id="bar-m-curr-ra"><div class="bar-value" id="bv-m-curr-ra"></div></div>
+          </div>
+          <div class="bar-label">설계 SA RA</div>
+          <div class="bar-category-label">전류</div>
+        </div>
+        <!-- 효율 group -->
+        <div class="bar-group">
+          <div class="bar-pair">
+            <div class="bar bar-design" id="bar-d-eff-sa"><div class="bar-value" id="bv-d-eff-sa"></div></div>
+            <div class="bar bar-measure-sa" id="bar-m-eff-sa"><div class="bar-value" id="bv-m-eff-sa"></div></div>
+            <div class="bar bar-design" id="bar-d-eff-ra" style="background:#e0c89a;"><div class="bar-value" id="bv-d-eff-ra"></div></div>
+            <div class="bar bar-measure-ra" id="bar-m-eff-ra"><div class="bar-value" id="bv-m-eff-ra"></div></div>
+          </div>
+          <div class="bar-label">설계 SA RA</div>
+          <div class="bar-category-label">효율</div>
+        </div>
+      </div>
+      <div class="bar-legend">
+        <div class="bar-legend-item"><div class="bar-legend-color" style="background:#ccc;"></div>설계(SA)</div>
+        <div class="bar-legend-item"><div class="bar-legend-color" style="background:#00838f;"></div>측정(SA)</div>
+        <div class="bar-legend-item"><div class="bar-legend-color" style="background:#e85d24;"></div>측정(RA)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER PANEL - Radar Chart -->
+  <div class="panel center-panel" id="center-panel">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+      <div class="section-title">■ 설계 대비 측정 성능 비교 (레이더 차트)</div>
+      <div class="fan-selector">
+        <button class="fan-btn active" id="fanBtnSA" onclick="selectFan('SA')">SA Fan</button>
+        <button class="fan-btn" id="fanBtnRA" onclick="selectFan('RA')">RA Fan</button>
+        <button class="fan-btn" id="fanBtnBoth" onclick="selectFan('BOTH')">SA+RA</button>
+      </div>
+    </div>
+    <div class="chart-wrapper" id="chartWrapper">
+      <div class="chart-canvas-container">
+        <canvas id="radarCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel right-panel" id="right-panel">
+    <div class="section-title">■ 분석 결과</div>
+    <div class="metrics-area">
+      <div class="metric-card">
+        <div class="metric-label">✔ 풍량 (설계값 대비)</div>
+        <div class="metric-values-group">
+          <div class="metric-val-wrap"><div class="metric-val-label">SA</div><span class="metric-value sa-color" id="val-flow-sa">39.6</span><span class="metric-unit">%</span></div>
+          <div class="metric-val-wrap"><div class="metric-val-label">RA</div><span class="metric-value ra-color" id="val-flow-ra">60.7</span><span class="metric-unit">%</span></div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">✔ 정압 (설계값 대비)</div>
+        <div class="metric-values-group">
+          <div class="metric-val-wrap"><div class="metric-val-label">SA</div><span class="metric-value sa-color" id="val-press-sa">132.0</span><span class="metric-unit">%</span></div>
+          <div class="metric-val-wrap"><div class="metric-val-label">RA</div><span class="metric-value ra-color" id="val-press-ra">74.3</span><span class="metric-unit">%</span></div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">✔ 전류 (설계값 대비)</div>
+        <div class="metric-values-group">
+          <div class="metric-val-wrap"><div class="metric-val-label">SA</div><span class="metric-value sa-color" id="val-curr-sa">81.0</span><span class="metric-unit">%</span></div>
+          <div class="metric-val-wrap"><div class="metric-val-label">RA</div><span class="metric-value ra-color" id="val-curr-ra">96.6</span><span class="metric-unit">%</span></div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">✔ 측정 효율</div>
+        <div class="metric-values-group">
+          <div class="metric-val-wrap"><div class="metric-val-label">SA</div><span class="metric-value sa-color" id="val-eff-sa">32.3</span><span class="metric-unit">%</span></div>
+          <div class="metric-val-wrap"><div class="metric-val-label">RA</div><span class="metric-value ra-color" id="val-eff-ra">13.7</span><span class="metric-unit">%</span></div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">✔ 효율 저하율 (설계 vs 측정)</div>
+        <div class="metric-values-group">
+          <div class="metric-val-wrap"><div class="metric-val-label">SA</div><span class="metric-value sa-color" id="val-drop-sa">50.3</span><span class="metric-unit">%</span></div>
+          <div class="metric-val-wrap"><div class="metric-val-label">RA</div><span class="metric-value ra-color" id="val-drop-ra">69.5</span><span class="metric-unit">%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Donut Charts: SA and RA side by side -->
+    <div class="donut-container">
+      <div class="donut-item">
+        <div class="donut-item-label">SA Fan</div>
+        <div class="donut-wrapper">
+          <svg class="donut-svg" viewBox="0 0 200 200" id="donutSvgSA">
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#e8e8e8" stroke-width="24"/>
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#00838f" stroke-width="24"
+              id="donutArcSA"
+              stroke-dasharray="502.65"
+              stroke-dashoffset="502.65"
+              stroke-linecap="round"
+              style="transition: stroke-dashoffset 0.8s ease, stroke 0.5s ease;"/>
+          </svg>
+          <div class="donut-center-text">
+            <div class="donut-percent" id="donutPercentSA" style="color:#00838f;">--<span class="donut-percent-unit">%</span></div>
+            <div class="donut-status" id="donutStatusSA" style="color:#00838f;">--</div>
+          </div>
+        </div>
+      </div>
+      <div class="donut-item">
+        <div class="donut-item-label">RA Fan</div>
+        <div class="donut-wrapper">
+          <svg class="donut-svg" viewBox="0 0 200 200" id="donutSvgRA">
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#e8e8e8" stroke-width="24"/>
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#e85d24" stroke-width="24"
+              id="donutArcRA"
+              stroke-dasharray="502.65"
+              stroke-dashoffset="502.65"
+              stroke-linecap="round"
+              style="transition: stroke-dashoffset 0.8s ease, stroke 0.5s ease;"/>
+          </svg>
+          <div class="donut-center-text">
+            <div class="donut-percent" id="donutPercentRA" style="color:#e85d24;">--<span class="donut-percent-unit">%</span></div>
+            <div class="donut-status" id="donutStatusRA" style="color:#e85d24;">--</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- Copyright -->
+<footer class="footer-copyright">
+    <div class="footer-inner">
+        <span>© 2026 HIMEC (주)하이멕. All rights reserved. Made by 성재호, 최승연, 신동민</span>
+    </div>
+</footer>
+
+<!-- ========== 토스트 / 로딩 오버레이 ========== -->
+<div class="toast" id="toast"></div>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box"><div class="spinner"></div><div class="loading-text" id="loadingText">처리 중...</div></div>
+</div>
+
+<!-- JS 모듈 로드 (의존 순서 중요) -->
+<!-- GitHub API & 인증 (대시보드와 동일한 모듈 사용) -->
+<script src="../../03. diagnosis/js/github-api.js"></script>
+<script src="../../03. diagnosis/js/auth.js"></script>
+<!-- fanef 모듈 -->
+<script>
+/* ===== fanef_utils.js ===== */
+/* ============================================================
+ * utils.js - 유틸리티 함수 (숫자 파싱, 콤마 포맷팅)
+ * ============================================================ */
+
+/**
+ * 문자열/숫자를 파싱하여 숫자값 반환
+ * @param {string|number} v - 입력값
+ * @returns {number}
+ */
+function parseNum(v) {
+  if (typeof v === 'number') return v;
+  if (!v) return 0;
+  return parseFloat(String(v).replace(/,/g, '')) || 0;
+}
+
+/**
+ * 숫자를 천 단위 콤마 포맷으로 변환
+ * @param {number|string} v - 입력값
+ * @param {number} [decimals] - 소수점 자릿수
+ * @returns {string}
+ */
+function formatComma(v, decimals) {
+  if (v === '' || v === null || v === undefined) return '';
+  var n = typeof v === 'number' ? v : parseFloat(String(v).replace(/,/g, ''));
+  if (isNaN(n)) return String(v);
+  if (typeof decimals === 'number') {
+    n = parseFloat(n.toFixed(decimals));
+  }
+  var parts = String(n).split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return parts.join('.');
+}
+
+/**
+ * input 엘리먼트에 콤마 포맷 적용
+ * @param {HTMLInputElement} el - 대상 input 엘리먼트
+ */
+function applyCommaFormat(el) {
+  if (!el) return;
+  var raw = el.value.replace(/,/g, '');
+  if (raw === '' || isNaN(parseFloat(raw))) return;
+  var n = parseFloat(raw);
+  el.value = formatComma(n);
+}
+
+// 콤마 포맷이 적용되어야 할 숫자 필드 ID 목록
+var NUMERIC_IDS = [
+  'inp-sa-design-flow', 'inp-sa-design-press', 'inp-sa-design-voltage', 'inp-sa-design-current', 'inp-sa-design-power', 'inp-sa-design-eff',
+  'inp-ra-design-flow', 'inp-ra-design-press', 'inp-ra-design-voltage', 'inp-ra-design-current', 'inp-ra-design-power', 'inp-ra-design-eff',
+  'inp-sa-meas-flow', 'inp-sa-meas-press', 'inp-sa-meas-voltage', 'inp-sa-meas-current',
+  'inp-ra-meas-flow', 'inp-ra-meas-press', 'inp-ra-meas-voltage', 'inp-ra-meas-current',
+  'calc-sa-power', 'calc-sa-eff', 'calc-ra-power', 'calc-ra-eff'
+];
+
+/**
+ * 모든 숫자 필드에 콤마 포맷 일괄 적용
+ */
+function formatAllNumericFields() {
+  NUMERIC_IDS.forEach(function(id) {
+    applyCommaFormat(document.getElementById(id));
+  });
+}
+
+</script>
+<script>
+/* ===== fanef_donutChart.js ===== */
+/* ============================================================
+ * donutChart.js - SA/RA 팬 효율 도넛 차트
+ * 의존: utils.js
+ * ============================================================ */
+
+/**
+ * 도넛 차트 업데이트 (SA 또는 RA)
+ * @param {'SA'|'RA'} fan - 팬 유형
+ * @param {number} mEff - 측정 효율 (%)
+ * @param {number} dEff - 설계 효율 (%)
+ */
+function updateDonut(fan, mEff, dEff) {
+  const circumference = 2 * Math.PI * 80;
+  const clamped = Math.max(0, Math.min(100, mEff));
+  const offset = circumference * (1 - clamped / 100);
+  const arc = document.getElementById('donutArc' + fan);
+  arc.setAttribute('stroke-dasharray', circumference.toFixed(2));
+  arc.setAttribute('stroke-dashoffset', offset.toFixed(2));
+
+  const effRatio = dEff > 0 ? (mEff / dEff) * 100 : 0;
+  let color, status;
+  if (effRatio >= 90) { color = '#00838f'; status = '양호'; }
+  else if (effRatio >= 70) { color = '#ff8c00'; status = '보통'; }
+  else { color = '#ff3333'; status = '불량'; }
+
+  arc.setAttribute('stroke', color);
+  document.getElementById('donutPercent' + fan).style.color = color;
+  document.getElementById('donutPercent' + fan).innerHTML = formatComma(mEff, 1) + '<span class="donut-percent-unit">%</span>';
+  document.getElementById('donutStatus' + fan).style.color = color;
+  document.getElementById('donutStatus' + fan).textContent = status;
+}
+
+</script>
+<script>
+/* ===== fanef_barChart.js ===== */
+/* ============================================================
+ * barChart.js - 설계 vs 측정 막대 차트
+ * 의존: utils.js, calculation.js (selectedFan 변수)
+ * ============================================================ */
+
+/**
+ * 막대 차트 전체 업데이트
+ */
+function updateBarChart(sa_dFlow, sa_mFlow, ra_dFlow, ra_mFlow, sa_dPress, sa_mPress, ra_dPress, ra_mPress,
+  sa_dCurr, sa_mCurr, ra_dCurr, ra_mCurr, sa_dEff, sa_mEff, ra_dEff, ra_mEff) {
+
+  const mode = selectedFan; // 'SA', 'RA', or 'BOTH'
+
+  /**
+   * 개별 막대 그룹 설정
+   * @param {string} cat - 카테고리 ('flow'|'press'|'curr'|'eff')
+   * @param {number} sa_dVal - SA 설계값
+   * @param {number} sa_mVal - SA 측정값
+   * @param {number} ra_dVal - RA 설계값
+   * @param {number} ra_mVal - RA 측정값
+   * @param {string} unit - 단위 문자열
+   * @param {boolean} isEff - 효율 항목 여부 (소수점 표시)
+   */
+  function setBarGroup(cat, sa_dVal, sa_mVal, ra_dVal, ra_mVal, unit, isEff) {
+    const dSaEl = document.getElementById('bar-d-' + cat + '-sa');
+    const mSaEl = document.getElementById('bar-m-' + cat + '-sa');
+    const dRaEl = document.getElementById('bar-d-' + cat + '-ra');
+    const mRaEl = document.getElementById('bar-m-' + cat + '-ra');
+    const dvSa = document.getElementById('bv-d-' + cat + '-sa');
+    const mvSa = document.getElementById('bv-m-' + cat + '-sa');
+    const dvRa = document.getElementById('bv-d-' + cat + '-ra');
+    const mvRa = document.getElementById('bv-m-' + cat + '-ra');
+
+    // 표시 여부 결정
+    const showSa = (mode === 'SA' || mode === 'BOTH');
+    const showRa = (mode === 'RA' || mode === 'BOTH');
+
+    // Visibility
+    dSaEl.style.display = showSa ? '' : 'none';
+    mSaEl.style.display = showSa ? '' : 'none';
+    dRaEl.style.display = showRa ? '' : 'none';
+    mRaEl.style.display = showRa ? '' : 'none';
+
+    // 최대값 기준 높이 계산
+    const vals = [];
+    if (showSa) { vals.push(sa_dVal, sa_mVal); }
+    if (showRa) { vals.push(ra_dVal, ra_mVal); }
+    const maxVal = Math.max(...vals, 1);
+
+    // 높이 및 라벨 설정
+    if (showSa) {
+      dSaEl.style.height = (sa_dVal / maxVal * 85) + '%';
+      mSaEl.style.height = (sa_mVal / maxVal * 85) + '%';
+      if (isEff) {
+        dvSa.textContent = formatComma(sa_dVal, 0) + unit;
+        mvSa.textContent = formatComma(sa_mVal, 1) + unit;
+      } else {
+        dvSa.textContent = formatComma(sa_dVal, 0) + unit;
+        mvSa.textContent = formatComma(sa_mVal, 0) + unit;
+      }
+    }
+    if (showRa) {
+      dRaEl.style.height = (ra_dVal / maxVal * 85) + '%';
+      mRaEl.style.height = (ra_mVal / maxVal * 85) + '%';
+      if (isEff) {
+        dvRa.textContent = formatComma(ra_dVal, 0) + unit;
+        mvRa.textContent = formatComma(ra_mVal, 1) + unit;
+      } else {
+        dvRa.textContent = formatComma(ra_dVal, 0) + unit;
+        mvRa.textContent = formatComma(ra_mVal, 0) + unit;
+      }
+    }
+  }
+
+  setBarGroup('flow', sa_dFlow, sa_mFlow, ra_dFlow, ra_mFlow, '', false);
+  setBarGroup('press', sa_dPress, sa_mPress, ra_dPress, ra_mPress, '', false);
+  setBarGroup('curr', sa_dCurr, sa_mCurr, ra_dCurr, ra_mCurr, 'A', false);
+  setBarGroup('eff', sa_dEff, sa_mEff, ra_dEff, ra_mEff, '%', true);
+
+  // 막대 라벨 업데이트
+  const barLabels = document.querySelectorAll('.bar-label');
+  barLabels.forEach(lbl => {
+    if (mode === 'SA') lbl.textContent = '설계 SA';
+    else if (mode === 'RA') lbl.textContent = '설계 RA';
+    else lbl.textContent = '설계 SA 설계 RA';
+  });
+
+  // 범례 업데이트
+  const legendEl = document.querySelector('.bar-legend');
+  if (legendEl) {
+    if (mode === 'SA') {
+      legendEl.innerHTML = '<div class="bar-legend-item"><div class="bar-legend-color" style="background:#ccc;"></div>설계(SA)</div>' +
+        '<div class="bar-legend-item"><div class="bar-legend-color" style="background:#00838f;"></div>측정(SA)</div>';
+    } else if (mode === 'RA') {
+      legendEl.innerHTML = '<div class="bar-legend-item"><div class="bar-legend-color" style="background:#e0c89a;"></div>설계(RA)</div>' +
+        '<div class="bar-legend-item"><div class="bar-legend-color" style="background:#e85d24;"></div>측정(RA)</div>';
+    } else {
+      legendEl.innerHTML = '<div class="bar-legend-item"><div class="bar-legend-color" style="background:#ccc;"></div>설계(SA)</div>' +
+        '<div class="bar-legend-item"><div class="bar-legend-color" style="background:#00838f;"></div>측정(SA)</div>' +
+        '<div class="bar-legend-item"><div class="bar-legend-color" style="background:#e0c89a;"></div>설계(RA)</div>' +
+        '<div class="bar-legend-item"><div class="bar-legend-color" style="background:#e85d24;"></div>측정(RA)</div>';
+    }
+  }
+}
+
+/**
+ * Y축 라벨 그리기 (0%~100%)
+ */
+function drawYAxis() {
+  const container = document.getElementById('yAxisLabels');
+  container.innerHTML = '';
+  for (let v = 0; v <= 100; v += 20) {
+    const lbl = document.createElement('span');
+    lbl.textContent = v + '%';
+    container.appendChild(lbl);
+  }
+}
+
+</script>
+<script>
+/* ===== fanef_radarChart.js ===== */
+/* ============================================================
+ * radarChart.js - 설계 대비 측정 성능 비교 레이더 차트
+ * 의존: calculation.js (selectedFan 변수)
+ * ============================================================ */
+
+/**
+ * 레이더 차트 그리기 (Canvas)
+ * @param {number} sa_flowR  - SA 풍량 비율
+ * @param {number} sa_pressR - SA 정압 비율
+ * @param {number} sa_currR  - SA 전류 비율
+ * @param {number} sa_mEff   - SA 측정 효율
+ * @param {number} sa_dEff   - SA 설계 효율
+ * @param {number} ra_flowR  - RA 풍량 비율
+ * @param {number} ra_pressR - RA 정압 비율
+ * @param {number} ra_currR  - RA 전류 비율
+ * @param {number} ra_mEff   - RA 측정 효율
+ * @param {number} ra_dEff   - RA 설계 효율
+ */
+function drawRadarChart(sa_flowR, sa_pressR, sa_currR, sa_mEff, sa_dEff,
+  ra_flowR, ra_pressR, ra_currR, ra_mEff, ra_dEff) {
+
+  const canvas = document.getElementById('radarCanvas');
+  const wrapper = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = wrapper.clientWidth * dpr;
+  canvas.height = wrapper.clientHeight * dpr;
+  canvas.style.width = wrapper.clientWidth + 'px';
+  canvas.style.height = wrapper.clientHeight + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const w = wrapper.clientWidth;
+  const h = wrapper.clientHeight;
+  const cx = w / 2;
+  const cy = h / 2;
+  const radius = Math.min(w, h) * 0.35;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, w, h);
+
+  const labels = ['풍량', '정압', '전류', '효율'];
+  const numAxes = 4;
+  const angleStep = (Math.PI * 2) / numAxes;
+  const startAngle = -Math.PI / 2;
+  const maxVal = 180;
+
+  const saData = [sa_flowR, sa_pressR, sa_currR, sa_dEff > 0 ? (sa_mEff / sa_dEff) * 100 : 0];
+  const raData = [ra_flowR, ra_pressR, ra_currR, ra_dEff > 0 ? (ra_mEff / ra_dEff) * 100 : 0];
+
+  // ---- 그리드 링 ----
+  const rings = [40, 80, 100, 120, 160];
+  rings.forEach(rv => {
+    const r = (rv / maxVal) * radius;
+    ctx.beginPath();
+    for (let i = 0; i <= numAxes; i++) {
+      const angle = startAngle + i * angleStep;
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = rv === 100 ? '#999' : '#ddd';
+    ctx.lineWidth = rv === 100 ? 1.5 : 0.5;
+    if (rv === 100) {
+      ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      ctx.stroke();
+    }
+  });
+
+  // ---- 축 선 ----
+  for (let i = 0; i < numAxes; i++) {
+    const angle = startAngle + i * angleStep;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + radius * 1.1 * Math.cos(angle), cy + radius * 1.1 * Math.sin(angle));
+    ctx.strokeStyle = '#bbb';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
+
+  // ---- 링 라벨 ----
+  ctx.font = '10px "Noto Sans KR", sans-serif';
+  ctx.fillStyle = '#999';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  rings.forEach(rv => {
+    const r = (rv / maxVal) * radius;
+    ctx.fillText(rv + '%', cx + 4, cy - r - 2);
+  });
+
+  // ---- 설계 기준 폴리곤 (100%) ----
+  ctx.beginPath();
+  for (let i = 0; i < numAxes; i++) {
+    const angle = startAngle + i * angleStep;
+    const r = (100 / maxVal) * radius;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(200, 200, 200, 0.2)';
+  ctx.fill();
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ---- SA 폴리곤 ----
+  if (selectedFan === 'SA' || selectedFan === 'BOTH') {
+    ctx.beginPath();
+    for (let i = 0; i < numAxes; i++) {
+      const angle = startAngle + i * angleStep;
+      const val = Math.min(saData[i], maxVal);
+      const r = (val / maxVal) * radius;
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0, 131, 143, 0.15)';
+    ctx.fill();
+    ctx.strokeStyle = '#00838f';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // SA 포인트
+    for (let i = 0; i < numAxes; i++) {
+      const angle = startAngle + i * angleStep;
+      const val = Math.min(saData[i], maxVal);
+      const r = (val / maxVal) * radius;
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#00838f';
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  // ---- RA 폴리곤 ----
+  if (selectedFan === 'RA' || selectedFan === 'BOTH') {
+    ctx.beginPath();
+    for (let i = 0; i < numAxes; i++) {
+      const angle = startAngle + i * angleStep;
+      const val = Math.min(raData[i], maxVal);
+      const r = (val / maxVal) * radius;
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(232, 93, 36, 0.12)';
+    ctx.fill();
+    ctx.strokeStyle = '#e85d24';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // RA 포인트
+    for (let i = 0; i < numAxes; i++) {
+      const angle = startAngle + i * angleStep;
+      const val = Math.min(raData[i], maxVal);
+      const r = (val / maxVal) * radius;
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#e85d24';
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  // ---- 축 라벨 + 값 ----
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < numAxes; i++) {
+    const angle = startAngle + i * angleStep;
+    const labelR = radius * 1.25;
+    const lx = cx + labelR * Math.cos(angle);
+    const ly = cy + labelR * Math.sin(angle);
+
+    ctx.font = '12px "Noto Sans KR", sans-serif';
+    ctx.fillStyle = '#333';
+    ctx.fillText(labels[i], lx, ly);
+
+    let yOffset = 14;
+    if (selectedFan === 'SA' || selectedFan === 'BOTH') {
+      ctx.font = '10px "Noto Sans KR", sans-serif';
+      ctx.fillStyle = '#00838f';
+      ctx.fillText('SA: ' + saData[i].toFixed(1) + '%', lx, ly + yOffset);
+      yOffset += 12;
+    }
+    if (selectedFan === 'RA' || selectedFan === 'BOTH') {
+      ctx.font = '10px "Noto Sans KR", sans-serif';
+      ctx.fillStyle = '#e85d24';
+      ctx.fillText('RA: ' + raData[i].toFixed(1) + '%', lx, ly + yOffset);
+    }
+  }
+
+  // ---- 범례 ----
+  const legendY = h - 20;
+  ctx.font = '10px "Noto Sans KR", sans-serif';
+
+  // 설계 범례
+  ctx.setLineDash([4, 3]);
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx - 120, legendY);
+  ctx.lineTo(cx - 100, legendY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#666';
+  ctx.textAlign = 'left';
+  ctx.fillText('설계 (100%)', cx - 96, legendY + 1);
+
+  // SA 범례
+  if (selectedFan === 'SA' || selectedFan === 'BOTH') {
+    ctx.strokeStyle = '#00838f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx + 10, legendY);
+    ctx.lineTo(cx + 30, legendY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx + 20, legendY, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#00838f';
+    ctx.fill();
+    ctx.fillText('SA', cx + 34, legendY + 1);
+  }
+
+  // RA 범례
+  if (selectedFan === 'RA' || selectedFan === 'BOTH') {
+    const raLegendX = selectedFan === 'BOTH' ? cx + 60 : cx + 10;
+    ctx.strokeStyle = '#e85d24';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(raLegendX, legendY);
+    ctx.lineTo(raLegendX + 20, legendY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(raLegendX + 10, legendY, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#e85d24';
+    ctx.fill();
+    ctx.fillStyle = '#e85d24';
+    ctx.fillText('RA', raLegendX + 24, legendY + 1);
+  }
+}
+
+</script>
+<script>
+/* ===== fanef_calculation.js ===== */
+/* ============================================================
+ * calculation.js - AHU 팬 효율 계산 로직
+ * 의존: utils.js, donutChart.js, barChart.js, radarChart.js
+ * ============================================================ */
+
+/** 현재 선택된 팬 모드 ('SA' | 'RA' | 'BOTH') */
+let selectedFan = 'SA';
+
+/**
+ * 팬 선택 버튼 토글 및 재계산
+ * @param {'SA'|'RA'|'BOTH'} fan - 선택할 팬 유형
+ */
+function selectFan(fan) {
+  selectedFan = fan;
+  document.getElementById('fanBtnSA').classList.toggle('active', fan === 'SA');
+  document.getElementById('fanBtnRA').classList.toggle('active', fan === 'RA');
+  document.getElementById('fanBtnBoth').classList.toggle('active', fan === 'BOTH');
+  recalc();
+}
+
+/**
+ * 전체 재계산 - 입력값 읽기 → 축동력/효율 계산 → 차트 업데이트
+ */
+function recalc() {
+  // === SA Design ===
+  const sa_dFlow = parseNum(document.getElementById('inp-sa-design-flow').value) || 0;
+  const sa_dPress = parseNum(document.getElementById('inp-sa-design-press').value) || 0;
+  const sa_dCurrent = parseNum(document.getElementById('inp-sa-design-current').value) || 0;
+  const sa_dPower = parseNum(document.getElementById('inp-sa-design-power').value) || 0;
+  const sa_dEff = parseNum(document.getElementById('inp-sa-design-eff').value) || 0;
+
+  // === RA Design ===
+  const ra_dFlow = parseNum(document.getElementById('inp-ra-design-flow').value) || 0;
+  const ra_dPress = parseNum(document.getElementById('inp-ra-design-press').value) || 0;
+  const ra_dCurrent = parseNum(document.getElementById('inp-ra-design-current').value) || 0;
+  const ra_dPower = parseNum(document.getElementById('inp-ra-design-power').value) || 0;
+  const ra_dEff = parseNum(document.getElementById('inp-ra-design-eff').value) || 0;
+
+  // === SA Measured ===
+  const sa_mFlow = parseNum(document.getElementById('inp-sa-meas-flow').value) || 0;
+  const sa_mPress = parseNum(document.getElementById('inp-sa-meas-press').value) || 0;
+  const sa_mVoltage = parseNum(document.getElementById('inp-sa-meas-voltage').value) || 380;
+  const sa_mCurrent = parseNum(document.getElementById('inp-sa-meas-current').value) || 0;
+
+  // === RA Measured ===
+  const ra_mFlow = parseNum(document.getElementById('inp-ra-meas-flow').value) || 0;
+  const ra_mPress = parseNum(document.getElementById('inp-ra-meas-press').value) || 0;
+  const ra_mVoltage = parseNum(document.getElementById('inp-ra-meas-voltage').value) || 380;
+  const ra_mCurrent = parseNum(document.getElementById('inp-ra-meas-current').value) || 0;
+
+  const PF = 0.9;
+
+  // 축동력 = √3 × V × I × PF / 1000
+  const sa_mPower = (Math.sqrt(3) * sa_mVoltage * sa_mCurrent * PF) / 1000;
+  const ra_mPower = (Math.sqrt(3) * ra_mVoltage * ra_mCurrent * PF) / 1000;
+  document.getElementById('calc-sa-power').value = formatComma(sa_mPower, 1);
+  document.getElementById('calc-ra-power').value = formatComma(ra_mPower, 1);
+
+  // 팬효율 = (Q/3600) × (P × 9.81) / (W × 1000) × 100
+  const sa_mEff = sa_mPower > 0 ? ((sa_mFlow / 3600) * (sa_mPress * 9.81)) / (sa_mPower * 1000) * 100 : 0;
+  const ra_mEff = ra_mPower > 0 ? ((ra_mFlow / 3600) * (ra_mPress * 9.81)) / (ra_mPower * 1000) * 100 : 0;
+  document.getElementById('calc-sa-eff').value = formatComma(sa_mEff, 1);
+  document.getElementById('calc-ra-eff').value = formatComma(ra_mEff, 1);
+
+  // Ratios (설계 대비 측정 비율)
+  const sa_flowR = sa_dFlow > 0 ? (sa_mFlow / sa_dFlow) * 100 : 0;
+  const sa_pressR = sa_dPress > 0 ? (sa_mPress / sa_dPress) * 100 : 0;
+  const sa_currR = sa_dCurrent > 0 ? (sa_mCurrent / sa_dCurrent) * 100 : 0;
+  const sa_effDrop = sa_dEff > 0 ? ((sa_dEff - sa_mEff) / sa_dEff) * 100 : 0;
+
+  const ra_flowR = ra_dFlow > 0 ? (ra_mFlow / ra_dFlow) * 100 : 0;
+  const ra_pressR = ra_dPress > 0 ? (ra_mPress / ra_dPress) * 100 : 0;
+  const ra_currR = ra_dCurrent > 0 ? (ra_mCurrent / ra_dCurrent) * 100 : 0;
+  const ra_effDrop = ra_dEff > 0 ? ((ra_dEff - ra_mEff) / ra_dEff) * 100 : 0;
+
+  // Update metric cards (분석 결과 카드)
+  document.getElementById('val-flow-sa').textContent = formatComma(sa_flowR, 1);
+  document.getElementById('val-flow-ra').textContent = formatComma(ra_flowR, 1);
+  document.getElementById('val-press-sa').textContent = formatComma(sa_pressR, 1);
+  document.getElementById('val-press-ra').textContent = formatComma(ra_pressR, 1);
+  document.getElementById('val-curr-sa').textContent = formatComma(sa_currR, 1);
+  document.getElementById('val-curr-ra').textContent = formatComma(ra_currR, 1);
+  document.getElementById('val-eff-sa').textContent = formatComma(sa_mEff, 1);
+  document.getElementById('val-eff-ra').textContent = formatComma(ra_mEff, 1);
+  document.getElementById('val-drop-sa').textContent = formatComma(sa_effDrop, 1);
+  document.getElementById('val-drop-ra').textContent = formatComma(ra_effDrop, 1);
+
+  // Donut 차트 업데이트
+  updateDonut('SA', sa_mEff, sa_dEff);
+  updateDonut('RA', ra_mEff, ra_dEff);
+
+  // Bar 차트 업데이트
+  updateBarChart(sa_dFlow, sa_mFlow, ra_dFlow, ra_mFlow, sa_dPress, sa_mPress, ra_dPress, ra_mPress,
+    sa_dCurrent, sa_mCurrent, ra_dCurrent, ra_mCurrent, sa_dEff, sa_mEff, ra_dEff, ra_mEff);
+
+  // Radar 차트 업데이트
+  drawRadarChart(
+    sa_flowR, sa_pressR, sa_currR, sa_mEff, sa_dEff,
+    ra_flowR, ra_pressR, ra_currR, ra_mEff, ra_dEff
+  );
+
+  // 모든 숫자 필드에 천 단위 콤마 포맷 적용
+  formatAllNumericFields();
+}
+
+</script>
+<script>
+/* ===== fanef_tabManager.js ===== */
+/* ============================================================
+ * tabManager.js - 장비 탭 관리 (추가/삭제/전환/저장)
+ * 의존: utils.js, calculation.js
+ * 연동: github-api.js, auth.js (대시보드 프로젝트 시스템)
+ * ============================================================ */
+
+/** 탭 관련 상태 변수 */
+let tabCount = 1;
+let activeTab = 1;
+let nextTabId = 2;
+
+/** 폼 필드 ID 목록 */
+const FIELD_IDS = [
+  'inp-name', 'inp-no', 'inp-use', 'inp-note',
+  'inp-sa-design-flow', 'inp-sa-design-press', 'inp-sa-design-voltage', 'inp-sa-design-current', 'inp-sa-design-power', 'inp-sa-design-eff',
+  'inp-ra-design-flow', 'inp-ra-design-press', 'inp-ra-design-voltage', 'inp-ra-design-current', 'inp-ra-design-power', 'inp-ra-design-eff',
+  'inp-sa-meas-flow', 'inp-sa-meas-press', 'inp-sa-meas-voltage', 'inp-sa-meas-current',
+  'inp-ra-meas-flow', 'inp-ra-meas-press', 'inp-ra-meas-voltage', 'inp-ra-meas-current'
+];
+
+/** 기본 장비 데이터 (AHU-01 초기값) */
+const DEFAULT_VALUES = {
+  'inp-name': 'AHU-01', 'inp-no': '#01', 'inp-use': '저층부 냉수순환용', 'inp-note': '60Hz, 단독기동',
+  'inp-sa-design-flow': '25500', 'inp-sa-design-press': '100', 'inp-sa-design-voltage': '380', 'inp-sa-design-current': '23.7', 'inp-sa-design-power': '11.3', 'inp-sa-design-eff': '65',
+  'inp-ra-design-flow': '21600', 'inp-ra-design-press': '35', 'inp-ra-design-voltage': '380', 'inp-ra-design-current': '11.9', 'inp-ra-design-power': '5.6', 'inp-ra-design-eff': '45',
+  'inp-sa-meas-flow': '10093', 'inp-sa-meas-press': '132', 'inp-sa-meas-voltage': '375', 'inp-sa-meas-current': '19.2',
+  'inp-ra-meas-flow': '13114', 'inp-ra-meas-press': '26', 'inp-ra-meas-voltage': '378', 'inp-ra-meas-current': '11.5'
+};
+
+/** 빈 값 초기화용 */
+const EMPTY_VALUES = {};
+FIELD_IDS.forEach(id => { EMPTY_VALUES[id] = ''; });
+
+/** 장비 데이터 저장소 (탭ID → 필드값 매핑) */
+const equipStore = {};
+
+// =============================================
+// 프로젝트 연동 (URL 파라미터 & GitHub 저장)
+// =============================================
+
+/** 현재 프로젝트 정보 (URL 파라미터에서 추출) */
+let _currentProjectId = null;
+let _currentProjectName = null;
+
+/** GitHub 저장 경로 (프로젝트별) */
+function _getDataPath() {
+  if (!_currentProjectId) return null;
+  return 'data/fanef/' + _currentProjectId + '.json';
+}
+
+/** localStorage 키 (프로젝트별) */
+function _getLocalKey() {
+  if (!_currentProjectId) return 'himec_fanef_standalone';
+  return 'himec_fanef_' + _currentProjectId;
+}
+
+/**
+ * URL에서 프로젝트 파라미터 추출
+ */
+function parseProjectParams() {
+  const params = new URLSearchParams(window.location.search);
+  _currentProjectId = params.get('projectId') || null;
+  _currentProjectName = params.get('projectName') || null;
+
+  // 헤더 제목 앞에 [ 프로젝트명 ] 표시
+  const titleLabel = document.getElementById('projectNameLabel');
+  if (titleLabel && _currentProjectName && _currentProjectName.trim() !== '') {
+    titleLabel.textContent = '[ ' + _currentProjectName.trim() + ' ] ';
+  }
+
+  console.log('[fanef] 프로젝트:', _currentProjectId, _currentProjectName);
+}
+
+// =============================================
+// 데이터 수집 / 복원
+// =============================================
+
+/**
+ * 전체 탭 데이터를 직렬화 가능한 객체로 수집
+ */
+function collectAllData() {
+  // 현재 활성 탭 데이터를 먼저 저장소에 반영
+  saveCurrentTab();
+
+  // 탭 순서 파악
+  const tabButtons = document.querySelectorAll('.tab:not(.add)');
+  const tabOrder = [];
+  tabButtons.forEach(btn => {
+    const id = parseInt(btn.id.replace('tab-', ''));
+    if (!isNaN(id)) tabOrder.push(id);
+  });
+
+  return {
+    projectId: _currentProjectId,
+    projectName: _currentProjectName,
+    toolId: 'fan_efficiency',
+    lastModified: new Date().toISOString(),
+    selectedFan: selectedFan,
+    tabs: JSON.parse(JSON.stringify(equipStore)),
+    tabOrder: tabOrder,
+    activeTab: activeTab,
+    nextTabId: nextTabId,
+    tabCount: tabCount
+  };
+}
+
+/**
+ * 저장된 데이터로 전체 상태 복원
+ * @param {object} data - collectAllData()가 반환하는 구조
+ */
+function restoreAllData(data) {
+  if (!data || !data.tabs) return false;
+
+  // 1. 기존 탭 버튼 모두 제거
+  const tabBar = document.querySelector('.tab-bar');
+  const addBtn = tabBar.querySelector('.tab.add');
+  document.querySelectorAll('.tab:not(.add)').forEach(btn => btn.remove());
+
+  // 2. equipStore 복원
+  Object.keys(equipStore).forEach(k => delete equipStore[k]);
+  Object.keys(data.tabs).forEach(k => {
+    equipStore[k] = data.tabs[k];
+  });
+
+  // 3. 상태 변수 복원
+  nextTabId = data.nextTabId || 2;
+  tabCount = data.tabCount || 1;
+  if (data.selectedFan) {
+    selectedFan = data.selectedFan;
+    document.getElementById('fanBtnSA').classList.toggle('active', selectedFan === 'SA');
+    document.getElementById('fanBtnRA').classList.toggle('active', selectedFan === 'RA');
+    document.getElementById('fanBtnBoth').classList.toggle('active', selectedFan === 'BOTH');
+  }
+
+  // 4. 탭 순서대로 버튼 생성
+  const order = data.tabOrder || Object.keys(data.tabs).map(Number);
+  order.forEach((tabId, idx) => {
+    const tabData = equipStore[tabId];
+    const name = (tabData && tabData['inp-name']) || '장비';
+    const no = (tabData && tabData['inp-no']) || '#' + (idx + 1);
+
+    const btn = document.createElement('button');
+    btn.className = 'tab';
+    btn.id = 'tab-' + tabId;
+    btn.textContent = name + ' ' + no;
+    btn.onclick = function() { switchTab(tabId); };
+
+    const closeSpan = document.createElement('span');
+    closeSpan.className = 'tab-close';
+    closeSpan.textContent = '\u2715';
+    closeSpan.onclick = function(e) { e.stopPropagation(); removeTab(tabId); };
+    btn.appendChild(closeSpan);
+
+    tabBar.insertBefore(btn, addBtn);
+  });
+
+  // 5. 활성 탭 설정 & 데이터 로드
+  const targetTab = data.activeTab || order[0] || 1;
+  activeTab = targetTab;
+  const targetBtn = document.getElementById('tab-' + targetTab);
+  if (targetBtn) targetBtn.classList.add('active');
+
+  loadTab(targetTab);
+  recalc();
+
+  return true;
+}
+
+// =============================================
+// GitHub / localStorage 저장 & 로드
+// =============================================
+
+/**
+ * 프로젝트 데이터를 GitHub + localStorage에 저장
+ */
+async function saveProjectData() {
+  const data = collectAllData();
+
+  // 1) localStorage (항상)
+  try {
+    localStorage.setItem(_getLocalKey(), JSON.stringify(data));
+    console.log('[fanef] localStorage 저장 성공');
+  } catch (e) {
+    console.warn('[fanef] localStorage 저장 실패:', e);
+  }
+
+  // 2) GitHub 저장 (프로젝트 ID가 있고, ghSaveFile 함수가 존재할 때)
+  const dataPath = _getDataPath();
+  if (dataPath && typeof ghSaveFile === 'function') {
+    try {
+      await ghSaveFile(dataPath, data, '팬효율 분석 데이터 저장: ' + (_currentProjectName || ''));
+      console.log('[fanef] GitHub 저장 성공:', dataPath);
+      return true;
+    } catch (e) {
+      console.warn('[fanef] GitHub 저장 실패:', e);
+      return false;
+    }
+  }
+
+  return true; // localStorage만 성공해도 OK
+}
+
+/**
+ * 프로젝트 데이터를 GitHub / localStorage에서 로드
+ */
+async function loadProjectData() {
+  // 1) GitHub에서 로드 시도
+  const dataPath = _getDataPath();
+  if (dataPath && typeof ghGetFile === 'function') {
+    try {
+      const result = await ghGetFile(dataPath);
+      if (result && result.content && typeof result.content === 'object') {
+        console.log('[fanef] GitHub 로드 성공');
+
+        // localStorage에도 동기화
+        try {
+          localStorage.setItem(_getLocalKey(), JSON.stringify(result.content));
+        } catch (e) { /* 무시 */ }
+
+        return result.content;
+      }
+    } catch (e) {
+      console.warn('[fanef] GitHub 로드 실패, localStorage 폴백:', e);
+    }
+  }
+
+  // 2) localStorage 폴백
+  try {
+    const saved = localStorage.getItem(_getLocalKey());
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.tabs) {
+        console.log('[fanef] localStorage 로드 성공');
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('[fanef] localStorage 로드 실패:', e);
+  }
+
+  return null; // 저장된 데이터 없음
+}
+
+// =============================================
+// 기존 탭 관리 함수들
+// =============================================
+
+/**
+ * 초기 저장소 세팅 (탭 1번의 현재 HTML 값 저장)
+ */
+function initStore() {
+  equipStore[1] = {};
+  FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    equipStore[1][id] = el ? el.value.replace(/,/g, '') : (DEFAULT_VALUES[id] || '');
+  });
+}
+
+/**
+ * 현재 활성 탭의 입력값을 저장소에 저장
+ */
+function saveCurrentTab() {
+  if (!equipStore[activeTab]) equipStore[activeTab] = {};
+  FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) equipStore[activeTab][id] = el.value.replace(/,/g, '');
+  });
+}
+
+/**
+ * 특정 탭의 데이터를 폼에 로드
+ * @param {number} tabId - 탭 ID
+ */
+function loadTab(tabId) {
+  const data = equipStore[tabId] || EMPTY_VALUES;
+  FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.value = data[id] || '';
+      el.placeholder = (!data[id] || data[id] === '') ? '입력하세요' : '';
+      if (NUMERIC_IDS && NUMERIC_IDS.indexOf(id) >= 0) applyCommaFormat(el);
+    }
+  });
+}
+
+/**
+ * 현재 탭 버튼의 이름 갱신 (장비명 + 번호)
+ */
+function updateTabName() {
+  const name = document.getElementById('inp-name').value || '장비';
+  const no = document.getElementById('inp-no').value || '#' + activeTab;
+  const tabBtn = document.getElementById('tab-' + activeTab);
+  if (tabBtn) {
+    const closeBtn = tabBtn.querySelector('.tab-close');
+    tabBtn.textContent = name + ' ' + no;
+    if (closeBtn) tabBtn.appendChild(closeBtn);
+  }
+}
+
+/**
+ * 탭 전환
+ * @param {number} tabId - 전환할 대상 탭 ID
+ */
+function switchTab(tabId) {
+  if (tabId === activeTab) return;
+  saveCurrentTab();
+  updateTabName();
+  document.querySelectorAll('.tab:not(.add)').forEach(t => t.classList.remove('active'));
+  const targetBtn = document.getElementById('tab-' + tabId);
+  if (targetBtn) targetBtn.classList.add('active');
+  activeTab = tabId;
+  loadTab(tabId);
+  recalc();
+}
+
+/**
+ * 새 장비 탭 추가
+ */
+function addTab() {
+  saveCurrentTab();
+  updateTabName();
+  const newId = nextTabId++;
+  tabCount++;
+  equipStore[newId] = {};
+  FIELD_IDS.forEach(id => { equipStore[newId][id] = ''; });
+
+  const btn = document.createElement('button');
+  btn.className = 'tab';
+  btn.id = 'tab-' + newId;
+  btn.textContent = '장비 #' + tabCount;
+  btn.onclick = function() { switchTab(newId); };
+
+  const closeSpan = document.createElement('span');
+  closeSpan.className = 'tab-close';
+  closeSpan.textContent = '\u2715';
+  closeSpan.onclick = function(e) { e.stopPropagation(); removeTab(newId); };
+  btn.appendChild(closeSpan);
+
+  const tabBar = document.querySelector('.tab-bar');
+  tabBar.insertBefore(btn, tabBar.lastElementChild);
+
+  document.querySelectorAll('.tab:not(.add)').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  activeTab = newId;
+  loadTab(newId);
+  recalc();
+}
+
+/**
+ * 장비 탭 삭제
+ * @param {number} tabId - 삭제할 탭 ID
+ */
+function removeTab(tabId) {
+  const tabs = document.querySelectorAll('.tab:not(.add)');
+  if (tabs.length <= 1) {
+    alert('최소 1개의 장비는 유지해야 합니다.');
+    return;
+  }
+  const tabBtn = document.getElementById('tab-' + tabId);
+  const tabName = tabBtn ? tabBtn.textContent.replace('\u2715', '').trim() : '장비';
+  if (!confirm('"' + tabName + '" 장비를 삭제하시겠습니까?')) return;
+
+  if (tabBtn) tabBtn.remove();
+  delete equipStore[tabId];
+
+  if (activeTab === tabId) {
+    const remaining = document.querySelectorAll('.tab:not(.add)');
+    if (remaining.length > 0) {
+      const firstTab = remaining[0];
+      const firstId = parseInt(firstTab.id.replace('tab-', ''));
+      firstTab.classList.add('active');
+      activeTab = firstId;
+      loadTab(firstId);
+      recalc();
+    }
+  }
+}
+
+// =============================================
+// Save / Export / Main 버튼 (GitHub 연동)
+// =============================================
+
+/**
+ * 데이터 저장 (GitHub + localStorage)
+ */
+async function saveData() {
+  saveCurrentTab();
+  updateTabName();
+
+  showLoading('데이터 저장 중...');
+  try {
+    const githubOk = await saveProjectData();
+    if (githubOk) {
+      showToast('데이터가 저장되었습니다.');
+    } else {
+      showToast('로컬에만 저장되었습니다. (클라우드 저장 실패)');
+    }
+  } catch (e) {
+    console.error('[saveData] 저장 오류:', e);
+    showToast('저장 중 오류가 발생했습니다.');
+  } finally {
+    hideLoading();
+  }
+}
+
+/**
+ * 파일 내보내기 (JSON 다운로드)
+ */
+function exportFile() {
+  saveCurrentTab();
+  updateTabName();
+
+  const data = collectAllData();
+  const jsonStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'fanef_' + (_currentProjectName || 'data') + '_' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast('파일이 다운로드됩니다.');
+}
+
+/**
+ * 대시보드(메인)로 이동
+ */
+function goMain() {
+  saveCurrentTab();
+  updateTabName();
+
+  // 변경사항 자동 저장 후 이동
+  saveProjectData().then(() => {
+    // fanef.html 기준 대시보드 경로: ../../dashboard.html
+    window.location.href = '../../dashboard.html';
+  }).catch(() => {
+    window.location.href = '../../dashboard.html';
+  });
+}
+
+</script>
+<script>
+/* ===== fanef_app.js ===== */
+/* ============================================================
+ * app.js - 앱 초기화 및 이벤트 바인딩
+ * 의존: 모든 모듈 로드 후 실행
+ * 연동: tabManager.js의 프로젝트 로드/저장 함수 사용
+ * ============================================================ */
+
+// =============================================
+// showToast / showLoading 폴백
+// (auth.js보다 먼저 로드되거나 없는 경우 대비)
+// =============================================
+
+if (typeof showToast === 'undefined') {
+  window.showToast = function(msg) {
+    var t = document.getElementById('toast');
+    if (!t) { console.log('[Toast]', msg); return; }
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 2500);
+  };
+}
+if (typeof showLoading === 'undefined') {
+  window.showLoading = function(text) {
+    var el = document.getElementById('loadingOverlay');
+    if (el) {
+      var lt = document.getElementById('loadingText');
+      if (lt) lt.textContent = text || '처리 중...';
+      el.classList.add('active');
+    }
+  };
+}
+if (typeof hideLoading === 'undefined') {
+  window.hideLoading = function() {
+    var el = document.getElementById('loadingOverlay');
+    if (el) el.classList.remove('active');
+  };
+}
+
+// =============================================
+// DOM 로드 완료 시 초기화
+// =============================================
+
+window.addEventListener('DOMContentLoaded', async function() {
+  // 0. 인증 초기화 (GitHub API 사용을 위해)
+  if (typeof initAuth === 'function') {
+    try {
+      await initAuth();
+    } catch (e) {
+      console.warn('[fanef] 인증 초기화 실패:', e);
+    }
+  }
+
+  // 1. URL에서 프로젝트 파라미터 추출
+  parseProjectParams();
+
+  // 2. 탭 저장소 초기화 (기본값)
+  initStore();
+
+  // 3. 저장된 프로젝트 데이터 로드 시도
+  showLoading('데이터 불러오는 중...');
+  try {
+    const savedData = await loadProjectData();
+    if (savedData && savedData.tabs) {
+      // 저장된 데이터가 있으면 복원
+      restoreAllData(savedData);
+      console.log('[fanef] 저장된 데이터 복원 완료');
+    } else {
+      // 저장된 데이터 없으면 기본값으로 시작
+      console.log('[fanef] 저장된 데이터 없음 — 기본값 사용');
+    }
+  } catch (e) {
+    console.warn('[fanef] 데이터 로드 중 오류:', e);
+  } finally {
+    hideLoading();
+  }
+
+  // 4. 장비명/번호 변경 시 탭 이름 자동 갱신
+  ['inp-name', 'inp-no'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateTabName);
+  });
+
+  // 5. 숫자 필드 포커스/블러 이벤트 (콤마 포맷 처리)
+  NUMERIC_IDS.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && !el.readOnly) {
+      el.addEventListener('blur', function() {
+        applyCommaFormat(this);
+      });
+      el.addEventListener('focus', function() {
+        // 편집 시 콤마 제거
+        this.value = this.value.replace(/,/g, '');
+      });
+    }
+  });
+
+  // 6. Y축 라벨 그리기
+  drawYAxis();
+
+  // 7. 최초 계산 실행
+  recalc();
+
+  // 8. 초기값 콤마 포맷 적용
+  formatAllNumericFields();
+});
+
+// =============================================
+// 창 크기 변경 시 차트 재계산
+// =============================================
+
+window.addEventListener('resize', function() {
+  recalc();
+});
+
+// =============================================
+// 페이지 떠날 때 자동 저장
+// =============================================
+
+window.addEventListener('beforeunload', function() {
+  // 동기적으로 localStorage에만 빠르게 저장
+  try {
+    if (typeof saveCurrentTab === 'function') saveCurrentTab();
+    if (typeof updateTabName === 'function') updateTabName();
+    if (typeof collectAllData === 'function') {
+      var data = collectAllData();
+      var key = (typeof _getLocalKey === 'function') ? _getLocalKey() : 'himec_fanef_standalone';
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+  } catch (e) {
+    // 무시 — beforeunload에서 비동기 작업 불가
+  }
+});
+
+</script>
+
+</body>
+</html>
