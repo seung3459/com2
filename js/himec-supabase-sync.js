@@ -85,6 +85,11 @@
   function num(v) { var n = parseFloat(v); return isNaN(n) ? null : n; }
   function nowIso() { return new Date().toISOString(); }
 
+  // DB enum 허용값 — 목록에 없으면 보내지 않음(undefined) → 400 방지
+  var STATUS_ENUM   = ['미계약', '계약', '수행', '종료'];
+  var ACTIVITY_ENUM = ['노후진단', '에너지진단', 'TAB', '연구'];
+  function enumOr(v, allowed) { return allowed.indexOf(v) !== -1 ? v : undefined; }
+
   // 프로젝트 sync_id → projects.id 캐시/조회/생성
   var _projCache = {};
   function resolveProject(client, syncId, fallbackName, year) {
@@ -148,8 +153,8 @@
           var payload = {
             company_id: companyId, sync_id: syncId, name: rowName,
             year: p.year != null ? parseInt(p.year, 10) : new Date().getFullYear(),
-            status: p.status || undefined,
-            activity: p.activity || undefined,
+            status: enumOr(p.status, STATUS_ENUM),
+            activity: enumOr(p.activity, ACTIVITY_ENUM),
             fee: num(p.fee != null ? p.fee : p.amount),
             out_cost: num(p.out_cost),
             month: p.month != null ? parseInt(p.month, 10) : null
@@ -179,7 +184,7 @@
           name: it.name || null,
           fee: num(it.fee != null ? it.fee : it.amount),
           out_cost: num(it.out_cost != null ? it.out_cost : it.cost),
-          status: it.status || null,
+          status: enumOr(it.status, STATUS_ENUM) || null,
           month: it.month != null ? parseInt(it.month, 10) : null,
           payload: it
         });
