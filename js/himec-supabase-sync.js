@@ -516,10 +516,32 @@
   if (d.readyState === 'loading') d.addEventListener('DOMContentLoaded', boot);
   else boot();
 
+  /* tool_runs(registry) → { toolId: [{id,name,year}, ...] } 재구성
+     dashboard.html 등에서 클라우드 목록을 불러올 때 사용. */
+  function loadToolRegistry() {
+    return withClient(function (client) {
+      return client.from('tool_runs')
+        .select('tool_id,results')
+        .eq('company_id', companyId)
+        .eq('tool_category', 'registry')
+        .then(function (r) {
+          if (!r || !r.data || !r.data.length) return null; // 없으면 null → 호출측에서 localStorage 폴백
+          var reg = {};
+          r.data.forEach(function (row) {
+            var t = row.tool_id; if (!t) return;
+            (reg[t] = reg[t] || []).push(row.results || {});
+          });
+          return reg;
+        });
+    });
+  }
+
   /* 외부에서 수동 트리거용 핸들 노출 */
   w.HIMEC_SYNC = {
     backupNow: doBackup,
     mirrorKey: function (k) { scheduleMirror(k, _origGet(k)); },
-    isEnabled: function () { return ENABLED; }
+    isEnabled: function () { return ENABLED; },
+    ready: function () { return sbReady; },
+    loadToolRegistry: loadToolRegistry
   };
 })(window, document);
