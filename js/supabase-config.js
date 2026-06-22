@@ -11,7 +11,7 @@
 
   w.HIMEC_SUPABASE_CONFIG = {
     /* 1) 필수: Supabase 프로젝트 정보 ---------------------------------- */
-    SUPABASE_URL: 'https://njlvcuqclmzfpcergfgj.supabase.co/rest/v1/',
+    SUPABASE_URL: 'https://njlvcuqclmzfpcergfgj.supabase.co',
     SUPABASE_ANON_KEY: 'sb_publishable_n_1_pqQy-CfLtC_QiCi73Q_OC7D3z81',
 
     /* 2) 멀티테넌시(회사) 식별 ----------------------------------------
