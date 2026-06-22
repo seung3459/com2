@@ -1297,24 +1297,21 @@ function generateId() {
  *       실제 데이터는 반드시 result.content 로 꺼내야 한다.
  */
 async function loadProjects() {
-  // 1) GitHub에서 로드 시도
+  // 1) Supabase에서 로드 시도 (tool_runs registry)
   try {
-    const result = await ghGetFile(_PROJECTS_PATH);
-
-    if (result && result.content && typeof result.content === 'object') {
-      // result.content 가 실제 프로젝트 데이터 객체
-      toolProjects = result.content;
-      console.log('[loadProjects] GitHub 로드 성공 — tool 수:', Object.keys(toolProjects).length);
-
-      // localStorage에도 동기화 (오프라인 대비)
-      try {
-        localStorage.setItem('himec_tool_projects', JSON.stringify(toolProjects));
-      } catch (e) { /* 무시 */ }
-
-      return;
+    if (window.HIMEC_SYNC && HIMEC_SYNC.isEnabled()) {
+      const reg = await HIMEC_SYNC.loadToolRegistry();
+      if (reg && typeof reg === 'object') {
+        toolProjects = reg;
+        console.log('[loadProjects] Supabase 로드 성공 — tool 수:', Object.keys(toolProjects).length);
+        try {
+          localStorage.setItem('himec_tool_projects', JSON.stringify(toolProjects));
+        } catch (e) { /* 무시 */ }
+        return;
+      }
     }
   } catch (e) {
-    console.warn('[loadProjects] GitHub 로드 실패, localStorage 폴백:', e);
+    console.warn('[loadProjects] Supabase 로드 실패, localStorage 폴백:', e);
   }
 
   // 2) 폴백: localStorage
@@ -1349,18 +1346,9 @@ async function saveProjects() {
     console.warn('[saveProjects] localStorage 저장 실패:', e);
   }
 
-  // 2) GitHub 저장
-  try {
-    await ghSaveFile(
-      _PROJECTS_PATH,
-      toolProjects,
-      '프로젝트 목록 업데이트'
-    );
-    console.log('[saveProjects] GitHub 저장 성공');
-  } catch (e) {
-    console.warn('[saveProjects] GitHub 저장 실패:', e);
-    showToast('클라우드 저장 실패 — 로컬에만 저장되었습니다.');
-  }
+  // 2) Supabase 동기화: 위 localStorage 저장 시 어댑터가 tool_runs 로 자동 미러링.
+  //    (기존 GitHub 저장 경로 대체 — 별도 호출 불필요)
+  console.log('[saveProjects] 로컬 저장 완료 — Supabase 자동 동기화');
 }
 
 // =============================================
