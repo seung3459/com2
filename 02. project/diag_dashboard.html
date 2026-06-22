@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/himec-supabase-sync.js"></script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIMEC – Project Dashboard</title>
+<style>
+*{box-sizing:border-box;font-family:'Noto Sans KR','Pretendard',-apple-system,sans-serif;}
+body{margin:0;background:#fff;padding:18px;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+
+.pj-dash-header{background:#fff;border-bottom:1px solid #e0e0e0;padding:18px 30px 14px;}
+.pj-dash-header-inner{max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;}
+.pj-dash-header-left{flex:1;}
+.pj-dash-header-title{font-size:24px;font-weight:700;color:#333;margin:0;letter-spacing:-.3px;}
+.pj-dash-header-sub{font-size:12px;color:#999;margin:3px 0 0;font-weight:400;}
+.pj-dash-header-right{display:flex;align-items:center;gap:10px;}
+.auth-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#555;}
+.auth-user-info{font-size:13px;color:#555;white-space:nowrap;}
+.pj-back-btn{width:36px;height:30px;border:1px solid #dde1e6;background:#fff;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#3d4f5c;padding:0;transition:all .15s;flex-shrink:0;}
+.pj-back-btn:hover{background:#f4f5f7;border-color:#546a7b;}
+
+.projects-page{min-height:100vh;padding:0;background:#fff;animation:fadeIn .4s ease-out;}
+.projects-container{max-width:1100px;margin:0 auto;padding:30px 20px;}
+.projects-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;flex-wrap:wrap;gap:14px;}
+.projects-title{font-size:28px;font-weight:800;color:#1f2937;margin:0 0 6px 0;}
+.projects-subtitle{font-size:10px;color:#888;}
+.projects-timeline{position:relative;}
+.projects-empty-state{padding:60px 20px;text-align:center;color:#94a3b8;font-size:14px;background:#fff;border-radius:12px;border:1px dashed #ddd;}
+.projects-info-bottom{margin-top:28px;text-align:right;font-size:10px;color:#999;}
+
+.tl-year-group{margin-bottom:30px;position:relative;}
+.tl-year-header{display:flex;align-items:center;gap:12px;cursor:pointer;padding:4px 0;user-select:none;margin-bottom:6px;}
+.tl-year-left{display:flex;align-items:center;gap:10px;}
+.tl-year-label{font-size:22px;font-weight:800;color:#00838f;letter-spacing:-.5px;}
+.tl-year-dot{width:12px;height:12px;border-radius:50%;border:2.5px solid #bbb;background:#fff;flex-shrink:0;}
+.tl-year-toggle{font-size:11px;color:#aaa;margin-left:2px;transition:transform .2s;}
+.tl-year-header:hover .tl-year-label{color:#d14e1a;}
+.tl-year-header:hover .tl-year-dot{border-color:#e85d24;}
+.tl-year-content{position:relative;margin-left:50px;padding-left:24px;border-left:2px solid #ddd;}
+.tl-project-row{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;margin-bottom:4px;background:#fff;border:none;border-bottom:1px solid #eee;transition:all .15s;gap:12px;}
+.tl-project-row:hover{background:#f8f8f8;}
+.tl-project-row.tl-active{background:#f0f7ff;border-left:3px solid #1a4b8c;}
+.tl-project-row.tl-active:hover{background:#e8f2ff;}
+.tl-project-name{font-size:12px;font-weight:600;color:#333;flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;}
+.tl-project-name::after{content:' →';opacity:0;transition:all .15s;margin-left:2px;color:#999;}
+.tl-project-row:hover .tl-project-name::after{opacity:1;margin-left:6px;}
+.tl-project-actions{display:flex;gap:6px;flex-shrink:0;}
+.tl-activity-box{display:inline-flex;align-items:center;justify-content:center;background:none;color:#075985;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800;cursor:default;user-select:none;width:40px;height:24px;text-align:center;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tl-activity-box i[data-lucide]{width:18px;height:18px;stroke-width:2;}
+.tl-status-badge{display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;border-radius:50%;cursor:pointer;user-select:none;box-sizing:border-box;border:none;flex-shrink:0;align-self:center;padding:0;font:inherit;outline:none;transition:transform .15s,box-shadow .15s;}
+.tl-status-badge:hover{transform:scale(1.3);box-shadow:0 0 0 3px rgba(0,0,0,.1);}
+.tl-status-badge:focus{box-shadow:0 0 0 3px rgba(37,99,235,.3);}
+.tl-status-badge.status-unsigned{background:#f59e0b;}
+.tl-status-badge.status-active{background:#00A693;}
+.tl-status-badge.status-closed{background:#778899;}
+.tl-action-documents{color:#e85d24;cursor:pointer;transition:color .15s;display:inline-flex;align-items:center;justify-content:center;background:none;border:none;padding:0;}
+.tl-action-documents:hover{color:#f5a080;}
+
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:20px;}
+.modal-backdrop.active{display:flex;}
+.modal{background:#fff;border-radius:16px;max-width:560px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3);overflow:hidden;animation:slideUp .25s ease-out;max-height:90vh;display:flex;flex-direction:column;}
+.project-modal{max-width:480px;}
+.modal-header{background:#2c3e50;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.modal-header h3{margin:0;font-size:16px;}
+.modal-close{background:transparent;color:#fff;border:none;font-size:22px;cursor:pointer;padding:0 4px;}
+.modal-body{padding:18px;overflow-y:auto;}
+.project-form{display:flex;flex-direction:column;gap:18px;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-label{font-size:13px;font-weight:700;color:#1f2937;display:flex;align-items:center;gap:6px;}
+.form-input{padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;background:#f9fafb;transition:all .15s;font-family:inherit;width:100%;box-sizing:border-box;}
+.form-input:focus{outline:none;border-color:#1a4b8c;background:#fff;box-shadow:0 0 0 3px rgba(26,75,140,.12);}
+.required{color:#dc2626;font-size:14px;font-weight:900;}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:14px 18px;background:#f9fafb;border-top:1px solid #e5e7eb;flex-shrink:0;}
+.btn-primary{background:linear-gradient(135deg,#1a4b8c,#2563eb);color:#fff;border:none;padding:11px 24px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit;box-shadow:0 4px 12px rgba(26,75,140,.3);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(26,75,140,.4);}
+.btn-secondary{background:#fff;color:#4b5563;border:1.5px solid #e5e7eb;padding:11px 20px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit;}
+.btn-secondary:hover{background:#f3f4f6;border-color:#9ca3af;}
+
+.form-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;}
+.doc-list{display:flex;flex-direction:column;gap:10px;}
+.doc-row{display:flex;gap:10px;align-items:center;}
+.doc-btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;min-width:80px;text-align:center;}
+.doc-upload{background:#e8f0fe;border:none;color:#1a73e8;flex:1;}
+.doc-upload:hover{background:#1a73e8;color:#fff;}
+.doc-view{background:#fff;border:1.5px solid #d1d5db;color:#374151;}
+.doc-view:hover{background:#f3f4f6;border-color:#9ca3af;}
+.doc-reupload{background:#fff;border:1.5px solid #d1d5db;color:#374151;}
+.doc-reupload:hover{background:#f3f4f6;border-color:#9ca3af;}
+
+#toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:#333;color:#fff;padding:12px 22px;border-radius:8px;font-size:13px;z-index:2000;opacity:0;transition:opacity .2s;pointer-events:none;}
+#toast.show{opacity:1;}
+#loading{display:none;position:fixed;inset:0;background:rgba(255,255,255,.7);z-index:1500;align-items:center;justify-content:center;font-size:14px;color:#333;}
+#loading.show{display:flex;}
+
+.upload-modal .modal{max-width:420px;}
+.upload-modal .modal-header{background:#1a4b8c;}
+.upload-modal .modal-header h3{font-size:15px;margin:0;}
+.upload-info{padding:14px 18px 0;display:flex;flex-direction:column;gap:2px;}
+.upload-info strong{font-size:15px;color:#1f2937;}
+.upload-info span{font-size:12px;color:#6b7280;}
+.upload-box{margin:14px 18px;padding:24px 18px;border:2px dashed #d1d5db;border-radius:10px;text-align:center;background:#f9fafb;}
+.upload-box input[type="file"]{display:block;margin:0 auto 10px;font-size:12px;font-family:inherit;}
+.upload-box p{margin:0;font-size:11px;color:#9ca3af;}
+.upload-modal .modal-footer{background:#f9fafb;border-top:1px solid #e5e7eb;}
+.file-status{margin:10px 18px 0;padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:12px;color:#166534;display:none;}
+.file-status.has-file{display:flex;align-items:center;justify-content:space-between;}
+.file-status .file-name{font-weight:600;word-break:break-all;}
+.file-status .file-delete{background:#fee2e2;color:#dc2626;border:none;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;}
+.file-status .file-delete:hover{background:#fecaca;}
+</style>
+<script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+<div id="projects" class="page projects-page" style="display:block;">
+  <div class="pj-dash-header">
+    <div class="pj-dash-header-inner">
+      <div class="pj-dash-header-left">
+        <h1 class="pj-dash-header-title">HIMEC – Mechanical Facility Aging Diagnosis System</h1>
+        <p class="pj-dash-header-sub">(주)하이멕 – 기계설비 노후화 진단</p>
+      </div>
+      <div class="pj-dash-header-right">
+        <div id="dashAuthStatus" class="auth-status"></div>
+        <button class="pj-back-btn" title="메인으로 이동" onclick="goHome()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="projects-container">
+    <div class="projects-header">
+      <div>
+        <h1 class="projects-title">Project Dashboard</h1>
+        <div class="projects-subtitle">진단을 진행할 프로젝트 또는 프로젝트를 등록 해주세요</div>
+      </div>
+    </div>
+    <div id="projectsTimelineBody" class="projects-timeline"></div>
+    <div class="projects-info-bottom">
+      프로젝트명을 클릭하면 진단 페이지로 이동합니다.
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="projectModal" onclick="closeProjectModal(event)">
+  <div class="modal project-modal" onclick="event.stopPropagation()">
+    <div class="modal-header"><h3 id="projectModalTitle">새 프로젝트 추가</h3></div>
+    <div class="modal-body">
+      <div class="project-form">
+        <div class="form-group">
+          <label class="form-label"><span class="required">*</span> Activity</label>
+          <select id="pmActivity" class="form-input form-select">
+            <option value="미선택" selected>01. 미선택</option>
+            <option value="노후진단">02. 노후진단</option>
+            <option value="에너지진단">03. 에너지 진단</option>
+            <option value="TAB">04. TAB</option>
+            <option value="연구">05. 연구</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span class="required">*</span> Documents</label>
+          <div class="doc-list">
+            <div class="doc-row" id="docRowContract">
+              <button type="button" class="doc-btn doc-upload" id="btnUploadContract" onclick="openUploadModal('contract')">+계약서</button>
+              <button type="button" class="doc-btn doc-view" id="btnViewContract" onclick="viewDocument('contract')">보기</button>
+              <button type="button" class="doc-btn doc-reupload" id="btnReuploadContract" onclick="openUploadModal('contract', true)">수정</button>
+            </div>
+            <div class="doc-row" id="docRowProposal">
+              <button type="button" class="doc-btn doc-upload" id="btnUploadProposal" onclick="openUploadModal('proposal')">+제안서</button>
+              <button type="button" class="doc-btn doc-view" id="btnViewProposal" onclick="viewDocument('proposal')">보기</button>
+              <button type="button" class="doc-btn doc-reupload" id="btnReuploadProposal" onclick="openUploadModal('proposal', true)">수정</button>
+            </div>
+            <div class="doc-row" id="docRowEstimate">
+              <button type="button" class="doc-btn doc-upload" id="btnUploadEstimate" onclick="openUploadModal('estimate')">+견적서</button>
+              <button type="button" class="doc-btn doc-view" id="btnViewEstimate" onclick="viewDocument('estimate')">보기</button>
+              <button type="button" class="doc-btn doc-reupload" id="btnReuploadEstimate" onclick="openUploadModal('estimate', true)">수정</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeProjectModal()">취소</button>
+      <button class="btn-primary" id="pmSubmitBtn" onclick="submitProjectForm()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="loading">로딩 중...</div>
+
+<div class="modal-backdrop upload-modal" id="uploadModal" onclick="closeUploadModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="uploadModalTitle">문서 업로드</h3>
+      <button class="modal-close" onclick="closeUploadModal()">&times;</button>
+    </div>
+    <div class="upload-info">
+      <strong id="uploadProjectName"></strong>
+      <span id="uploadProjectYear"></span>
+    </div>
+    <div id="fileStatus" class="file-status">
+      <span class="file-name" id="currentFileName"></span>
+      <button class="file-delete" onclick="deleteUploadedFile()">삭제</button>
+    </div>
+    <div class="upload-box">
+      <input type="file" id="docFile" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx" />
+      <p>PDF, Word, PPT, Excel 파일을 업로드할 수 있습니다.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeUploadModal()">취소</button>
+      <button class="btn-primary" onclick="uploadDocument()">업로드</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const GITHUB_CONFIG = { dataPath: 'data' };
+let currentUser = { login:'local', displayName:'로컬 사용자', role:'editor' };
+let canEdit = true;
+
+function updateDashboardAuthUI(){
+  const el = document.getElementById('dashAuthStatus');
+  if(!el) return;
+  el.innerHTML = '<span class="auth-user-info">로컬 모드</span>';
+  el.style.display = 'flex';
+}
+
+function escapeHtml(s){
+  if(s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+let _toastTimer = null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  if(!t) return;
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function showLoading(msg){ const l = document.getElementById('loading'); if(l){ l.textContent = msg || '로딩 중...'; l.classList.add('show'); } }
+function hideLoading(){ const l = document.getElementById('loading'); if(l) l.classList.remove('show'); }
+
+function _lsKey(path){ return 'gh_file_' + path; }
+async function ghGetFile(path){
+  const raw = localStorage.getItem(_lsKey(path));
+  if(!raw) return null;
+  try{ return { content: JSON.parse(raw), sha:'local' }; }
+  catch(e){ console.error('[ghGetFile] 파싱 오류:', path, e); return null; }
+}
+async function ghSaveFile(path, content){
+  localStorage.setItem(_lsKey(path), JSON.stringify(content));
+  return { content:{ sha:'local' } };
+}
+async function ghDeleteFile(path){ localStorage.removeItem(_lsKey(path)); return { ok:true }; }
+async function ghLoadProjectsList(){
+  const r = await ghGetFile(GITHUB_CONFIG.dataPath + '/projects.json');
+  return r ? r.content : [];
+}
+async function ghSaveProjectsList(list){ return await ghSaveFile(GITHUB_CONFIG.dataPath + '/projects.json', list); }
+async function ghDeleteProjectData(id){ return await ghDeleteFile(GITHUB_CONFIG.dataPath + '/' + id + '.json'); }
+
+/* ========== manage.html 연동 함수 (핵심 추가) ========== */
+const MANAGE_LS_KEY = 'himec_pm_tool_v23';
+
+function statusToManage(diagStatus){
+  // diag_dashboard → manage 상태 변환: 미계약→미계약, 수행→계약, 종료→종료
+  if(diagStatus === '수행') return '계약';
+  if(diagStatus === '종료') return '종료';
+  return '미계약';
+}
+
+function syncToManage(){
+  // diag_dashboard에서 삭제된 프로젝트를 manage.html에도 반영
+  try {
+    const raw = localStorage.getItem(MANAGE_LS_KEY);
+    if(!raw) return;
+    let manageData = JSON.parse(raw);
+    if(!manageData.s1) return;
+
+    // 현재 diag 프로젝트의 syncId 목록
+    const diagSyncIds = new Set(projectsList.map(p => p._syncId).filter(Boolean));
+
+    // manage의 s1에서 삭제된 프로젝트 제거
+    Object.keys(manageData.s1).forEach(year => {
+      manageData.s1[year] = manageData.s1[year].filter(p => {
+        if(p._syncId && !diagSyncIds.has(p._syncId)) return false;
+        return true;
+      });
+    });
+
+    localStorage.setItem(MANAGE_LS_KEY, JSON.stringify(manageData));
+  } catch(e) {
+    console.error('syncToManage error:', e);
+  }
+}
+/* ========== 연동 함수 끝 ========== */
+
+let projectsList = [];
+let currentProjectId = null;
+let projectModalMode = 'add';
+let projectModalEditIdx = -1;
+let yearCollapseState = {};
+
+async function loadProjectsList(){
+  try{
+    showLoading('프로젝트 목록 로드 중...');
+    const data = await ghLoadProjectsList();
+    projectsList = data.projects || [];
+    hideLoading();
+  } catch(e){
+    hideLoading();
+    console.error('목록 로드 실패:', e);
+    projectsList = [];
+  }
+}
+async function saveProjectsList(){
+  try{ await ghSaveProjectsList({ projects: projectsList }); return true; }
+  catch(e){ showToast('저장 실패: ' + e.message); return false; }
+}
+
+function toggleYearGroup(year){
+  yearCollapseState[year] = !yearCollapseState[year];
+  renderProjectsTable();
+}
+
+
+function getActivityIcon(activity) {
+  const iconMap = {
+    '노후진단': 'building-2',
+    '에너지진단': 'line-chart',
+    'TAB': 'settings',
+    '연구': 'microscope'
+  };
+  return iconMap[activity] || null;
+}
+
+function renderProjectsTable(){
+  const container = document.getElementById('projectsTimelineBody');
+  if(!container) return;
+
+  if(projectsList.length === 0){
+    container.innerHTML = '<div class="projects-empty-state">등록된 프로젝트가 없습니다.<br><strong>"+ New Project"</strong> 버튼을 눌러 추가하세요.</div>';
+    return;
+  }
+
+  const grouped = {};
+  projectsList.forEach((p, idx) => {
+    const year = p.year || '기타';
+    (grouped[year] = grouped[year] || []).push({ ...p, _idx: idx });
+  });
+  const sortedYears = Object.keys(grouped).sort((a, b) => {
+    if(a === '기타') return 1;
+    if(b === '기타') return -1;
+    return Number(b) - Number(a);
+  });
+
+  let html = '';
+  sortedYears.forEach(year => {
+    const projects = grouped[year];
+    const isCollapsed = yearCollapseState[year] === true;
+    let projectCounter = 0;
+
+    html += '<div class="tl-year-group ' + (isCollapsed ? 'collapsed' : '') + '">'
+          +   '<div class="tl-year-header" onclick="toggleYearGroup(\'' + year + '\')">'
+          +     '<div class="tl-year-left"><span class="tl-year-label">' + escapeHtml(year) + '</span><span class="tl-year-dot"></span></div>'
+          +     '<span class="tl-year-toggle">' + (isCollapsed ? '▶' : '▼') + '</span>'
+          +   '</div>'
+          +   '<div class="tl-year-content" style="' + (isCollapsed ? 'display:none;' : '') + '">';
+
+    projects.forEach((p) => {
+      projectCounter++;
+      const no = String(projectCounter).padStart(2, '0');
+      const idx = p._idx;
+      const activityIcon = getActivityIcon(p.activity);
+      const activityContent = activityIcon 
+        ? '<i data-lucide="' + activityIcon + '"></i>' 
+        : '';
+      const statusValue = p.status || '미계약';
+      const statusClass = statusValue === '수행' ? 'status-active' : (statusValue === '종료' ? 'status-closed' : 'status-unsigned');
+      const statusBadge = '<button type="button" class="tl-status-badge ' + statusClass + '" title="' + escapeHtml(statusValue) + ' - 클릭하여 Management로 이동" onclick="event.stopPropagation();goToManagement(' + idx + ')"></button>';
+      const actionButtons = canEdit
+        ? statusBadge + '<span class="tl-activity-box" title="' + (p.activity || '미선택') + '">' + activityContent + '</span>'
+          + '<button class="tl-action-documents" onclick="event.stopPropagation();openProjectModal(\'edit\',' + idx + ')" title="Documents"><i data-lucide="file-plus-2" style="width:20px;height:20px;"></i></button>'
+        : '';
+      const isActive = (p.id === currentProjectId);
+      html += '<div class="tl-project-row' + (isActive ? ' tl-active' : '') + '" data-idx="' + idx + '">'
+            +   '<div class="tl-project-name" onclick="selectProject(' + idx + ')">' + no + '. ' + escapeHtml(p.name)
+            + '</div>'
+            +   '<div class="tl-project-actions">' + actionButtons + '</div>'
+            + '</div>';
+    });
+
+    html += '</div></div>';
+  });
+  container.innerHTML = html;
+  if(typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function selectProject(idx){
+  const project = projectsList[idx];
+  if(!project) return;
+  currentProjectId = project.id;
+  localStorage.setItem('activeProjectId', currentProjectId);
+  renderProjectsTable();
+  showLoading('"' + project.name + '" 진입 중...');
+  window.location.href = 'diagnosis/diagnosis.html';
+}
+
+function openProjectModal(mode, idx){
+  projectModalMode = mode;
+  projectModalEditIdx = (typeof idx === 'number') ? idx : -1;
+
+  const titleEl = document.getElementById('projectModalTitle');
+  const submitBtn = document.getElementById('pmSubmitBtn');
+  const activitySelect = document.getElementById('pmActivity');
+
+  if(mode === 'edit' && projectModalEditIdx >= 0){
+    const project = projectsList[projectModalEditIdx];
+    if(!project) return;
+    titleEl.textContent = 'Documents';
+    submitBtn.textContent = '저장';
+    activitySelect.value = project.activity || '미선택';
+  } else {
+    titleEl.textContent = '새 프로젝트 추가';
+    submitBtn.textContent = '추가';
+    activitySelect.value = '미선택';
+  }
+
+  document.getElementById('projectModal').classList.add('active');
+  setTimeout(updateDocButtonStates, 50);
+}
+
+function closeProjectModal(e){
+  if(e && e.target.id !== 'projectModal' && e.type === 'click') return;
+  document.getElementById('projectModal').classList.remove('active');
+  projectModalMode = 'add'; projectModalEditIdx = -1;
+}
+
+async function submitProjectForm(){
+  showLoading('저장 중...');
+
+  const activitySelect = document.getElementById('pmActivity');
+  const selectedActivity = activitySelect.value;
+
+  if(projectModalEditIdx >= 0 && projectsList[projectModalEditIdx]){
+    projectsList[projectModalEditIdx].activity = selectedActivity;
+    await saveProjectsList();
+  }
+
+  hideLoading();
+  showToast('저장 완료');
+  closeProjectModal();
+  renderProjectsTable();
+}
+
+document.addEventListener('keydown', function(e){
+  const modal = document.getElementById('projectModal');
+  if(!modal || !modal.classList.contains('active')) return;
+  if(e.key === 'Escape'){ closeProjectModal(); }
+});
+
+function goHome(){ window.location.href = '../index.html'; }
+
+function goToManagement(idx){
+  // 프로젝트 정보를 localStorage에 저장하고 management 페이지로 이동
+  const project = projectsList[idx];
+  if(project){
+    localStorage.setItem('diag_to_manage_project', JSON.stringify({
+      id: project.id,
+      name: project.name,
+      year: project.year,
+      status: project.status,
+      activity: project.activity,
+      _syncId: project._syncId
+    }));
+  }
+  window.location.href = '../04. management/manage.html';
+}
+
+let currentDocType = null;
+let isReupload = false;
+
+const DOC_TYPE_LABELS = {
+  contract: '계약서',
+  proposal: '제안서',
+  estimate: '견적서'
+};
+
+function getDocStorageKey(projectId, docType) {
+  return 'himec_doc_' + docType + '_' + projectId;
+}
+
+function openUploadModal(docType, reupload = false) {
+  if (projectModalEditIdx < 0 || !projectsList[projectModalEditIdx]) {
+    showToast('프로젝트를 먼저 선택해주세요.');
+    return;
+  }
+
+  const project = projectsList[projectModalEditIdx];
+  currentDocType = docType;
+  isReupload = reupload;
+
+  const titleEl = document.getElementById('uploadModalTitle');
+  titleEl.textContent = DOC_TYPE_LABELS[docType] + (reupload ? ' 수정' : ' 업로드');
+
+  document.getElementById('uploadProjectName').textContent = project.name;
+  document.getElementById('uploadProjectYear').textContent = project.year + '년';
+  document.getElementById('docFile').value = '';
+
+  updateFileStatus(project.id, docType);
+  document.getElementById('uploadModal').classList.add('active');
+}
+
+function closeUploadModal(e) {
+  if (e && e.target.id !== 'uploadModal' && e.type === 'click') return;
+  document.getElementById('uploadModal').classList.remove('active');
+  currentDocType = null;
+  isReupload = false;
+}
+
+function updateFileStatus(projectId, docType) {
+  const statusEl = document.getElementById('fileStatus');
+  const fileNameEl = document.getElementById('currentFileName');
+  const storageKey = getDocStorageKey(projectId, docType);
+
+  try {
+    const savedData = localStorage.getItem(storageKey);
+    if (savedData) {
+      const fileData = JSON.parse(savedData);
+      fileNameEl.textContent = fileData.fileName || '저장된 파일';
+      statusEl.classList.add('has-file');
+    } else {
+      statusEl.classList.remove('has-file');
+    }
+  } catch (e) {
+    statusEl.classList.remove('has-file');
+  }
+}
+
+function deleteUploadedFile() {
+  if (projectModalEditIdx < 0 || !currentDocType) return;
+
+  const project = projectsList[projectModalEditIdx];
+  const storageKey = getDocStorageKey(project.id, currentDocType);
+
+  if (!confirm(DOC_TYPE_LABELS[currentDocType] + ' 파일을 삭제하시겠습니까?')) return;
+
+  localStorage.removeItem(storageKey);
+
+  if (!project.documents) project.documents = {};
+  delete project.documents[currentDocType];
+  saveProjectsList();
+
+  updateFileStatus(project.id, currentDocType);
+  updateDocButtonStates();
+  showToast(DOC_TYPE_LABELS[currentDocType] + '가 삭제되었습니다.');
+}
+
+function readFileAsBase64(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function() {
+      var result = reader.result;
+      var base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = function() {
+      reject(new Error('파일 읽기 실패'));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadDocument() {
+  const fileInput = document.getElementById('docFile');
+  const file = fileInput.files[0];
+
+  if (!file) {
+    alert('업로드할 파일을 선택해 주세요.');
+    return;
+  }
+
+  if (projectModalEditIdx < 0 || !currentDocType) {
+    alert('프로젝트 또는 문서 유형이 선택되지 않았습니다.');
+    return;
+  }
+
+  const project = projectsList[projectModalEditIdx];
+
+  if (file.size > 4 * 1024 * 1024) {
+    alert('파일 크기가 4MB를 초과합니다.');
+    return;
+  }
+
+  showLoading('파일 업로드 중...');
+
+  try {
+    const base64 = await readFileAsBase64(file);
+    const ext = file.name.split('.').pop().toLowerCase();
+    const safeName = currentDocType + '_' + project.id + '_' + Date.now() + '.' + ext;
+
+    const fileData = {
+      base64: base64,
+      fileName: file.name,
+      safeName: safeName,
+      ext: ext,
+      size: file.size,
+      uploadedAt: new Date().toISOString()
+    };
+
+    const storageKey = getDocStorageKey(project.id, currentDocType);
+
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(fileData));
+    } catch (e) {
+      alert('저장소 용량이 부족합니다.');
+      hideLoading();
+      return;
+    }
+
+    if (!project.documents) project.documents = {};
+    project.documents[currentDocType] = {
+      fileName: file.name,
+      safeName: safeName,
+      ext: ext,
+      uploadedAt: new Date().toISOString()
+    };
+
+    await saveProjectsList();
+    updateDocButtonStates();
+    showToast(DOC_TYPE_LABELS[currentDocType] + '가 업로드되었습니다.');
+
+  } catch (e) {
+    console.error('[uploadDocument] 오류:', e);
+    showToast('업로드 중 오류가 발생했습니다: ' + e.message);
+  } finally {
+    hideLoading();
+  }
+
+  closeUploadModal();
+}
+
+function viewDocument(docType) {
+  if (projectModalEditIdx < 0 || !projectsList[projectModalEditIdx]) {
+    showToast('프로젝트를 먼저 선택해주세요.');
+    return;
+  }
+
+  const project = projectsList[projectModalEditIdx];
+  const storageKey = getDocStorageKey(project.id, docType);
+
+  try {
+    const savedData = localStorage.getItem(storageKey);
+    if (!savedData) {
+      showToast(DOC_TYPE_LABELS[docType] + '가 등록되지 않았습니다.');
+      return;
+    }
+
+    const fileData = JSON.parse(savedData);
+    const byteCharacters = atob(fileData.base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+
+    const mimeTypes = {
+      pdf: 'application/pdf',
+      doc: 'application/msword',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ppt: 'application/vnd.ms-powerpoint',
+      pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      xls: 'application/vnd.ms-excel',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    };
+    const mimeType = mimeTypes[fileData.ext] || 'application/octet-stream';
+
+    const blob = new Blob([byteArray], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+
+    if (fileData.ext === 'pdf') {
+      window.open(url, '_blank');
+    } else {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileData.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast(fileData.fileName + ' 다운로드 시작');
+    }
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  } catch (e) {
+    console.error('[viewDocument] 오류:', e);
+    showToast('파일을 열 수 없습니다.');
+  }
+}
+
+function updateDocButtonStates() {
+  if (projectModalEditIdx < 0 || !projectsList[projectModalEditIdx]) return;
+
+  const project = projectsList[projectModalEditIdx];
+  const docTypes = ['contract', 'proposal', 'estimate'];
+  const labels = { contract: '계약서', proposal: '제안서', estimate: '견적서' };
+
+  docTypes.forEach(docType => {
+    const storageKey = getDocStorageKey(project.id, docType);
+    const hasFile = localStorage.getItem(storageKey) !== null;
+
+    const uploadBtn = document.getElementById('btnUpload' + docType.charAt(0).toUpperCase() + docType.slice(1));
+    const viewBtn = document.getElementById('btnView' + docType.charAt(0).toUpperCase() + docType.slice(1));
+    const reuploadBtn = document.getElementById('btnReupload' + docType.charAt(0).toUpperCase() + docType.slice(1));
+
+    if (uploadBtn) {
+      if (hasFile) {
+        uploadBtn.textContent = '✓ ' + labels[docType];
+        uploadBtn.style.background = '#dcfce7';
+        uploadBtn.style.color = '#166534';
+      } else {
+        uploadBtn.textContent = '+' + labels[docType];
+        uploadBtn.style.background = '#e8f0fe';
+        uploadBtn.style.color = '#1a73e8';
+      }
+    }
+
+    if (viewBtn) {
+      viewBtn.disabled = !hasFile;
+      viewBtn.style.opacity = hasFile ? '1' : '0.5';
+      viewBtn.style.cursor = hasFile ? 'pointer' : 'not-allowed';
+    }
+
+    if (reuploadBtn) {
+      reuploadBtn.disabled = !hasFile;
+      reuploadBtn.style.opacity = hasFile ? '1' : '0.5';
+      reuploadBtn.style.cursor = hasFile ? 'pointer' : 'not-allowed';
+    }
+  });
+}
+
+document.addEventListener('keydown', function(e) {
+  const uploadModal = document.getElementById('uploadModal');
+  if (uploadModal && uploadModal.classList.contains('active') && e.key === 'Escape') {
+    closeUploadModal();
+  }
+});
+
+window.addEventListener('DOMContentLoaded', async function(){
+  updateDashboardAuthUI();
+  currentProjectId = localStorage.getItem('activeProjectId') || null;
+  await loadProjectsList();
+  renderProjectsTable();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/himec-supabase-sync.js"></script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIMEC - Project Tracker Tool</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+  body { display: flex; flex-direction: column; }
+
+  /* Page container - 좌우 동일 여백 */
+  .page-container {
+    padding: 0 100px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    background: #fff;
+  }
+
+  /* Header (Tool-003 동일) */
+  .header {
+    background: #fff;
+    padding: 8px 20px;
+    border-bottom: 1px solid #ddd;
+    flex-shrink: 0;
+    margin-left: -100px;
+    margin-right: -100px;
+    padding-left: 120px;
+    padding-right: 120px;
+  }
+  .header h1 { font-size: 20px; font-weight: 700; color: #222; }
+  .header .sub { font-size: 11px; color: #888; margin-top: 2px; }
+  .header h2 { font-size: 15px; font-weight: 600; color: #333; margin-top: 4px; }
+  .header-right {
+    position: absolute;
+    bottom: 8px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+  }
+  .header-right button {
+    padding: 8px 0;
+    width: 90px;
+    border: none;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+  .btn-save { background: #e85d24; color: #fff; }
+  .btn-file { background: #e85d24; color: #fff; }
+  .btn-main { background: #555; color: #fff; }
+  .btn-save:hover, .btn-file:hover, .btn-main:hover { opacity: 0.85; }
+
+  /* Tabs (Tool-003 동일) */
+  .tab-bar {
+    display: flex;
+    padding: 4px 20px 0;
+    background: #fff;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .tab {
+    padding: 5px 20px;
+    border-radius: 6px 6px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: #bbb;
+    color: #fff;
+    position: relative;
+    padding-right: 28px !important;
+  }
+  .tab.active { background: #00838f; color: #fff; }
+  .tab.add {
+    background: #999;
+    color: #fff;
+    font-size: 14px;
+    padding: 5px 16px;
+    padding-right: 16px !important;
+  }
+  .tab .tab-close {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+    line-height: 16px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .tab .tab-close:hover { background: rgba(255,0,0,0.6); color: #fff; }
+
+  /* Main layout */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 10px 0;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .panel {
+    background: #fff;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .left-col { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .right-col { display: flex; flex-direction: column; min-height: 0; gap: 8px; overflow: hidden; }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: #222;
+    flex-shrink: 0;
+  }
+
+  /* Project overview table */
+  .info-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    margin-bottom: 8px;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  .info-table th, .info-table td {
+    border: 1px solid #ffffff;
+    padding: 6px 5px;
+    border-bottom: 1.5px solid #ccc;
+    text-align: center;
+  }
+  .info-table th {
+    background: #e8e8e8;
+    color: #555;
+    font-weight: 600;
+    font-size: 11px;
+  }
+  .info-table tr:first-child th:first-child { border-top-left-radius: 8px; }
+  .info-table tr:first-child th:last-child { border-top-right-radius: 8px; }
+  .info-table td { background: #fff; }
+  .info-table input {
+    width: 100%;
+    border: none;
+    text-align: center;
+    font-size: 12px;
+    background: transparent;
+    outline: none;
+    padding: 4px 2px;
+  }
+  .info-table .highlight-cell { background: #e0f7fa; color: #00838f; font-weight: 700; }
+
+  /* ===== Gantt / Task area ===== */
+  .gantt-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+  }
+  table.gantt {
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 10px;
+    width: max-content;
+    min-width: 100%;
+  }
+  table.gantt th, table.gantt td {
+    border-right: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    padding: 0;
+    text-align: center;
+    white-space: nowrap;
+  }
+  /* sticky task columns */
+  .col-task   { position: sticky; left: 0;     z-index: 6; min-width: 190px; max-width: 190px; text-align: left; }
+  .col-start  { position: sticky; left: 190px; z-index: 6; min-width: 78px; }
+  .col-finish { position: sticky; left: 268px; z-index: 6; min-width: 78px; }
+  .col-dur    { position: sticky; left: 346px; z-index: 6; min-width: 50px; }
+  .col-status { position: sticky; left: 396px; z-index: 6; min-width: 92px; }
+  .col-pct    { position: sticky; left: 488px; z-index: 6; min-width: 56px; text-align: center;
+                box-shadow: 2px 0 4px -2px rgba(0,0,0,0.25); }
+
+  /* 고정 헤더 셀: table.gantt thead th(명시도 0,0,1,3, z-index:7)을 이기도록
+     명시도를 th.col-*(0,0,2,3)로 높이고 z-index도 상향 → 날짜 헤더가 고정열 침범 방지 */
+  table.gantt thead th.col-task, table.gantt thead th.col-start,
+  table.gantt thead th.col-finish, table.gantt thead th.col-dur,
+  table.gantt thead th.col-status, table.gantt thead th.col-pct {
+    z-index: 12 !important; background: #00838f;
+  }
+
+  table.gantt thead th {
+    background: #00838f;
+    color: #fff;
+    font-weight: 500;
+    font-size: 10px;
+    padding: 4px 4px;
+    position: sticky;
+    top: 0;
+    z-index: 7;
+  }
+  table.gantt thead th.wk { background: #006a74; font-size: 9px; }
+  table.gantt thead th.day { background: #00838f; min-width: 22px; max-width: 22px;
+    width: 22px; padding: 3px 0; font-size: 9px; }
+  table.gantt thead th.day.we { background: #c8a02d; }
+
+  table.gantt tbody td { background: #fff; height: 26px; }
+  table.gantt tbody td.sticky-cell { background: #fff; }
+  tbody tr.summary td.sticky-cell { background: #eef6f7; font-weight: 700; }
+  tbody tr.step td.sticky-cell { background: #f3f7f7; font-weight: 700; color: #00838f; }
+  tbody tr:hover td.sticky-cell { background: #f0fafb; }
+
+  table.gantt tbody td.gcell { min-width: 22px; max-width: 22px; width: 22px;
+    border-right: 1px solid #f0f0f0; position: relative; }
+  table.gantt tbody td.gcell.we { background: #faf6e8; }
+
+  .gantt input, .gantt select {
+    width: 100%; border: none; background: transparent; outline: none;
+    font-size: 10px; font-family: inherit; padding: 3px 4px; color: #333;
+  }
+  .gantt .col-task input { text-align: left; font-weight: 500; }
+  .gantt .col-pct input { text-align: center; }
+  .gantt input.date { font-size: 9px; text-align: center; }
+
+
+  table.gantt tbody td.gcell .seg { height: 12px; width: 100%; margin: 7px 0; }
+  .today-line { position: absolute; top: 0; bottom: 0; width: 2px;
+    background: #e85d24; z-index: 4; pointer-events: none; }
+
+  /* status badge select coloring */
+  select.st-before { color: #888; }
+  select.st-progress { color: #1976d2; font-weight: 600; }
+  select.st-done { color: #2e7d32; font-weight: 600; }
+  select.st-hold { color: #e85d24; font-weight: 600; }
+
+  .row-tools { display: flex; gap: 6px; margin: 6px 0 2px; flex-shrink: 0; }
+  .row-tools button {
+    font-size: 10px; padding: 5px 12px; border: 1px solid #ccc; background: #fff;
+    border-radius: 4px; cursor: pointer; color: #555; font-weight: 600;
+  }
+  .row-tools button:hover { background: #f0f0f0; }
+  .row-tools .add-step { background: #00838f; color: #fff; border-color: #00838f; }
+  .row-tools .add-task { background: #fff; color: #00838f; border-color: #00838f; }
+
+  /* Progress status - horizontal cards */
+  .metrics-area { display: flex; flex-direction: row; gap: 8px; flex-shrink: 0; margin-bottom: 8px; }
+  .metric-card {
+    flex: 1; border: 1px solid #e6e6e6; border-bottom: 1.5px solid #ccc; border-radius: 6px;
+    padding: 8px 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  }
+  .metric-label { font-size: 11px; color: #00838f; line-height: 1.2; font-weight: bold; }
+  .metric-value { font-size: 24px; font-weight: 700; color: #ff8c00; text-align: left; }
+  .metric-unit { font-size: 12px; color: #888; margin-left: 2px; vertical-align: super; }
+
+  /* collapsible progress title + D/W/M view toggle */
+  .progress-title, .gantt-title { display: flex; align-items: center; justify-content: space-between; }
+  .progress-title { cursor: pointer; user-select: none; }
+  .toggle-ic { font-size: 10px; color: #00838f; font-weight: 700; }
+  .view-toggle { display: flex; gap: 3px; }
+  .view-toggle .vbtn {
+    width: 26px; padding: 3px 0; font-size: 10px; font-weight: 400; cursor: pointer;
+    border: 0.5px solid #00838f; background: #fff; color: #00838f; border-radius: 6px;
+  }
+  .view-toggle .vbtn.active { background: #00838f; color: #fff; }
+
+  /* wide cells for Week / Month view */
+  table.gantt thead th.wk.wide-col { min-width: 62px; max-width: 62px; width: 62px; font-size: 9px; line-height: 1.3; padding: 3px 0; }
+  table.gantt tbody td.gcell.wide { min-width: 62px; max-width: 62px; width: 62px; }
+
+  .donut-container { display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 6px; flex-shrink: 0; }
+  .donut-wrapper { position: relative; width: 150px; height: 150px; }
+  .donut-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .donut-center-text { position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); text-align: center; }
+  .donut-percent { font-size: 34px; font-weight: 800; }
+  .donut-percent-unit { font-size: 18px; font-weight: 600; }
+  .donut-status { font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+  .legend { display:flex; gap:12px; justify-content:center; font-size:9px; color:#666;
+    margin-top:4px; flex-shrink:0; }
+  .legend span { display:flex; align-items:center; gap:4px; }
+  .legend i { width:12px; height:9px; border-radius:2px; display:inline-block; }
+
+  /* Copyright (Tool-003 동일) */
+  .copyright {
+    background: #fff;
+    border-top: 1px solid #ddd;
+    padding: 6px 20px;
+    margin-left: -100px;
+    margin-right: -100px;
+    padding-left: 120px;
+    padding-right: 120px;
+    text-align: center;
+    font-size: 10px;
+    color: #888;
+    flex-shrink: 0;
+  }
+
+  /* Responsive (Tool-003 동일 단계) */
+  @media (max-width: 1600px) {
+    .page-container { padding: 0 60px; }
+    .header { margin-left: -60px; margin-right: -60px; padding-left: 80px; padding-right: 80px; }
+    .copyright { padding: 6px 80px; margin-left: -60px; margin-right: -60px; }
+  }
+  @media (max-width: 1300px) {
+    .page-container { padding: 0 30px; }
+    .header { margin-left: -30px; margin-right: -30px; padding-left: 50px; padding-right: 50px; }
+    .copyright { padding: 6px 50px; margin-left: -30px; margin-right: -30px; }
+  }
+  @media (max-width: 1100px) {
+    .page-container { padding: 0 15px; }
+    .header { margin-left: -15px; margin-right: -15px; padding-left: 35px; padding-right: 35px; }
+    .copyright { padding: 6px 35px; margin-left: -15px; margin-right: -15px; }
+    .main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  }
+  @media (max-width: 700px) {
+    .page-container { padding: 0 10px; }
+    .header { margin-left: -10px; margin-right: -10px; padding-left: 30px; padding-right: 30px; }
+    .copyright { padding: 6px 30px; margin-left: -10px; margin-right: -10px; }
+  }
+
+  /* date show/hide toggle */
+  .date-toggle { font-size:9px; color:#00838f; font-weight:500; display:flex; align-items:center; gap:4px; cursor:pointer; user-select:none; }
+  .date-toggle input { accent-color:#00838f; cursor:pointer; }
+  .gantt-wrap.no-dates .col-start, .gantt-wrap.no-dates .col-finish { display:none; }
+
+  /* selected row highlight removed (no visual highlight) */
+
+  /* readonly step date inputs */
+  .gantt tr.step input.date[readonly] { color:#90a4ae; cursor:default; }
+  .gantt input.date.auto { color:#b0bec5; }
+  .gantt input.date::placeholder { color:#b0bec5; font-size:8px; }
+  /* column resize handle (transparent) */
+  .col-resizer { position:absolute; top:0; right:0; width:6px; height:100%; cursor:col-resize; z-index:30; }
+</style>
+</head>
+<body>
+
+<div class="page-container">
+  <!-- Header -->
+  <div class="header" style="position:relative;">
+    <h1>HIMEC &minus; Mechanical Facility Aging Diagnosis System</h1>
+    <div class="sub">(주)하이멕 &minus; 기계설비 노후화 진단</div>
+    <h2 id="page-title">Project Tracker Tool</h2>
+    <div class="header-right">
+      <button class="btn-save" onclick="saveData()">Save</button>
+      <button class="btn-file" onclick="exportFile()">File Trans</button>
+      <button class="btn-main" onclick="GoMain()">Main</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- overview + progress + gantt -->
+    <div class="panel left-col">
+      <div class="section-title">&#9632; 프로젝트 개요</div>
+      <table class="info-table">
+        <tr><th>프로젝트명</th><th>업무 Start Day</th><th>표시 주차(Week)</th><th>전체 진척률</th></tr>
+        <tr>
+          <td><input id="inp-proj-name" value="00 Project Tracker" onchange="recalc()"></td>
+          <td><input id="inp-proj-start" type="date" value="2026-01-01" onchange="rebuild()"></td>
+          <td><input id="inp-weeks" type="number" min="4" max="26" value="13" onchange="rebuild()"></td>
+          <td class="highlight-cell"><input id="inp-overall" readonly style="color:#00838f;font-weight:700;"></td>
+        </tr>
+      </table>
+
+      <!-- 진척 현황 (가로 배치 / 펼치기·숨김) -->
+      <div class="section-title progress-title" onclick="toggleProgress()">
+        <span>&#9632; 진척 현황</span>
+        <span class="toggle-ic" id="progToggle">&#9660; 숨기기</span>
+      </div>
+      <div class="metrics-area" id="metricsArea">
+        <div class="metric-card"><div class="metric-label">&#10004; 전체 세부 업무</div><div><span class="metric-value" id="m-total">0</span><span class="metric-unit">건</span></div></div>
+        <div class="metric-card"><div class="metric-label">&#10004; 총 소요 (영업일)</div><div><span class="metric-value" id="m-dur">0</span><span class="metric-unit">d</span></div></div>
+        <div class="metric-card"><div class="metric-label">&#10004; 진행전 / 보류</div><div><span class="metric-value" id="m-before">0</span><span class="metric-unit">건</span></div></div>
+        <div class="metric-card"><div class="metric-label">&#10004; 진행중 (In progress)</div><div><span class="metric-value" id="m-prog" style="color:#1976d2;">0</span><span class="metric-unit">건</span></div></div>
+        <div class="metric-card"><div class="metric-label">&#10004; 완료 (Complete)</div><div><span class="metric-value" id="m-done" style="color:#2e7d32;">0</span><span class="metric-unit">건</span></div></div>
+      </div>
+
+      <div class="section-title gantt-title">
+        <span>&#9632; 작업 일정 (Sprint / Gantt)</span>
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div class="legend">
+            <span><i style="background:#455a64;"></i>Step 요약</span>
+            <span><i style="background:#00838f;"></i>세부 업무</span>
+            <span><i style="background:#e85d24;"></i>오늘</span>
+          </div>
+          <label class="date-toggle"><input type="checkbox" id="chk-dates" checked onchange="toggleDates(this)"> 날짜 표시</label>
+          <div class="view-toggle" title="일(D) / 주(W) / 월(M) 단위 보기">
+            <button class="vbtn active" data-v="D" onclick="setView('D')">D</button>
+            <button class="vbtn" data-v="W" onclick="setView('W')">W</button>
+            <button class="vbtn" data-v="M" onclick="setView('M')">M</button>
+          </div>
+        </div>
+      </div>
+      <div class="gantt-wrap" id="ganttWrap">
+        <table class="gantt" id="ganttTable">
+          <thead id="ganttHead"></thead>
+          <tbody id="ganttBody"></tbody>
+        </table>
+      </div>
+
+      <div class="row-tools">
+        <button class="add-step" onclick="addStep()">+ Step 추가</button>
+        <button class="add-task" onclick="addTask()">+ 세부 업무 추가</button>
+        <button onclick="removeRow()">− 선택 행 삭제</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Copyright -->
+<div class="copyright">
+  &copy;HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
+</div>
+
+<script>
+// ===== Data model =====
+// type: 'step' (요약 단계) | 'task' (세부 업무)
+const STATUS = ['Before work','In progress','Complete','Hold'];
+function defaultTasks() {
+  return [
+    {type:'step', name:'01. Step "단계를 입력해주세요"', pri:'',    start:'', finish:'', status:'Before work', pct:0},
+    {type:'task', name:'- 입력해 주세요',              pri:'Med', start:'', finish:'', status:'Before work', pct:0}
+  ];
+}
+
+const store = { 1: { name:'00 Project Tracker', start:'2026-01-01', weeks:13, tasks: defaultTasks() } };
+let activeTab = 1;
+let viewMode = 'D';   // D=일 / W=주 / M=월
+let units = [];       // 표시 단위 컬럼 (일/주/월)
+let dateVisible = true;  // Start/Finish 날짜 컬럼 표시 여부
+let selectedIdx = -1;    // 클릭으로 선택된 행 index
+
+// ===== date helpers (business days) =====
+function parseD(s){ if(!s) return null; const p=s.split('-'); return new Date(+p[0],+p[1]-1,+p[2]); }
+function fmtD(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function mondayOf(d){ const x=new Date(d); const wd=x.getDay(); const diff=(wd===0?-6:1-wd); x.setDate(x.getDate()+diff); return x; }
+function isWeekend(d){ const w=d.getDay(); return w===0||w===6; }
+
+let timeline = []; // array of business-day Date objects
+function buildTimeline(){
+  const startInp = document.getElementById('inp-proj-start').value || '2026-01-01';
+  const weeks = Math.max(1, parseInt(document.getElementById('inp-weeks').value)||13);
+  const m = mondayOf(parseD(startInp));
+  timeline = [];
+  for(let w=0; w<weeks; w++){
+    for(let dday=0; dday<5; dday++){          // Mon-Fri
+      const d = new Date(m); d.setDate(m.getDate()+w*7+dday); timeline.push(d);
+    }
+  }
+}
+function bizIndex(dateStr){            // index of date within timeline (nearest, clamped)
+  const d = parseD(dateStr); if(!d) return -1;
+  for(let i=0;i<timeline.length;i++){ if(fmtD(timeline[i])===fmtD(d)) return i; }
+  // not a business day in range -> clamp
+  if(d < timeline[0]) return 0;
+  if(d > timeline[timeline.length-1]) return timeline.length-1;
+  // find first business day >= d
+  for(let i=0;i<timeline.length;i++){ if(timeline[i]>=d) return i; }
+  return timeline.length-1;
+}
+function bizDuration(s,f){
+  const a=bizIndex(s), b=bizIndex(f);
+  if(a<0||b<0) return 1;
+  return Math.max(1, b-a+1);
+}
+
+// ===== build display units (D / W / M) =====
+function buildUnits(){
+  units=[];
+  if(viewMode==='W'){
+    const weeks=timeline.length/5;
+    for(let w=0; w<weeks; w++){
+      units.push({idxStart:w*5, idxEnd:w*5+4, date:timeline[w*5], wno:w+1});
+    }
+  } else if(viewMode==='M'){
+    let i=0;
+    while(i<timeline.length){
+      const y=timeline[i].getFullYear(), m=timeline[i].getMonth();
+      let j=i;
+      while(j<timeline.length && timeline[j].getFullYear()===y && timeline[j].getMonth()===m) j++;
+      units.push({idxStart:i, idxEnd:j-1, date:timeline[i]});
+      i=j;
+    }
+  } else {
+    for(let i=0;i<timeline.length;i++){ units.push({idxStart:i, idxEnd:i, date:timeline[i]}); }
+  }
+}
+
+// ===== render header =====
+const DAYNM=['M','T','W','T','F'];
+function frozenHead(rs){
+  const r = rs ? ' rowspan="2"' : '';
+  return '<th class="col-task"'+r+'>Sprint / 업무</th>'+
+         '<th class="col-start"'+r+'>Start</th>'+
+         '<th class="col-finish"'+r+'>Finish</th>'+
+         '<th class="col-dur"'+r+'>Dur.</th>'+
+         '<th class="col-status"'+r+'>Status</th>'+
+         '<th class="col-pct"'+r+'>%</th>';
+}
+function renderHead(){
+  const head=document.getElementById('ganttHead');
+  if(viewMode==='D'){
+    // week numbers row + day row
+    let r1='<tr>'+frozenHead(true);
+    const weeks=timeline.length/5;
+    for(let w=0; w<weeks; w++){
+      const wkStart=timeline[w*5];
+      const dlbl = dateVisible ? (' &middot; '+(wkStart.getMonth()+1)+'/'+wkStart.getDate()) : '';
+      r1+='<th class="wk" colspan="5">W'+(w+1)+dlbl+'</th>';
+    }
+    r1+='</tr>';
+    let r2='<tr>';
+    for(let i=0;i<timeline.length;i++){
+      r2+='<th class="day">'+DAYNM[i%5]+'</th>';
+    }
+    r2+='</tr>';
+    head.innerHTML=r1+r2;
+  } else if(viewMode==='W'){
+    let r='<tr>'+frozenHead(false);
+    units.forEach(u=>{
+      const ws=u.date;
+      const dlbl = dateVisible ? ('<br>'+(ws.getMonth()+1)+'/'+ws.getDate()) : '';
+      r+='<th class="wk wide-col">W'+u.wno+dlbl+'</th>';
+    });
+    r+='</tr>';
+    head.innerHTML=r;
+  } else {
+    let r='<tr>'+frozenHead(false);
+    units.forEach((u,ui)=>{
+      const lbl = dateVisible ? (u.date.getFullYear()+'.'+String(u.date.getMonth()+1).padStart(2,'0')) : ('M'+(ui+1));
+      r+='<th class="wk wide-col">'+lbl+'</th>';
+    });
+    r+='</tr>';
+    head.innerHTML=r;
+  }
+}
+
+// ===== render body (cell-fill Gantt, Excel-style) =====
+function stClass(s){ if(s==='Complete')return'st-done'; if(s==='In progress')return'st-progress'; if(s==='Hold')return'st-hold'; return'st-before'; }
+function renderBody(){
+  recalcSteps();                       // Step 날짜 자동계산 (세부 업무 기준)
+  const tasks=store[activeTab].tasks;
+  const body=document.getElementById('ganttBody');
+  let html='';
+  tasks.forEach((t,idx)=>{
+    const cls = t.type==='step' ? 'step' : 'task';
+    const a=bizIndex(t.start), b=bizIndex(t.finish);
+    const dur=bizDuration(t.start,t.finish);
+    const pct=Math.max(0,Math.min(100,parseFloat(t.pct)||0));
+    const isStep=t.type==='step';
+    const remColor=isStep?'#b0bec5':'#cfd8dc';
+    const filColor=isStep?'#455a64':'#00838f';
+    // 이 업무가 걸쳐있는 단위(units) 계산
+    const hasRange=(a>=0 && b>=a);
+    const activePos={};
+    let activeCnt=0;
+    if(hasRange){
+      units.forEach((u,ui)=>{
+        if(a<=u.idxEnd && b>=u.idxStart){ activePos[ui]=activeCnt; activeCnt++; }
+      });
+    }
+    const filledCount=activeCnt>0?Math.round(activeCnt*pct/100):0;
+    const wideCls=viewMode==='D'?'':' wide';
+    // Step 날짜는 자동계산 -> readonly, 세부 업무는 편집 가능
+    html+='<tr class="'+cls+(idx===selectedIdx?' sel':'')+'" data-idx="'+idx+'" onclick="selectRow('+idx+',this)">';
+    html+='<td class="col-task sticky-cell"><input value="'+escapeHtml(t.name)+'" onchange="upd('+idx+',\'name\',this.value)"></td>';
+    html+='<td class="col-start sticky-cell">'+dateInput(idx,'start',t.start,isStep)+'</td>';
+    html+='<td class="col-finish sticky-cell">'+dateInput(idx,'finish',t.finish,isStep)+'</td>';
+    html+='<td class="col-dur sticky-cell">'+((t.start&&t.finish)?dur:'')+'</td>';
+    html+='<td class="col-status sticky-cell"><select class="'+stClass(t.status)+'" onchange="upd('+idx+',\'status\',this.value)">'+
+          STATUS.map(s=>'<option'+(s===t.status?' selected':'')+'>'+s+'</option>').join('')+'</select></td>';
+    html+='<td class="col-pct sticky-cell"><input type="number" min="0" max="100" value="'+t.pct+'" onchange="upd('+idx+',\'pct\',this.value)"></td>';
+    units.forEach((u,ui)=>{
+      let seg='';
+      if(ui in activePos){
+        const pos=activePos[ui];
+        const isFill=pos<filledCount;
+        const bg=isFill?filColor:remColor;
+        const first=pos===0, last=pos===activeCnt-1;
+        let radius='0';
+        if(first&&last) radius='3px';
+        else if(first) radius='3px 0 0 3px';
+        else if(last) radius='0 3px 3px 0';
+        seg='<div class="seg" style="background:'+bg+';border-radius:'+radius+';"></div>';
+      }
+      html+='<td class="gcell'+wideCls+'">'+seg+'</td>';
+    });
+    html+='</tr>';
+  });
+  body.innerHTML=html;
+  applyColWidths();   // 사용자가 조절한 컬럼 폭 재적용
+  addResizers();      // 컬럼 폭 조절 핸들 부착
+  applyFreeze();      // 틀고정: 실제 컬럼 폭 기준 left 동적 적용
+  drawTodayLine();
+}
+function drawTodayLine(){
+  document.querySelectorAll('.today-line').forEach(e=>e.remove());
+  if(!timeline.length || !units.length) return;
+  const today=new Date(); today.setHours(0,0,0,0);
+  if(today<timeline[0]||today>timeline[timeline.length-1]) return;
+  const di=bizIndex(fmtD(today));
+  let uIdx=-1;
+  for(let u=0;u<units.length;u++){ if(di>=units[u].idxStart && di<=units[u].idxEnd){ uIdx=u; break; } }
+  if(uIdx<0) return;
+  const body=document.getElementById('ganttBody');
+  const firstRow=body.querySelector('tr');
+  if(!firstRow) return;
+  const cells=firstRow.querySelectorAll('td.gcell');
+  if(!cells[uIdx]) return;
+  const tbl=document.getElementById('ganttTable');
+  const line=document.createElement('div'); line.className='today-line';
+  line.style.left=(cells[uIdx].offsetLeft+cells[uIdx].offsetWidth/2)+'px';
+  tbl.style.position='relative';
+  tbl.appendChild(line);
+}
+
+// ===== updates =====
+function upd(idx,key,val){
+  const t=store[activeTab].tasks[idx];
+  if(key==='pct') val=Math.max(0,Math.min(100,parseFloat(val)||0));
+  t[key]=val;
+  // auto: Complete -> 100%, Before work -> keep
+  if(key==='status' && val==='Complete') t.pct=100;
+  renderBody(); recalc();
+}
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// 날짜 입력 셀: 비어있으면 "날짜를 선택해주세요" 안내, 클릭 시 오늘 기준 달력. Step은 자동계산(readonly)
+function dateInput(idx, field, val, isStep){
+  if(isStep){
+    if(val){ return '<input class="date" type="date" value="'+val+'" readonly title="세부 업무 기준 자동계산">'; }
+    return '<input class="date auto" type="text" value="" placeholder="자동계산" readonly title="세부 업무 기준 자동계산">';
+  }
+  var onch=' onchange="upd('+idx+',\''+field+'\',this.value)"';
+  if(val){ return '<input class="date" type="date" value="'+val+'"'+onch+'>'; }
+  return '<input class="date" type="text" placeholder="날짜를 선택해주세요"'
+    +' onfocus="this.type=\'date\';if(this.showPicker){try{this.showPicker();}catch(e){}}"'
+    +' onblur="if(!this.value){this.type=\'text\';}"'+onch+'>';
+}
+
+function addStep(){
+  const t=store[activeTab].tasks;
+  const s=document.getElementById('inp-proj-start').value;
+  const at = selectedIdx>=0 ? selectedIdx+1 : t.length;
+  t.splice(at,0,{type:'step',name:'00. Step "단계를 입력해주세요"',pri:'',start:'',finish:'',status:'Before work',pct:0});
+  selectedIdx=at; renumberSteps(); renderBody(); recalc();
+}
+function addTask(){
+  const t=store[activeTab].tasks;
+  const s=document.getElementById('inp-proj-start').value;
+  const at = selectedIdx>=0 ? selectedIdx+1 : t.length;
+  t.splice(at,0,{type:'task',name:'- 입력해 주세요',pri:'Med',start:'',finish:'',status:'Before work',pct:0});
+  selectedIdx=at; renderBody(); recalc();
+}
+function removeRow(){
+  const t=store[activeTab].tasks;
+  if(t.length<=1){ alert('최소 1개 행은 유지해야 합니다.'); return; }
+  const at = selectedIdx>=0 ? selectedIdx : t.length-1;
+
+  // Step 삭제 시 하위 Task들도 함께 삭제
+  if(t[at].type==='step'){
+    let deleteCount = 1;
+    // 다음 Step이 나올 때까지 또는 배열 끝까지 Task 개수 카운트
+    for(let i=at+1; i<t.length; i++){
+      if(t[i].type==='step') break;
+      deleteCount++;
+    }
+    // 삭제 후 최소 1개 행 유지 확인
+    if(t.length - deleteCount < 1){
+      alert('최소 1개 행은 유지해야 합니다.');
+      return;
+    }
+    t.splice(at, deleteCount);
+  } else {
+    // Task는 해당 행만 삭제
+    t.splice(at, 1);
+  }
+
+  selectedIdx = t.length ? Math.min(at, t.length-1) : -1;
+  renumberSteps(); renderBody(); recalc();
+}
+// 하위호환: 기존 호출명 유지
+function removeLastRow(){ removeRow(); }
+
+// Step 번호 재정렬 (앞자리 'NN.' 만 갱신, 사용자 텍스트 보존)
+function renumberSteps(){
+  let n=0;
+  store[activeTab].tasks.forEach(t=>{
+    if(t.type==='step'){
+      n++;
+      const rest=t.name.replace(/^\s*\d+\.\s*/,'');
+      t.name=String(n).padStart(2,'0')+'. '+rest;
+    }
+  });
+}
+// Step 날짜 자동계산: 각 Step 하위 세부 업무의 최소 Start / 최대 Finish
+function recalcSteps(){
+  const t=store[activeTab].tasks;
+  for(let i=0;i<t.length;i++){
+    if(t[i].type==='step'){
+      let mn=null,mx=null;
+      for(let j=i+1;j<t.length && t[j].type!=='step';j++){
+        const s=parseD(t[j].start), f=parseD(t[j].finish);
+        if(s&&(!mn||s<mn))mn=s;
+        if(f&&(!mx||f>mx))mx=f;
+      }
+      if(mn) t[i].start=fmtD(mn);
+      if(mx) t[i].finish=fmtD(mx);
+    }
+  }
+}
+// 행 선택 (재렌더 없이 하이라이트만 갱신 -> 입력 포커스 보존)
+function selectRow(idx,tr){
+  selectedIdx=idx;
+  document.querySelectorAll('#ganttBody tr').forEach(r=>r.classList.remove('sel'));
+  if(tr) tr.classList.add('sel');
+}
+// 틀고정: 실제 렌더 폭을 측정하여 좌측 고정 컬럼 left 오프셋 동적 적용
+function applyFreeze(){
+  const cols = dateVisible
+    ? ['col-task','col-start','col-finish','col-dur','col-status','col-pct']
+    : ['col-task','col-dur','col-status','col-pct'];
+  let left=0;
+  cols.forEach(c=>{
+    const cells=document.querySelectorAll('table.gantt .'+c);
+    if(!cells.length) return;
+    const w=cells[0].getBoundingClientRect().width;
+    cells.forEach(cell=>{ cell.style.left=left+'px'; });
+    left+=w;
+  });
+}
+// 날짜 표시/숨김 토글
+function toggleDates(cb){
+  dateVisible=cb.checked;
+  document.getElementById('ganttWrap').classList.toggle('no-dates', !dateVisible);
+  renderHead(); renderBody();
+}
+
+// ===== summary recalc =====
+function recalc(){
+  const tasks=store[activeTab].tasks;
+  const taskRows=tasks.filter(t=>t.type==='task');
+  const total=taskRows.length;
+  let done=0,prog=0,before=0,sumPct=0,sumDur=0;
+  taskRows.forEach(t=>{
+    if(t.status==='Complete')done++;
+    else if(t.status==='In progress')prog++;
+    else before++;
+    sumPct+=Math.max(0,Math.min(100,parseFloat(t.pct)||0));
+    sumDur+=(t.start&&t.finish)?bizDuration(t.start,t.finish):0;
+  });
+  const overall= total>0 ? Math.round(sumPct/total) : 0;
+  document.getElementById('m-total').textContent=total;
+  document.getElementById('m-done').textContent=done;
+  document.getElementById('m-prog').textContent=prog;
+  document.getElementById('m-before').textContent=before;
+  document.getElementById('m-dur').textContent=sumDur;
+  document.getElementById('inp-overall').value=overall+' %';
+}
+
+// ===== rebuild (timeline change) =====
+function rebuild(){
+  store[activeTab].start=document.getElementById('inp-proj-start').value;
+  store[activeTab].weeks=parseInt(document.getElementById('inp-weeks').value)||13;
+  buildTimeline(); buildUnits(); renderHead(); renderBody(); recalc();
+}
+
+// ===== view (D/W/M) & progress toggle =====
+function setView(v){
+  viewMode=v;
+  document.querySelectorAll('.view-toggle .vbtn').forEach(b=>b.classList.toggle('active', b.getAttribute('data-v')===v));
+  buildTimeline(); buildUnits(); renderHead(); renderBody(); recalc();
+}
+function toggleProgress(){
+  const a=document.getElementById('metricsArea');
+  const ic=document.getElementById('progToggle');
+  if(a.style.display==='none'){ a.style.display='flex'; ic.innerHTML='&#9660; 숨기기'; }
+  else { a.style.display='none'; ic.innerHTML='&#9654; 펼치기'; }
+}
+
+function saveData(){ store[activeTab].name=document.getElementById('inp-proj-name').value; store[activeTab].start=document.getElementById('inp-proj-start').value; store[activeTab].weeks=parseInt(document.getElementById('inp-weeks').value)||13; alert('데이터가 저장되었습니다.'); }
+function exportFile(){ alert('파일 변환 기능'); }
+function GoMain(){ if(window.STD){ STD.goMain(null); } else { window.location.href='../dashboard.html'; } }
+// ===== URL 파라미터 처리 =====
+function getUrlParam(name) {
+  const params = new URLSearchParams(window.location.search);
+  return params.get(name);
+}
+
+function setPageTitle() {
+  const projectName = getUrlParam('projectName');
+  const titleEl = document.getElementById('page-title');
+  if (projectName && titleEl) {
+    titleEl.textContent = '[' + decodeURIComponent(projectName) + '] Project Tracker Tool';
+  }
+}
+
+
+// init
+// ===== 컬럼 폭 사용자 조절 (틀고정 6개 컬럼) =====
+const RES_COLS=['col-task','col-start','col-finish','col-dur','col-status','col-pct'];
+const colW={};
+function applyColWidths(){
+  RES_COLS.forEach(function(c){
+    if(colW[c]==null) return;
+    document.querySelectorAll('table.gantt .'+c).forEach(function(cell){
+      cell.style.width=colW[c]+'px';
+      cell.style.minWidth=colW[c]+'px';
+      cell.style.maxWidth=colW[c]+'px';
+    });
+  });
+}
+function addResizers(){
+  RES_COLS.forEach(function(c){
+    const th=document.querySelector('table.gantt thead th.'+c);
+    if(!th || th.querySelector('.col-resizer')) return;
+    const h=document.createElement('div');
+    h.className='col-resizer';
+    h.addEventListener('mousedown',function(e){ startColResize(e,c); });
+    th.appendChild(h);
+  });
+}
+function startColResize(e,c){
+  e.preventDefault(); e.stopPropagation();
+  const th=document.querySelector('table.gantt thead th.'+c);
+  const startX=e.clientX;
+  const startW=th.getBoundingClientRect().width;
+  function onMove(ev){
+    let w=startW+(ev.clientX-startX);
+    if(w<40) w=40;
+    colW[c]=w;
+    applyColWidths();
+    applyFreeze();
+  }
+  function onUp(){
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onUp);
+    drawTodayLine();
+  }
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+}
+window.addEventListener('DOMContentLoaded',function(){
+  setPageTitle();
+  buildTimeline(); buildUnits(); renderHead(); renderBody(); recalc();
+});
+window.addEventListener('load',function(){ applyColWidths(); addResizers(); applyFreeze(); drawTodayLine(); });
+window.addEventListener('resize',function(){ applyFreeze(); drawTodayLine(); });
+</script>
+<script>window.__STD_TOOL='701';</script>
+<script>
+/* ============================================================
+   STD Storage  —  표준 저장 모듈 v1 (전 도구 공통)
+   방식: localStorage 우선 + GitHub 동기화(가능 시)
+        + beforeunload 백업 + 저장 후 이동(GoMain)
+   ============================================================ */
+(function(){
+  if (window.STD) return;                         // 중복 주입 방지
+  var TOOL = window.__STD_TOOL || 'tool';
+  function qp(k){ return new URLSearchParams(location.search).get(k) || ''; }
+  function pid(){ return qp('projectId') || qp('project') || qp('id') || ''; }
+  function pname(){ return qp('projectName') || qp('name') || ''; }
+  function lsKey(){ var id=pid(); return 'std_'+TOOL+'_'+(id||'standalone'); }
+  function ghPath(){ var id=pid(); return id ? ('data/'+TOOL+'/'+id+'.json') : null; }
+
+  function genericData(){
+    var o={__std:true, t:Date.now(), fields:{}};
+    document.querySelectorAll('input[id],select[id],textarea[id]').forEach(function(el){
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='button'||ty==='submit'||ty==='reset'||ty==='file') return;
+      o.fields[el.id]=(ty==='checkbox'||ty==='radio') ? el.checked : el.value;
+    });
+    return o;
+  }
+  function genericRestore(o){
+    if(!o||!o.fields) return;
+    Object.keys(o.fields).forEach(function(id){
+      var el=document.getElementById(id); if(!el) return;
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='checkbox'||ty==='radio') el.checked=!!o.fields[id];
+      else el.value=o.fields[id];
+      try{ el.dispatchEvent(new Event('input',{bubbles:true}));
+           el.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){}
+    });
+  }
+  function lsSave(){
+    try{ localStorage.setItem(lsKey(), JSON.stringify(genericData())); return true; }
+    catch(e){ console.warn('[STD] LS save fail', e); return false; }
+  }
+  function lsLoad(){
+    try{ var r=localStorage.getItem(lsKey()); return r? JSON.parse(r):null; }catch(e){ return null; }
+  }
+  function ghSync(){
+    var p=ghPath();
+    if(p && typeof window.ghSaveFile==='function'){
+      return Promise.resolve(window.ghSaveFile(p, genericData(), 'STD save '+TOOL+' '+pid()))
+        .then(function(){ return true; })
+        .catch(function(e){ console.warn('[STD] GH save fail', e); return false; });
+    }
+    return Promise.resolve(null);                 // GitHub 미사용 페이지
+  }
+  function toast(msg, type){
+    if(typeof window._showToast==='function'){ try{ window._showToast(msg, type||'success'); return; }catch(e){} }
+    if(typeof window.showToast==='function'){ try{ window.showToast(msg, type||'success'); return; }catch(e){} }
+    var el=document.getElementById('__stdToast');
+    if(!el){ el=document.createElement('div'); el.id='__stdToast';
+      el.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;opacity:0;transition:opacity .2s';
+      document.body.appendChild(el); }
+    el.textContent=msg; el.style.opacity='1';
+    clearTimeout(el.__t); el.__t=setTimeout(function(){ el.style.opacity='0'; }, 1800);
+  }
+
+  var dirty=false;
+  document.addEventListener('input', function(){ dirty=true; }, true);
+  document.addEventListener('change', function(){ dirty=true; }, true);
+
+  function save(pageSaver, opts){
+    opts=opts||{};
+    lsSave();                                     // 1) 항상 localStorage 백업
+    var hasPage=(typeof pageSaver==='function');
+    if(hasPage){                                  // 2a) 리치 저장(페이지 고유 LS+GitHub)
+      return Promise.resolve().then(pageSaver).then(function(){ dirty=false; return {page:true}; })
+        .catch(function(e){ console.warn('[STD] pageSaver fail', e); dirty=false; return {page:false}; });
+    }
+    return ghSync().then(function(gh){             // 2b) 제네릭 GitHub 동기화(가능 시)
+      dirty=false;
+      if(!opts.silent) toast(gh===false?'로컬에 저장되었습니다 (클라우드 동기화 실패)':'저장되었습니다.', gh===false?'warn':'success');
+      return {gh:gh};
+    });
+  }
+  function load(pageLoader){
+    if(typeof pageLoader==='function'){ try{ return pageLoader(); }catch(e){ console.warn('[STD] pageLoader fail', e); } }
+    var o=lsLoad(); if(o) genericRestore(o); dirty=false; return o;
+  }
+  function goMain(pageSaver){
+    var url=(typeof window.dashboardUrl!=='undefined' && window.dashboardUrl) ? window.dashboardUrl : '../dashboard.html';
+    Promise.resolve(save(pageSaver, {silent:true})).then(function(){ location.href=url; }, function(){ location.href=url; });
+  }
+  window.addEventListener('beforeunload', function(){ try{ lsSave(); }catch(e){} });
+
+  window.STD={ save:save, load:load, goMain:goMain, lsSave:lsSave, lsLoad:lsLoad,
+               genericData:genericData, genericRestore:genericRestore,
+               projectId:pid, projectName:pname, key:lsKey, ghPath:ghPath, isDirty:function(){return dirty;} };
+})();
+</script>
+<script>(function(){function r(f){document.readyState!=='loading'?f():document.addEventListener('DOMContentLoaded',f);}r(function(){try{if(window.STD)STD.load();}catch(e){}});})();</script>
+</body>
+</html>

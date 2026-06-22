@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/himec-supabase-sync.js"></script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>절수형 위생기구 분석 - HIMEC</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Pretendard','Malgun Gothic',sans-serif; }
+  html,body { height:100%; }
+  body { background:#fff; color:#222; padding:0 100px; overflow:hidden; display:flex; flex-direction:column; }
+  /* Header (원본 재사용) */
+  .header {
+    background:#fff; padding:6px 20px; border-bottom:1px solid #ddd;
+    flex-shrink:0; margin-left:-100px; margin-right:-100px;
+    padding-left:120px; padding-right:120px; position:relative;
+  }
+  .header h1 { font-size:18px; font-weight:700; color:#222; }
+  .header .sub { font-size:10px; color:#888; margin-top:1px; }
+  .header h2 { font-size:14px; font-weight:600; color:#333; margin-top:3px; }
+  .header-right { position:absolute; bottom:6px; right:20px; display:flex; gap:8px; }
+  .header-right button { padding:6px 0; width:84px; border:none; border-radius:4px; font-size:10px; font-weight:600; cursor:pointer; }
+  .btn-save, .btn-file { background:#e85d24; color:#fff; }
+  .btn-main { background:#B1B6B7; color:#fff; }
+  .header-right button:hover { opacity:0.85; }
+  /* page (탭 삭제 → 단일 페이지, 전 모서리 둥글게) */
+  .page { display:none; background:#fff; padding:14px 18px; margin-top:12px; }
+  .page.active { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; }
+  /* layout */
+  .layout { display:grid; grid-template-columns:1.08fr 1fr; gap:24px; flex:1 1 auto; min-height:0; align-items:stretch; }
+  .left, .right { display:flex; flex-direction:column; min-height:0; }
+  /* section head (■) */
+  .sec-head { font-size:13px; font-weight:700; color:#222; margin:0 0 8px; }
+  /* input tables : 모서리 둥글게 / 좌우 테두리 없음 / 구분선 흰색 */
+  table { width:100%; font-size:11px; }
+  .inputtbl { border-collapse:separate; border-spacing:0; border-radius:8px; overflow:hidden; }
+  .inputtbl th, .inputtbl td { border-bottom:1px solid #fff; border-right:1px solid #fff; padding:7px 5px; text-align:center; }
+  .inputtbl tr th:last-child, .inputtbl tr td:last-child { border-right:none; }
+  .inputtbl tr:last-child th, .inputtbl tr:last-child td { border-bottom:none; }
+  .inputtbl th { background:#B1B6B7; font-weight:700; color:#fff; }
+  .inputtbl td { background:#fff; }
+  .inputtbl input, .inputtbl select { width:100%; border:1px solid #c2c7cb; border-radius:3px; padding:3px; font-size:11px; text-align:center; }
+  .inputtbl input[readonly] { background:#f3f5f6; color:#00838f; font-weight:700; border:none; }
+  .topin td { height:42px; vertical-align:top; padding:5px; }
+  .topin .u { display:block; text-align:right; font-size:10px; color:#999; margin-top:4px; }
+  .sub-title { font-size:12px; font-weight:600; color:#444; margin:10px 0 5px; }
+  /* 적용 기준 Data 박스 */
+  .refbox { background:#e9ebed; border-radius:8px; padding:12px 12px; margin-top:12px; flex:1 1 auto; display:flex; flex-direction:column; justify-content:space-between; min-height:0; }
+  .ref-group { }
+  .ref-title { font-size:12px; font-weight:700; color:#444; margin-bottom:4px; }
+  .ref-sub { font-size:11px; font-weight:600; color:#555; margin:8px 0 4px; }
+  .reftbl { border-collapse:separate; border-spacing:0; border-radius:8px; overflow:hidden; table-layout:fixed; }
+  .reftbl th, .reftbl td { border-bottom:1px solid #fff; border-right:1px solid #fff; padding:9px 5px; text-align:center; }
+  .reftbl tr th:last-child, .reftbl tr td:last-child { border-right:none; }
+  .reftbl tr:last-child th, .reftbl tr:last-child td { border-bottom:none; }
+  .reftbl th { background:#ccd0d3; font-weight:500; color:#444; }
+  .reftbl td { background:#fff; }
+  .reftbl td.l { text-align:center; }
+  .ref-note { font-size:9px; color:#8a8f93; line-height:1.5; margin-top:8px; }
+  .ref-note b { color:#666; }
+  /* result metric blocks */
+  .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .m-block { border-left:3px solid #ccc; padding:1px 0 1px 10px; }
+  .m-block.orange { border-left-color:#e85d24; }
+  .m-block.teal   { border-left-color:#00838f; }
+  .m-block.green  { border-left-color:#2e9e5b; }
+  .m-lbl { font-size:11px; color:#8a8f93; }
+  .m-val { font-size:22px; font-weight:700; margin-top:8px; }
+  .m-block.orange .m-val { color:#e85d24; }
+  .m-block.teal   .m-val { color:#00838f; }
+  .m-block.green  .m-val { color:#2e9e5b; }
+  .m-val small { font-size:11px; font-weight:600; color:#999; }
+  /* 산정식 / 절감률 row */
+  .midrow { display:flex; justify-content:space-between; align-items:flex-end; margin:16px 0 8px; }
+  .formula { font-size:10px; color:#9a9fa3; line-height:1.6; }
+  .formula .f-title { font-weight:700; color:#888; margin-bottom:3px; font-size:11px; }
+  .rate { text-align:right; white-space:nowrap; }
+  .rate .r-lbl { font-size:11px; color:#8a8f93; margin-bottom:6px; }
+  .rate .r-val { font-size:20px; font-weight:700; color:#2e9e5b; }
+  .rate .r-val small { font-size:11px; color:#999; font-weight:600; }
+  /* chart */
+  canvas { width:100%; max-width:100%; flex:1 1 auto; min-height:140px; display:block; margin-top:26px; }
+  .copyright { text-align:center; font-size:10px; color:#999; padding:8px 120px 6px; margin-top:auto; margin-left:-100px; margin-right:-100px; border-top:1px solid #eee; background:#fff; }
+  /* ===== 반응형 (오토 사이즈) : 화면 비율에 따라 레이아웃 자동 조정 ===== */
+
+  /* === Tool-002 Baseline 좌/우 여백 반응형 (page-container=body 매핑) === */
+  @media (max-width: 1600px) {
+    body { padding:0 60px; }
+    .header { margin-left:-60px; margin-right:-60px; padding-left:80px; padding-right:80px; }
+    .copyright { padding-left:80px; padding-right:80px; margin-left:-60px; margin-right:-60px; }
+  }
+  @media (max-width: 1300px) {
+    body { padding:0 30px; }
+    .header { margin-left:-30px; margin-right:-30px; padding-left:50px; padding-right:50px; }
+    .copyright { padding-left:50px; padding-right:50px; margin-left:-30px; margin-right:-30px; }
+  }
+  @media (max-width: 1100px) {
+    body { padding:0 15px; }
+    .header { margin-left:-15px; margin-right:-15px; padding-left:35px; padding-right:35px; }
+    .copyright { padding-left:35px; padding-right:35px; margin-left:-15px; margin-right:-15px; }
+  }
+  @media (max-width: 700px) {
+    body { padding:0 10px; }
+    .header { margin-left:-10px; margin-right:-10px; padding-left:30px; padding-right:30px; }
+    .copyright { padding-left:30px; padding-right:30px; margin-left:-10px; margin-right:-10px; }
+  }
+
+    @media (max-width: 1024px) {
+    body { overflow:auto; }
+    .layout { grid-template-columns:1fr; gap:18px; }
+    .page.active { min-height:0; }
+    canvas { min-height:240px; }
+  }
+  @media (max-width: 640px) {
+    body { padding:0 10px; }
+    .header { margin-left:-10px; margin-right:-10px; padding-left:30px; padding-right:30px; }
+    .header h1 { font-size:15px; }
+    .header h2 { font-size:12px; }
+    .metrics { grid-template-columns:1fr; gap:8px; }
+    .m-val { font-size:20px; }
+    .midrow { flex-direction:column; align-items:flex-start; gap:10px; }
+    .rate { text-align:left; }
+    .copyright { margin-left:-10px; margin-right:-10px; padding-left:30px; padding-right:30px; }
+  }
+  /* ===== [v4 ADD] 세로형(포트레이트) 모니터 대응 - 항상 기본 규칙 뒤에 위치 ===== */
+  @media (orientation: portrait){
+    html, body{ height:auto !important; overflow:visible !important; }
+    body .page.active{ overflow:visible !important; height:auto !important; flex:0 1 auto !important; min-height:0 !important; }
+    body .layout{ grid-template-columns:1fr !important; align-items:start !important; height:auto !important; min-height:0 !important; }
+    body .left, body .right{ overflow:visible !important; height:auto !important; min-height:0 !important; }
+    body canvas{ min-height:240px !important; }
+    body .layout, body .layout *{ overflow-wrap:anywhere !important; word-break:keep-all !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header (원본 재사용) -->
+<div class="header">
+  <h1>HIMEC &minus; Mechanical Facility Aging Diagnosis System</h1>
+  <div class="sub">(주)하이멕 &minus; 기계설비 노후화 진단</div>
+  <h2>Water-Saving Sanitary Fixtures Analysis Tool &nbsp;/&nbsp; 절수형 위생기구 분석</h2>
+  <div class="header-right">
+    <button class="btn-save" onclick="alert('Save')">Save</button>
+    <button class="btn-file" onclick="alert('File Trans')">File Trans</button>
+    <button class="btn-main" onclick="GoMain()">Main</button>
+  </div>
+</div>
+
+<!-- ===== 절수 분석 (단일 페이지) ===== -->
+<div class="page active" id="p1">
+  <div class="layout">
+
+    <!-- LEFT : 입력 및 선택 + 적용 기준 Data -->
+    <div class="left">
+      <div class="sec-head">&#9632; 입력 및 선택</div>
+
+      <table class="inputtbl topin">
+        <tr>
+          <th style="width:40%;">건물 용도</th>
+          <th style="width:30%;">연간 건물 운영 일수</th>
+          <th style="width:30%;">상하수도요금(평균)</th>
+        </tr>
+        <tr>
+          <td>
+            <select id="bldgUse" onchange="calc()">
+              <option value="" selected>입력 해주세요</option>
+              <option value="6">학교 (6 h/일)</option>
+              <option value="7">극장·영화관 (7 h/일)</option>
+              <option value="8">사무소 (8 h/일)</option>
+              <option value="9">병원 (9 h/일)</option>
+              <option value="10">백화점·상점 (10 h/일)</option>
+              <option value="12">음식점 (12 h/일)</option>
+            </select>
+          </td>
+          <td><input id="days" type="number" placeholder="입력 해주세요" onchange="calc()"><span class="u">일/년</span></td>
+          <td><input id="tariff" type="number" placeholder="입력 해주세요" onchange="calc()"><span class="u">원/&#13221;</span></td>
+        </tr>
+      </table>
+      <input type="hidden" id="useTime">
+
+      <div class="sub-title">위생기구 입력 (구분 · 기구수 · 적용 Type)</div>
+      <table class="inputtbl" id="fixTbl">
+        <tr>
+          <th style="width:13%;">구분</th>
+          <th style="width:12%;">기구 개수</th>
+          <th style="width:15%;">Type</th>
+          <th style="width:15%;">시간당<br>사용 횟수</th>
+          <th style="width:13%;">동시<br>사용율</th>
+          <th style="width:15%;">1회 수량(&#8467;)</th>
+          <th style="width:17%;">1사용량<br>(&#8467;/day)</th>
+        </tr>
+        <tr data-fix="wc">
+          <th>대변기</th>
+          <td><input type="number" class="cnt" placeholder="입력 해주세요" onchange="calc()"></td>
+          <td>
+            <select class="type" onchange="calc()">
+              <option value="" selected>입력 해주세요</option>
+              <option value="g">일반형</option>
+              <option value="s">절수형</option>
+              <option value="u">초절수형</option>
+            </select>
+          </td>
+          <td><input class="hz" readonly></td>
+          <td><input class="sim" readonly></td>
+          <td><input class="liter" readonly></td>
+          <td><input class="day" readonly></td>
+        </tr>
+        <tr data-fix="ur">
+          <th>소변기</th>
+          <td><input type="number" class="cnt" placeholder="입력 해주세요" onchange="calc()"></td>
+          <td>
+            <select class="type" onchange="calc()">
+              <option value="" selected>입력 해주세요</option>
+              <option value="g">일반형</option>
+              <option value="s">절수형</option>
+              <option value="u">초절수형</option>
+            </select>
+          </td>
+          <td><input class="hz" readonly></td>
+          <td><input class="sim" readonly></td>
+          <td><input class="liter" readonly></td>
+          <td><input class="day" readonly></td>
+        </tr>
+        <tr data-fix="lv">
+          <th>세면기</th>
+          <td><input type="number" class="cnt" placeholder="입력 해주세요" onchange="calc()"></td>
+          <td>
+            <select class="type" onchange="calc()">
+              <option value="" selected>입력 해주세요</option>
+              <option value="g">일반형</option>
+              <option value="s">절수형</option>
+              <option value="u">초절수형</option>
+            </select>
+          </td>
+          <td><input class="hz" readonly></td>
+          <td><input class="sim" readonly></td>
+          <td><input class="liter" readonly></td>
+          <td><input class="day" readonly></td>
+        </tr>
+      </table>
+
+      <!-- 적용 기준 Data (페이지2 통합) -->
+      <div class="refbox">
+        <div class="ref-title">&#9635; 적용 기준 Data</div>
+
+        <div class="ref-group">
+          <div class="ref-sub">- 위생기구별 1회 사용수량 (L/회)</div>
+          <table class="reftbl">
+            <tr><th>구분</th><th>일반형</th><th>절수형</th><th>초절수형</th><th>시간당 사용 횟수</th></tr>
+            <tr><td class="l">대변기</td><td>13</td><td>6</td><td>4.5</td><td>6 회/h</td></tr>
+            <tr><td class="l">소변기</td><td>4</td><td>2</td><td>1</td><td>12 회/h</td></tr>
+            <tr><td class="l">세면기</td><td>3</td><td>2</td><td>1.5</td><td>8 회/h</td></tr>
+          </table>
+        </div>
+
+        <div class="ref-group">
+          <div class="ref-sub">- 기구수별 동시사용률(%)</div>
+          <table class="reftbl">
+            <tr><th>구분</th><th>1</th><th>2</th><th>5</th><th>10</th><th>20</th><th>50</th><th>100</th></tr>
+            <tr><td class="l">동시사용율</td><td>100</td><td>80</td><td>60</td><td>45</td><td>35</td><td>25</td><td>20</td></tr>
+          </table>
+        </div>
+
+        <div class="ref-group">
+          <div class="ref-sub">- 건물 용도별 1일 사용시간 T (h/일)</div>
+          <table class="reftbl">
+            <tr><th>학교</th><th>극장·영화관</th><th>사무소</th><th>병원</th><th>백화점·상점</th><th>음식점</th></tr>
+            <tr><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>12</td></tr>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT : 분석 결과 -->
+    <div class="right">
+      <div class="sec-head">&#9632; 분석 결과</div>
+
+      <div class="metrics">
+        <div class="m-block orange">
+          <div class="m-lbl">일반형 적용 시 연간 사용량</div>
+          <div class="m-val"><span id="genTon">-</span> <small>Ton/년</small></div>
+        </div>
+        <div class="m-block teal">
+          <div class="m-lbl">절수형 적용 시 연간 사용량</div>
+          <div class="m-val"><span id="effTon">-</span> <small>Ton/년</small></div>
+        </div>
+        <div class="m-block green">
+          <div class="m-lbl">연간 절감 수량</div>
+          <div class="m-val"><span id="saveTon">-</span> <small>Ton/년</small></div>
+        </div>
+      </div>
+
+      <div class="midrow">
+        <div class="formula">
+          <div class="f-title">산정식</div>
+          일사용량 = 기구수 × 시간당사용횟수 × 동시사용률 × 사용시간 × 1회수량<br>
+          연간량(Ton) = 일사용량 × 운전일수 ÷ 1000
+        </div>
+        <div class="rate">
+          <div class="r-lbl">절감률 / 연간 절감액</div>
+          <div class="r-val"><span id="ratePct">-</span> <small>%</small> / <span id="saveWon">-</span> <small>천/년</small></div>
+        </div>
+      </div>
+
+      <canvas id="barChart" height="210"></canvas>
+
+        <div class="ref-note">
+          <b>Data 출처 / 설계기준</b><br>
+          · 절수형 1회 사용수량 : 「수도법 시행규칙」[별표2] 절수설비·절수기기 기준 (대변기 6L 이하, 소변기 2L 이하)<br>
+          · 시간당 사용횟수·동시사용률 곡선 : 공기조화·위생공학 설계 표준값 (기구수별 동시사용률 100%→20% 보간)<br>
+          · 일 사용시간 : 「수도법 시행규칙」, 공기조화 위생공학 설계 표준
+        </div>
+    </div>
+  </div>
+</div>
+
+<div class="copyright">Copyright &copy; (주)하이멕 HIMEC. All rights reserved.</div>
+
+<script>
+// ========== Main 복귀 ==========
+function GoMain(){ if(window.STD){ STD.goMain(null); } else { window.location.href='../dashboard.html'; } }
+
+/* ---------- 설계기준 상수 ---------- */
+var LITER = {           // 1회 사용수량 (L/회) : 일반 g / 절수 s / 초절수 u
+  wc:{g:13, s:6,  u:4.5},
+  ur:{g:4,  s:2,  u:1},
+  lv:{g:3,  s:2,  u:1.5}
+};
+var HZ = { wc:6, ur:12, lv:8 };   // 시간당 사용횟수 (회/h)
+
+/* 기구수 → 동시사용률(%) 보간 곡선 */
+var SIM_X = [1,2,5,10,20,50,100];
+var SIM_Y = [100,80,60,45,35,25,20];
+function simRate(n){
+  if(n<=1) return 100;
+  if(n>=100) return 20;
+  for(var i=0;i<SIM_X.length-1;i++){
+    if(n>=SIM_X[i] && n<=SIM_X[i+1]){
+      var r=(n-SIM_X[i])/(SIM_X[i+1]-SIM_X[i]);
+      return SIM_Y[i]+(SIM_Y[i+1]-SIM_Y[i])*r;
+    }
+  }
+  return 20;
+}
+
+/* ---------- 계산 ---------- */
+function calc(){
+  // 사용시간(건물용도) 자동 — 미선택 시 NaN
+  var T = parseFloat(document.getElementById('bldgUse').value);
+  document.getElementById('useTime').value = isNaN(T) ? '' : (T + ' h');
+  var days = parseFloat(document.getElementById('days').value);
+  var tariff = parseFloat(document.getElementById('tariff').value);
+
+  var rows = document.querySelectorAll('#fixTbl tr[data-fix]');
+  var genDay=0, effDay=0;
+
+  for(var i=0;i<rows.length;i++){
+    var fix = rows[i].getAttribute('data-fix');
+    var cnt = parseFloat(rows[i].querySelector('.cnt').value);
+    var type = rows[i].querySelector('.type').value;
+    var hz = HZ[fix];
+    var literGen = LITER[fix].g;             // 일반형 기준
+
+    rows[i].querySelector('.hz').value = hz;
+
+    // 입력 미완료(기구수·Type·건물용도) 시 보조칸 공백 처리
+    if(isNaN(cnt) || cnt<=0 || type==='' || isNaN(T)){
+      rows[i].querySelector('.sim').value = '';
+      rows[i].querySelector('.liter').value = '';
+      rows[i].querySelector('.day').value = '';
+      continue;
+    }
+
+    var sim = simRate(cnt);
+    var liter = LITER[fix][type];            // 적용 Type → 1회수량 자동
+
+    // 일사용량(L/일) = 기구수 × 시간당횟수 × 동시사용률 × 사용시간 × 1회수량
+    var dayEff = cnt * hz * (sim/100) * T * liter;
+    var dayGen = cnt * hz * (sim/100) * T * literGen;
+
+    rows[i].querySelector('.sim').value = sim.toFixed(0)+' %';
+    rows[i].querySelector('.liter').value = liter;
+    rows[i].querySelector('.day').value = dayEff.toFixed(0);
+
+    genDay += dayGen;
+    effDay += dayEff;
+  }
+
+  // 필수 입력(건물용도·운영일수·기구입력) 미완료 시 결과는 '-' 표시
+  if(isNaN(T) || isNaN(days) || days<=0 || genDay<=0){
+    document.getElementById('genTon').textContent = '-';
+    document.getElementById('effTon').textContent = '-';
+    document.getElementById('saveTon').textContent = '-';
+    document.getElementById('ratePct').textContent = '-';
+    document.getElementById('saveWon').textContent = '-';
+    drawChart(0, 0);
+    return;
+  }
+
+  var genTon = genDay*days/1000;
+  var effTon = effDay*days/1000;
+  var saveTon = genTon - effTon;
+  var rate = genTon>0 ? (saveTon/genTon*100) : 0;
+  var saveWon = saveTon * (isNaN(tariff)?0:tariff);   // Ton × 원/Ton = 원, 천원 표시
+
+  document.getElementById('genTon').textContent = genTon.toFixed(1);
+  document.getElementById('effTon').textContent = effTon.toFixed(1);
+  document.getElementById('saveTon').textContent = saveTon.toFixed(1);
+  document.getElementById('ratePct').textContent = rate.toFixed(1);
+  document.getElementById('saveWon').textContent = (saveWon/1000).toFixed(0);
+
+  drawChart(genTon, effTon);
+}
+
+/* ---------- Canvas 차트 (원본 재사용) ---------- */
+function drawChart(vG, vE){
+  var cv=document.getElementById('barChart');
+  var ctx=cv.getContext('2d');
+  var W=cv.width=cv.clientWidth*2, H=cv.height=cv.clientHeight*2;
+  ctx.scale(1,1);
+  ctx.clearRect(0,0,W,H);
+  var padL=70, padT=24, padB=44;
+  var cw=W-padL-40, ch=H-padT-padB;
+  var maxv=Math.max(vG,vE,1);
+  var niceMax=Math.ceil(maxv/100)*100;
+  if(niceMax===0) niceMax=100;
+
+  // axis
+  ctx.strokeStyle='#ccc'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(padL,padT); ctx.lineTo(padL,padT+ch); ctx.lineTo(padL+cw,padT+ch); ctx.stroke();
+  // y label
+  ctx.save();
+  ctx.translate(18,padT+ch/2); ctx.rotate(-Math.PI/2);
+  ctx.textAlign='center'; ctx.fillStyle='#888'; ctx.font='16px sans-serif';
+  ctx.fillText('단위 : Ton/년', 0, 0);
+  ctx.restore();
+  // gridlines
+  ctx.fillStyle='#888'; ctx.font='15px sans-serif'; ctx.textAlign='right';
+  for(var g=0;g<=4;g++){
+    var yy=padT+ch-(ch*g/4);
+    ctx.strokeStyle='#eee'; ctx.beginPath(); ctx.moveTo(padL,yy); ctx.lineTo(padL+cw,yy); ctx.stroke();
+    ctx.fillText((niceMax*g/4).toFixed(0), padL-8, yy+5);
+  }
+  // bars
+  var labels=['일반형','절수형 적용'];
+  var vals=[vG,vE];
+  var colors=['#b8bcc0','#00838f'];
+  // 막대 가로폭 : 기존 대비 2배 (cap 130 -> 260), 슬롯 폭 초과 시 겹침 방지
+  var slot=cw/2;
+  var bw=Math.min(slot*0.5, 130)*2;
+  if(bw>slot*0.86) bw=slot*0.86;
+  var tops=[];   // 각 막대 상단 좌표 저장 (절감률 표시용)
+  for(var i=0;i<2;i++){
+    var cx=padL+cw*(i+0.5)/2;
+    var bh=(vals[i]/niceMax)*ch;
+    var y=padT+ch-bh;
+    tops.push({x:cx, y:y});
+    ctx.fillStyle=colors[i];
+    ctx.fillRect(cx-bw/2, y, bw, bh);
+    ctx.fillStyle='#333'; ctx.font='bold 17px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(vals[i].toFixed(1), cx, y-8);
+    ctx.fillStyle='#555'; ctx.font='15px sans-serif';
+    ctx.fillText(labels[i], cx, padT+ch+24);
+  }
+  // 그래프 내 절감률 표시 (화살표 삭제 - 라벨만 표시)
+  var rate = vG>0 ? ((vG-vE)/vG*100) : 0;
+  var midX=(tops[0].x+tops[1].x)/2;
+  var topY=Math.min(tops[0].y, tops[1].y);
+  var labelY=Math.max(topY-30, padT+20);
+  ctx.fillStyle='#2e9e5b'; ctx.font='bold 22px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('절감률 '+rate.toFixed(1)+'%', midX, labelY);
+}
+
+
+window.onload = calc;
+window.onresize = calc;
+</script>
+<script>window.__STD_TOOL='501';</script>
+<script>
+/* ============================================================
+   STD Storage  —  표준 저장 모듈 v1 (전 도구 공통)
+   방식: localStorage 우선 + GitHub 동기화(가능 시)
+        + beforeunload 백업 + 저장 후 이동(GoMain)
+   ============================================================ */
+(function(){
+  if (window.STD) return;                         // 중복 주입 방지
+  var TOOL = window.__STD_TOOL || 'tool';
+  function qp(k){ return new URLSearchParams(location.search).get(k) || ''; }
+  function pid(){ return qp('projectId') || qp('project') || qp('id') || ''; }
+  function pname(){ return qp('projectName') || qp('name') || ''; }
+  function lsKey(){ var id=pid(); return 'std_'+TOOL+'_'+(id||'standalone'); }
+  function ghPath(){ var id=pid(); return id ? ('data/'+TOOL+'/'+id+'.json') : null; }
+
+  function genericData(){
+    var o={__std:true, t:Date.now(), fields:{}};
+    document.querySelectorAll('input[id],select[id],textarea[id]').forEach(function(el){
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='button'||ty==='submit'||ty==='reset'||ty==='file') return;
+      o.fields[el.id]=(ty==='checkbox'||ty==='radio') ? el.checked : el.value;
+    });
+    return o;
+  }
+  function genericRestore(o){
+    if(!o||!o.fields) return;
+    Object.keys(o.fields).forEach(function(id){
+      var el=document.getElementById(id); if(!el) return;
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='checkbox'||ty==='radio') el.checked=!!o.fields[id];
+      else el.value=o.fields[id];
+      try{ el.dispatchEvent(new Event('input',{bubbles:true}));
+           el.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){}
+    });
+  }
+  function lsSave(){
+    try{ localStorage.setItem(lsKey(), JSON.stringify(genericData())); return true; }
+    catch(e){ console.warn('[STD] LS save fail', e); return false; }
+  }
+  function lsLoad(){
+    try{ var r=localStorage.getItem(lsKey()); return r? JSON.parse(r):null; }catch(e){ return null; }
+  }
+  function ghSync(){
+    var p=ghPath();
+    if(p && typeof window.ghSaveFile==='function'){
+      return Promise.resolve(window.ghSaveFile(p, genericData(), 'STD save '+TOOL+' '+pid()))
+        .then(function(){ return true; })
+        .catch(function(e){ console.warn('[STD] GH save fail', e); return false; });
+    }
+    return Promise.resolve(null);                 // GitHub 미사용 페이지
+  }
+  function toast(msg, type){
+    if(typeof window._showToast==='function'){ try{ window._showToast(msg, type||'success'); return; }catch(e){} }
+    if(typeof window.showToast==='function'){ try{ window.showToast(msg, type||'success'); return; }catch(e){} }
+    var el=document.getElementById('__stdToast');
+    if(!el){ el=document.createElement('div'); el.id='__stdToast';
+      el.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;opacity:0;transition:opacity .2s';
+      document.body.appendChild(el); }
+    el.textContent=msg; el.style.opacity='1';
+    clearTimeout(el.__t); el.__t=setTimeout(function(){ el.style.opacity='0'; }, 1800);
+  }
+
+  var dirty=false;
+  document.addEventListener('input', function(){ dirty=true; }, true);
+  document.addEventListener('change', function(){ dirty=true; }, true);
+
+  function save(pageSaver, opts){
+    opts=opts||{};
+    lsSave();                                     // 1) 항상 localStorage 백업
+    var hasPage=(typeof pageSaver==='function');
+    if(hasPage){                                  // 2a) 리치 저장(페이지 고유 LS+GitHub)
+      return Promise.resolve().then(pageSaver).then(function(){ dirty=false; return {page:true}; })
+        .catch(function(e){ console.warn('[STD] pageSaver fail', e); dirty=false; return {page:false}; });
+    }
+    return ghSync().then(function(gh){             // 2b) 제네릭 GitHub 동기화(가능 시)
+      dirty=false;
+      if(!opts.silent) toast(gh===false?'로컬에 저장되었습니다 (클라우드 동기화 실패)':'저장되었습니다.', gh===false?'warn':'success');
+      return {gh:gh};
+    });
+  }
+  function load(pageLoader){
+    if(typeof pageLoader==='function'){ try{ return pageLoader(); }catch(e){ console.warn('[STD] pageLoader fail', e); } }
+    var o=lsLoad(); if(o) genericRestore(o); dirty=false; return o;
+  }
+  function goMain(pageSaver){
+    var url=(typeof window.dashboardUrl!=='undefined' && window.dashboardUrl) ? window.dashboardUrl : '../dashboard.html';
+    Promise.resolve(save(pageSaver, {silent:true})).then(function(){ location.href=url; }, function(){ location.href=url; });
+  }
+  window.addEventListener('beforeunload', function(){ try{ lsSave(); }catch(e){} });
+
+  window.STD={ save:save, load:load, goMain:goMain, lsSave:lsSave, lsLoad:lsLoad,
+               genericData:genericData, genericRestore:genericRestore,
+               projectId:pid, projectName:pname, key:lsKey, ghPath:ghPath, isDirty:function(){return dirty;} };
+})();
+</script>
+<script>(function(){function r(f){document.readyState!=='loading'?f():document.addEventListener('DOMContentLoaded',f);}r(function(){try{if(window.STD)STD.load();}catch(e){}});})();</script>
+</body>
+</html>

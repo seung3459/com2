@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/himec-supabase-sync.js"></script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIMEC - Rainwater Reuse Economic Analysis</title>
+<style>
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100vh; width: 100vw; overflow: hidden;
+    font-family: 'Noto Sans KR', Pretendard, sans-serif;
+    background: #f5f5f5; color: #333;
+  }
+  body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  .page-container { padding: 0 100px; background: #fff; flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+
+  /* Header (원본 재사용) */
+  .header {
+    background: #fff; padding: 8px 20px; border-bottom: 1px solid #ddd;
+    flex-shrink: 0; margin-left: -100px; margin-right: -100px;
+    padding-left: 120px; padding-right: 120px; position: relative;
+  }
+  .header h1 { font-size: 20px; font-weight: 700; color: #222; }
+  .header .sub { font-size: 11px; color: #888; margin-top: 2px; }
+  .header h2 { font-size: 15px; font-weight: 600; color: #333; margin-top: 4px; }
+  .header-right { position: absolute; bottom: 8px; right: 20px; display: flex; gap: 8px; }
+  .header-right button { padding: 8px 0; width: 90px; border: none; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; }
+  .btn-save, .btn-file { background: #e85d24; color: #fff; }
+  .btn-main { background: #555; color: #fff; }
+  .header-right button:hover { opacity: 0.85; }
+
+  /* Copyright (원본 재사용) */
+  .copyright {
+    background: #fff; border-top: 1px solid #ddd; padding: 6px 20px;
+    margin-left: -100px; margin-right: -100px; padding-left: 120px; padding-right: 120px;
+    flex-shrink: 0; text-align: center; font-size: 10px; color: #888;
+  }
+
+  @media (max-width: 1600px) {
+    .page-container { padding: 0 60px; }
+    .header { margin-left: -60px; margin-right: -60px; padding-left: 80px; padding-right: 80px; }
+    .copyright { margin-left: -60px; margin-right: -60px; padding-left: 80px; padding-right: 80px; }
+  }
+  @media (max-width: 1300px) {
+    .page-container { padding: 0 40px; }
+    .header { margin-left: -40px; margin-right: -40px; padding-left: 60px; padding-right: 60px; }
+    .copyright { margin-left: -40px; margin-right: -40px; padding-left: 60px; padding-right: 60px; }
+  }
+  @media (max-width: 1100px) {
+    .page-container { padding: 0 24px; }
+    .header { margin-left: -24px; margin-right: -24px; padding-left: 40px; padding-right: 40px; }
+    .copyright { margin-left: -24px; margin-right: -24px; padding-left: 40px; padding-right: 40px; }
+  }
+  @media (max-width: 700px) {
+    .page-container { padding: 0 12px; }
+    .header { margin-left: -12px; margin-right: -12px; padding-left: 20px; padding-right: 20px; }
+    .copyright { margin-left: -12px; margin-right: -12px; padding-left: 20px; padding-right: 20px; }
+  }
+
+  /* === 본문 === */
+  .content { padding: 10px 0 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; overflow: hidden; }
+
+  /* 탭 바 */
+  .tabbar { display: flex; align-items: flex-end; gap: 6px; border-bottom: 2px solid #3b8c93; padding-bottom: 0; flex-shrink: 0; }
+  .tab { display: flex; align-items: center; gap: 10px; background: #dfe3e5; color: #666;
+         padding: 7px 14px; border-radius: 6px 6px 0 0; font-size: 12px; font-weight: 700; cursor: pointer; user-select: none; }
+  .tab.active { background: #3b8c93; color: #fff; }
+  .tab .x { font-size: 11px; opacity: 0.8; }
+  .tab .x:hover { opacity: 1; }
+  .tab-add { background: #dfe3e5; color: #555; padding: 7px 13px; border-radius: 6px; cursor: pointer; font-weight: 800; font-size: 13px; user-select: none; }
+  .tab-add:hover { background: #cdd2d5; }
+
+  /* 3단 레이아웃 */
+  .layout { display: grid; grid-template-columns: 1.08fr 0.96fr 1.02fr; gap: 14px; align-items: stretch; flex: 1; min-height: 0; }
+  .col .section { flex: 1 1 auto; }
+  .col { display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; }
+
+  .section { border: none; border-radius: 10px; background: #fff; padding: 14px 16px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .sec-title2 { font-size: 14px; font-weight: 800; color: #222; margin-bottom: 12px; display: flex; align-items: center; gap: 7px; }
+  .sec-title2 .sq { width: 11px; height: 11px; background: #222; display: inline-block; }
+
+  /* 입력 테이블 */
+  table.inputtbl { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 8px; overflow: hidden; }
+  table.inputtbl th { background: #B1B6B7; color: #fff; font-size: 12px; font-weight: 500; padding: 8px 6px; border-right: 1px solid #b1b7bb; border-bottom: 1px solid #b1b7bb; text-align: center; }
+  table.inputtbl td { border-right: 1px solid #e0e0e0; border-bottom: 1px solid #e0e0e0; padding: 8px 8px; vertical-align: top; }
+  table.inputtbl th:last-child, table.inputtbl td:last-child { border-right: none; }
+  table.inputtbl select, table.inputtbl input {
+    width: 100%; border: 1px solid #ccc; border-radius: 5px; padding: 7px 8px;
+    font-size: 11px; color: #00838f; font-weight: 600; background: #fff; outline: none;
+  }
+  table.inputtbl .hint { font-size: 8px; color: #999; margin-top: 5px; line-height: 1.4; }
+
+  /* 차트 */
+  .chart-box { border: 1px solid #eee; border-radius: 8px; padding: 8px; }
+  .chart-cap { font-size: 11px; font-weight: 700; color: #555; margin: 2px 4px 6px; }
+  #rainChart { width: 100%; height: 230px; display: block; }
+  #compareChart { width: 100%; height: 300px; display: block; }
+
+  /* 지표 카드 2x2 */
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .metric-card { border: none; border-bottom: 0.5px solid #B1B6B7; border-radius: 0; padding: 12px; background: #fff; }
+  .metric-card .ml { font-size: 11px; color: #8a8f94; font-weight: 500; line-height: 1.3; min-height: 28px; }
+  .metric-card .mv { font-size: 20px; font-weight: 800; color: #555; margin-top: 12px; text-align: right; }
+  .metric-card .mu { font-size: 11px; color: #999; margin-left: 3px; font-weight: 600; }
+
+  /* 유지관리비 표 */
+  table.mtbl { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 8px; overflow: hidden; font-size: 11px; }
+  table.mtbl th, table.mtbl td { border-right: 1px solid #e0e0e0; border-bottom: 1px solid #e0e0e0; padding: 7px 8px; text-align: center; }
+  table.mtbl th:last-child, table.mtbl td:last-child { border-right: none; }
+  table.mtbl th { background: #B1B6B7; color: #FFF; font-weight: 500; }
+  table.mtbl td.lbl { background: #fafafa; font-weight: 500; color: #444; text-align: left; }
+  table.mtbl td.num { text-align: right; }
+  table.mtbl input { width: 100%; max-width: 110px; border: 1px solid #ccc; border-radius: 4px; padding: 4px 5px; font-size: 11px; text-align: right; color: #00838f; font-weight: 600; }
+  table.mtbl .total td { background: #B1B6B7;; font-weight: 700; color: #fff; }
+
+  /* 비용 카드 (중앙 하단) */
+  .cost-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .cost-card { border: none; border-radius: 8px; padding: 14px; background: #fff; }
+  .cost-card .cl { font-size: 12px; color: #8a8f94; font-weight: 500; }
+  .cost-card .cv { font-size: 17px; font-weight: 800; color: #555; text-align: right; margin-top: 14px; }
+  .cost-card .cu { font-size: 11px; color: #999; margin-left: 3px; font-weight: 600; }
+  .cost-card.total-card { grid-column: 1 / -1; background: #B1B6B7; border: none; }
+  .cost-card.total-card .cl { color: #fff; }
+  .cost-card.total-card .cv { color: #fff; }
+  .cost-card.total-card .cu { color: #e7e9ea; }
+
+  /* 결과 카드 */
+  .result-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .res-card { border: none; border-radius: 10px; padding: 14px 10px; text-align: center; background: #fff; }
+  .res-card .rl { font-size: 11px; color: #777; font-weight: 600; }
+  .res-card .rv { font-size: 21px; font-weight: 800; margin-top: 8px; }
+  .res-card .rv span.cur { font-size: 12px; }
+  .res-card.rain-c { background: #fff; }
+  .res-card.rain-c .rv { color: #00838f; }
+  .res-card.city-c { background: #fff; }
+  .res-card.city-c .rv { color: #e85d24; }
+  .res-card.save-c { background: #fff; }
+  .res-card.save-c .rv { color: #3a8f33; }
+  .res-card .rsub { font-size: 9.5px; color: #999; margin-top: 6px; line-height: 1.4; }
+
+  .compare-box { border: 1px solid #eee; border-radius: 8px; padding: 10px 8px; margin-top: 14px; }
+
+  .source-box { margin-top: auto; border-top: 1px solid #ececec; padding-top: 8px; font-size: 9px; color: #888; line-height: 1.6; }
+  .source-box b { color: #555; }
+  .note { font-size: 9px; color: #999; margin-top: 10px; line-height: 1.5; }
+
+/* ===== [v5 ADD] 세로형(포트레이트) 모니터 대응 - 항상 기본 규칙 뒤에 위치 ===== */
+@media (orientation: portrait){
+  html, body{ height:auto !important; overflow:visible !important; }
+  body .content{ overflow:visible !important; height:auto !important; }
+  body .layout{ grid-template-columns:1fr !important; align-items:start !important; height:auto !important; }
+  body .col{ overflow:visible !important; height:auto !important; }
+  body .source-box{ margin-top:16px !important; }
+  body .source-box, body .source-box *{ overflow-wrap:anywhere !important; word-break:keep-all !important; }
+}
+</style>
+</head>
+<body>
+<div class="page-container">
+
+  <!-- Header (원본 재사용) -->
+  <div class="header">
+    <h1>HIMEC &minus; Mechanical Facility Aging Diagnosis System</h1>
+    <div class="sub">(주)하이멕 &minus; 기계설비 노후화 진단</div>
+    <h2>Rainwater Reuse Economic Analysis Tool &nbsp;/&nbsp; 우수 재이용 경제성 분석</h2>
+    <div class="header-right">
+      <button class="btn-save" onclick="alert('Save')">Save</button>
+      <button class="btn-file" onclick="alert('File Trans')">File Trans</button>
+      <button class="btn-main" onclick="GoMain()">Main</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- 탭 바 -->
+    <div class="tabbar" id="tabbar"></div>
+
+    <!-- 3단 레이아웃 -->
+    <div class="layout">
+
+      <!-- ◀ 좌측 컬럼 : 입력 & 집수량 -->
+      <div class="col">
+        <div class="section">
+          <div class="sec-title2"><span class="sq"></span> 입력 및 선택</div>
+          <table class="inputtbl">
+            <tr><th>지역 선택</th><th>우수조 용량</th><th>유출계수 (ASCE)</th></tr>
+            <tr>
+              <td>
+                <select id="region" onchange="recalc()"><option value="서울">서울</option>
+<option value="인천">인천</option>
+<option value="수원">수원</option>
+<option value="강화">강화</option>
+<option value="양평">양평</option>
+<option value="이천">이천</option>
+<option value="철원">철원</option>
+<option value="춘천">춘천</option>
+<option value="원주">원주</option>
+<option value="인제">인제</option>
+<option value="홍천">홍천</option>
+<option value="속초">속초</option>
+<option value="강을">강을</option>
+<option value="대관령">대관령</option>
+<option value="울릉도">울릉도</option>
+<option value="태백">태백</option>
+<option value="청주">청주</option>
+<option value="추풍령">추풍령</option>
+<option value="충주">충주</option>
+<option value="제천">제천</option>
+<option value="보은">보은</option>
+<option value="서산">서산</option>
+<option value="대전">대전</option>
+<option value="천안">천안</option>
+<option value="보령">보령</option>
+<option value="부여">부여</option>
+<option value="금산">금산</option>
+<option value="군산">군산</option>
+<option value="전주">전주</option>
+<option value="부안">부안</option>
+<option value="정읍">정읍</option>
+<option value="남원">남원</option>
+<option value="임실">임실</option>
+<option value="장수">장수</option>
+<option value="광주">광주</option>
+<option value="목포">목포</option>
+<option value="완도">완도</option>
+<option value="여수">여수</option>
+<option value="순천">순천</option>
+<option value="장흥">장흥</option>
+<option value="해남">해남</option>
+<option value="고흥">고흥</option>
+<option value="제주">제주</option>
+<option value="고산">고산</option>
+<option value="서귀포">서귀포</option>
+<option value="울진">울진</option>
+<option value="안동">안동</option>
+<option value="대구">대구</option>
+<option value="포항">포항</option>
+<option value="봉화">봉화</option>
+<option value="영주">영주</option>
+<option value="문경">문경</option>
+<option value="영덕">영덕</option>
+<option value="의성">의성</option>
+<option value="구미">구미</option>
+<option value="영천">영천</option>
+<option value="부산">부산</option>
+<option value="울산">울산</option>
+<option value="마산">마산</option>
+<option value="통영">통영</option>
+<option value="진주" selected>진주</option>
+<option value="거창">거창</option>
+<option value="합천">합천</option>
+<option value="밀양">밀양</option>
+<option value="산청">산청</option>
+<option value="거제">거제</option></select>
+                <div class="hint">기상청 기상자료개방포털 신평년값(1991&ndash;2020) 월 강수량</div>
+              </td>
+              <td>
+                <input id="tank" type="number" step="any" value="300" oninput="recalc()">
+                <div class="hint">단위 ㎥ &middot; 집수면적 = 우수조용량 / 0.05</div>
+              </td>
+              <td>
+                <select id="runoff" onchange="recalc()">
+                  <option value="0.90">0.90 &ndash; 지붕 / 슬래브</option>
+                  <option value="0.85">0.85 &ndash; 아스팔트 포장</option>
+                  <option value="0.82">0.82 &ndash; 콘크리트 포장</option>
+                  <option value="0.70" selected>0.70 &ndash; 복합(초기30% 손실)</option>
+                  <option value="0.50">0.50 &ndash; 자갈 / 투수 포장</option>
+                  <option value="0.25">0.25 &ndash; 잔디 / 녹지</option>
+                </select>
+                <div class="hint">미국토목학회(ASCE) 유출계수 기준</div>
+              </td>
+            </tr>
+          </table>
+
+          <div class="chart-box" style="margin-top:12px;">
+            <div class="chart-cap"><span id="regTitle">진주</span> 월별 강수량 (mm) &middot; 신평년값</div>
+            <canvas id="rainChart"></canvas>
+          </div>
+
+          <div class="note">
+            산정식 
+			<br>&middot; 집수량 = (월강수량/1000) &times; 집수면적, &nbsp; 유효집수량 = 집수량 &times; 유출계수
+            <br>&middot; 처리가능량 = MIN(유효집수량, 월사용가능량)
+			<br>&middot;  활용기간 = 조경/살수 수요기인 3&ndash;10월(8개월)로 가정.
+          </div>
+
+          <div class="metrics" style="margin-top:12px;">
+            <div class="metric-card"><div class="ml">✓ 집수면적</div><div class="mv"><span id="m-area">-</span><span class="mu">㎡</span></div></div>
+            <div class="metric-card"><div class="ml">✓ 월 사용가능량<br> <tr>(가동 22일 기준)</div><div class="mv"><span id="m-avail">-</span><span class="mu">㎥</span></div></div>
+            <div class="metric-card"><div class="ml">✓ 연간 처리가능량<br> <tr>(우수 활용량)</div><div class="mv"><span id="m-year">-</span><span class="mu">㎥</span></div></div>
+            <div class="metric-card"><div class="ml">✓ 월평균 활용량<br> <tr>(활용기 8개월)</div><div class="mv"><span id="m-mavg">-</span><span class="mu">㎥</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ◀ 중앙 컬럼 : 연간 유지관리비 -->
+      <div class="col">
+        <div class="section">
+          <div class="sec-title2"><span class="sq"></span> 연간 유지관리비 입력 &amp; 확인</div>
+
+          <div style="font-size:11px;font-weight:700;color:#555;margin-bottom:6px;">슬러지 처리비</div>
+          <table class="mtbl">
+            <tr><th>항목</th><th>값</th><th>단위</th></tr>
+            <tr><td class="lbl">연간 처리수량</td><td class="num" id="s-vol">-</td><td>㎥/년</td></tr>
+            <tr><td class="lbl">슬러지 발생률</td><td><input id="s-rate" type="number" step="any" value="0.003" oninput="recalc()"></td><td>톤/㎥</td></tr>
+            <tr><td class="lbl">연간 슬러지량</td><td class="num" id="s-gen">-</td><td>톤/년</td></tr>
+            <tr><td class="lbl">처리 단가</td><td><input id="s-unit" type="number" step="any" value="180000" oninput="recalc()"></td><td>원/톤</td></tr>
+            <tr class="total"><td class="lbl">슬러지 처리비</td><td class="num" id="s-cost">-</td><td>원/년</td></tr>
+          </table>
+
+          <div style="font-size:11px;font-weight:700;color:#555;margin:14px 0 6px;">소모품비(NaOCl 세정)</div>
+          <table class="mtbl">
+            <tr><th>항목</th><th>값</th><th>단위</th></tr>
+            <tr><td class="lbl">주입농도</td><td><input id="c-conc" type="number" step="any" value="5" oninput="recalc()"></td><td>mg/L</td></tr>
+            <tr><td class="lbl">월간 사용횟수</td><td><input id="c-freq" type="number" step="any" value="22" oninput="recalc()"></td><td>회/월</td></tr>
+            <tr><td class="lbl">연간 약품 사용량</td><td class="num" id="c-amt">-</td><td>kg/년</td></tr>
+            <tr><td class="lbl">약품 단가</td><td><input id="c-unit" type="number" step="any" value="350" oninput="recalc()"></td><td>원/kg</td></tr>
+            <tr class="total"><td class="lbl">소모품비</td><td class="num" id="c-cost">-</td><td>원/년</td></tr>
+          </table>
+
+          <div class="cost-cards">
+            <div class="cost-card"><div class="cl">슬러지 처리비</div><div class="cv"><span id="card-sludge">-</span><span class="cu">원/년</span></div></div>
+            <div class="cost-card"><div class="cl">소모품비</div><div class="cv"><span id="card-cons">-</span><span class="cu">원/년</span></div></div>
+            <div class="cost-card total-card"><div class="cl">Total</div><div class="cv"><span id="card-total">-</span><span class="cu">원/년</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ◀ 우측 컬럼 : 분석 결과 -->
+      <div class="col">
+        <div class="section">
+          <div class="sec-title2"><span class="sq"></span> 분석 결과</div>
+
+          <div class="result-row">
+            <div class="res-card rain-c">
+              <div class="rl">우수 활용 (연간 비용)</div>
+              <div class="rv"><span id="r-rain">-</span><span class="cur"> 원</span></div>
+              <div class="rsub">유지관리비(슬러지+소모품)</div>
+            </div>
+            <div class="res-card city-c">
+              <div class="rl">시수 활용 (연간 비용)</div>
+              <div class="rv"><span id="r-city">-</span><span class="cur"> 원</span></div>
+              <div class="rsub">우수 대체량 &times; 상수도 평균단가 <input id="city-unit" type="number" step="any" value="720" oninput="recalc()" style="width:56px;border:1px solid #ccc;border-radius:4px;padding:2px 4px;text-align:right;font-size:10px;">원/㎥</div>
+            </div>
+            <div class="res-card save-c">
+              <div class="rl">연간 절감액 / 절감률</div>
+              <div class="rv"><span id="r-save">-</span><span class="cur"> 원</span></div>
+              <div class="rsub">절감률 <span id="r-rate" style="font-weight:700;color:#3a8f33;">-</span></div>
+            </div>
+          </div>
+
+          <div class="compare-box">
+            <canvas id="compareChart"></canvas>
+          </div>
+
+          <div class="source-box">
+            <b>계산 기준 &amp; 출처</b><br>
+            &#8226; <b>강수량</b> : 기상청 기상자료개방포털 신평년값(1991&ndash;2020), 66개 관측지점 월 강수량<br>
+            &#8226; <b>유출계수</b> : 미국토목학회(ASCE) 표준 유출계수 &ndash; 지붕 0.75~0.95, 포장 0.70~0.95, 녹지 0.10~0.35<br>
+            &#8226; <b>슬러지 처리 단가</b> : 약 180,000원/톤 &ndash; 「2024년 분뇨&middot;하수슬러지 자원화시설 운반처리 원가산정 보고서」(천안시, 180,339~180,468원/톤) 기준 평균값<br>
+            &#8226; <b>NaOCl 약품 단가</b> : 약 350원/kg &ndash; 조달청 나라장터 차아염소산나트륨(12%) 평균 납품단가 수준의 시장 평균값 (환경부 공식 단가 미공시로 시장 평균 적용)<br>
+            &#8226; <b>상수도 평균 단가</b> : 약 720원/㎥ &ndash; 전국 평균 상수도 요금 수준(편집 가능). 조경용수 가정으로 하수도 요금 제외<br>
+            <span style="color:#b06;">&#8226; 슬러지 발생률&middot;약품 주입조건은 가정값이며 현장 수질&middot;설계조건에 따라 조정 필요(편집 가능).</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Copyright (원본 재사용) -->
+  <div class="copyright">
+    &copy;HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
+  </div>
+</div>
+
+<script>
+function GoMain(){ if(window.STD){ STD.goMain(null); } else { window.location.href='../dashboard.html'; } }
+
+const RAIN = {"서울": [21.6, 23.6, 45.8, 77, 102.2, 133.3, 327.9, 348, 137.6, 49.3, 53, 24.9], "인천": [20.8, 20.5, 40.8, 70.7, 91.3, 110.9, 261.5, 288.9, 126.5, 48.9, 49.2, 22.3], "수원": [23.5, 24, 47, 76, 94.8, 133.2, 302.7, 305.8, 133.5, 52.3, 51, 24.1], "강화": [15.9, 19.3, 38.1, 80.6, 99.3, 132.8, 315.2, 354, 142.4, 49.3, 48.4, 21.4], "양평": [20.3, 22.4, 43.5, 76.4, 96.5, 138.7, 341.8, 304.9, 142.9, 45.4, 44.3, 23.6], "이천": [23.3, 24.6, 49.6, 87.4, 98.5, 146.4, 328, 291.7, 158.8, 49.1, 46.4, 25.7], "철원": [21.8, 25.1, 41.9, 53.4, 108.9, 134, 376.6, 304.8, 143.8, 45.9, 56.2, 23.3], "춘천": [20.3, 23.7, 39.8, 69.5, 100.1, 131.3, 318.6, 310.4, 143.5, 43.1, 44.1, 22.4], "원주": [22.2, 24.3, 49.1, 80, 92, 146.2, 324.9, 283, 147.1, 50.7, 43.8, 27.6], "인제": [14.8, 19.4, 34, 67, 94.7, 119.1, 262.7, 273.5, 133.8, 37.5, 36.8, 20.8], "홍천": [19.7, 23.8, 42.3, 76.1, 98.4, 146.9, 323.6, 296.5, 152.6, 48.6, 39.9, 22.9], "속초": [53.1, 56.4, 56.2, 71, 87.9, 122.9, 201.4, 293.7, 205.4, 81.5, 71.6, 41.3], "강을": [65.3, 58.7, 72.2, 77.5, 84.4, 122, 196.5, 288.2, 207, 104.2, 82.4, 43.5], "대관령": [59.8, 50.1, 73.3, 96.5, 114.2, 182.1, 291.8, 375.1, 243.7, 111.2, 81.5, 37.8], "울릉도": [110.5, 84.2, 68.2, 75.6, 86.1, 108.2, 125.6, 148, 150.7, 79, 98.5, 101.4], "태백": [34.8, 37.4, 58.3, 71.7, 88, 139.8, 267.1, 285.8, 203.8, 55.3, 46.2, 19.4], "청주": [26.6, 28.2, 51.1, 76.6, 87.7, 154.2, 265.3, 271.4, 133.2, 53.3, 50.9, 26.6], "추풍령": [26.4, 34.8, 57.5, 79.1, 83.9, 151.1, 251.7, 230.1, 123.4, 47.9, 47.7, 26.5], "충주": [21.7, 24.1, 44.9, 76.5, 88.7, 143.7, 272.4, 259.4, 136.3, 54.1, 42.2, 23.8], "제천": [24.4, 28, 53.4, 86.5, 99, 151.6, 314.3, 272.1, 140.1, 54.7, 44.1, 26.9], "보은": [24.7, 30.5, 49.4, 83.8, 93.4, 159.7, 291, 272.4, 127.4, 51.2, 48.1, 28.4], "서산": [29, 27.2, 48.8, 81.8, 100.8, 130.7, 235.7, 287.4, 143.6, 56, 57.7, 33.4], "대전": [29.5, 36.4, 60.5, 87.2, 97, 174.3, 292.2, 296.5, 141.5, 56.9, 51.7, 30.1], "천안": [23.8, 27, 48.4, 78.7, 84.9, 143.8, 246.4, 297.5, 137.7, 58.5, 53, 29.2], "보령": [26.6, 28.4, 47.1, 82.4, 91.1, 147.3, 247, 293.9, 128.3, 55.9, 58, 31.1], "부여": [27.2, 33.3, 55.7, 93.6, 101.4, 168.9, 287.5, 279.8, 140.3, 60.8, 56.1, 29.6], "금산": [28.2, 36.2, 52, 88.1, 85.4, 181.1, 269.9, 252.2, 131.7, 53.5, 51.1, 29.6], "군산": [30.5, 32.4, 51.1, 79.9, 86.8, 158.7, 240.7, 250.9, 125.6, 51.9, 58.2, 34.6], "전주": [33.9, 39.2, 59, 83.9, 93.8, 173.6, 266.7, 254.8, 134.4, 59.7, 56.8, 31], "부안": [32.9, 37.3, 51.1, 85.8, 87.7, 158, 250.6, 232.8, 131.5, 57.6, 56, 38.1], "정읍": [41.5, 38.7, 56.7, 86.1, 91.6, 160.1, 253.3, 255.7, 139.3, 61.5, 61.6, 40], "남원": [31.4, 38.9, 52.3, 92.8, 91.8, 186.2, 287.4, 256.9, 138.3, 58.5, 49.5, 29.9], "임실": [35, 40.8, 58.4, 95.1, 87, 183.1, 258.6, 264.4, 138.3, 61.4, 57.7, 35.9], "장수": [39.5, 46.3, 67.1, 82.9, 95, 219.1, 300.2, 291.1, 150.7, 47.4, 52.8, 30], "광주": [38, 43.9, 64.5, 95.3, 97.3, 190.3, 281.9, 276, 137.7, 55.3, 55.4, 32.4], "목포": [33.7, 44.5, 60.8, 79.1, 86.6, 172.5, 214.1, 174.3, 130.9, 51, 49.6, 27.9], "완도": [32.5, 49.1, 89.7, 123, 133.5, 236.9, 259.1, 227.5, 161.1, 60.2, 58.1, 26.2], "여수": [27.6, 38.9, 78, 126.1, 145.2, 222.8, 257.2, 249.1, 138.9, 55, 47.8, 20.9], "순천": [32.4, 43.7, 66.4, 111.3, 115.1, 217.2, 303.5, 304.8, 156.4, 59, 51, 26.7], "장흥": [29.8, 43.9, 69.6, 120, 127.9, 227.5, 261.8, 278.8, 171.8, 49.6, 54.6, 23.4], "해남": [31.4, 44.5, 66.9, 108.6, 105.9, 204.9, 228.5, 237.1, 152.7, 47.9, 50.9, 26.4], "고흥": [29.2, 48.2, 78.8, 137.5, 151.4, 231.5, 250.5, 249.4, 148.5, 54.8, 51, 21.7], "제주": [63, 66.9, 83.5, 92.1, 88.2, 189.8, 232.3, 258, 188.2, 78.9, 71.2, 44.8], "고산": [47.9, 42, 78.6, 82, 112.6, 141, 160, 196.8, 120.3, 30.8, 58.2, 24.5], "서귀포": [59.4, 80.6, 125.6, 172.2, 215.4, 279.3, 306.3, 257.6, 170.2, 72.7, 68.4, 43.1], "울진": [47.9, 48, 66.6, 74.2, 69, 105.7, 153.8, 191.7, 169.3, 77, 61.3, 37.8], "안동": [18.6, 26.1, 47.7, 66, 89.8, 143.8, 228, 201.3, 133.1, 42, 37.8, 15.8], "대구": [21.6, 27.1, 51.6, 75.2, 75.3, 140.7, 206.7, 205.8, 129.6, 42, 37.1, 15.2], "포항": [40.5, 43.4, 67.1, 79.4, 74.6, 138.9, 182.4, 207.9, 159.7, 52.3, 47.9, 26.2], "봉화": [21.9, 26.1, 52.2, 70, 101.1, 156.5, 271.6, 223.5, 153.3, 40, 45.5, 17], "영주": [19, 25.6, 53.1, 92.9, 105.3, 173.4, 259.1, 258.3, 141.1, 49.4, 40.5, 19.2], "문경": [21.1, 28.5, 49.6, 88.1, 103, 168.7, 270.8, 239.1, 127.1, 46.5, 41.3, 21.6], "영덕": [38.8, 40.7, 57.7, 74.5, 69.9, 123.7, 160.7, 201.9, 134, 57.4, 48.6, 27.4], "의성": [17.9, 23.7, 43.4, 74, 72.6, 133.5, 206.2, 197.7, 112.6, 38.5, 35.4, 16.6], "구미": [19.4, 27.5, 46, 75.4, 69.3, 130.1, 217.2, 202.1, 131.6, 42.4, 36.5, 16.5], "영천": [23.6, 26.6, 48.9, 76, 78.5, 140.5, 199.9, 203.9, 128.8, 41.4, 38.2, 15.4], "부산": [37.8, 44.9, 85.7, 136.3, 154.1, 222.5, 258.8, 238.1, 167, 62, 60.1, 24.3], "울산": [38, 42.2, 71.6, 108.2, 100.6, 185.4, 195.3, 232.5, 165.5, 60.7, 50.7, 23.9], "마산": [36.3, 41.8, 78.3, 116, 134.4, 235.7, 293.7, 275.8, 165.3, 53, 52.2, 21.2], "통영": [33.6, 43.8, 87.9, 134.9, 150.8, 210.5, 261.4, 222, 134.9, 55.5, 54.8, 22.5], "진주": [33.1, 42.6, 75.5, 135.3, 131, 217.7, 291, 285.8, 155.9, 52.7, 48.8, 20.5], "거창": [26.7, 35.6, 57.5, 91.4, 86.5, 180.3, 273.8, 256.9, 142.3, 54.3, 41.5, 19.1], "합천": [21.8, 33, 54.6, 93.7, 90.8, 169.9, 258.8, 267.1, 144.7, 49.2, 38.9, 16.1], "밀양": [21.7, 30.4, 54.1, 104.6, 104.3, 199.8, 241.9, 230.4, 136.6, 49.4, 43, 17.6], "산청": [26.2, 41.6, 67.7, 115.3, 96.6, 191.2, 291.8, 335.8, 192.2, 57.5, 43.8, 19.5], "거제": [40.6, 52, 97.1, 169.1, 191.4, 268.8, 344.7, 280.5, 183.5, 79.6, 63.6, 26.2]};
+const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+const WORKDAYS = 22;
+const ACTIVE = [2,3,4,5,6,7,8,9]; // 3~10월 (index 0-base)
+
+function fmt(n){ return Math.round(n).toLocaleString('ko-KR'); }
+function fmt1(n){ return (Math.round(n*10)/10).toLocaleString('ko-KR'); }
+
+/* ===== 탭 시스템 (페이지별 독립 동작) ===== */
+const FIELDS = ['region','tank','runoff','s-rate','s-unit','c-conc','c-freq','c-unit','city-unit'];
+function defaultState(){
+  return {region:'진주', tank:'300', runoff:'0.70', 's-rate':'0.003', 's-unit':'180000',
+          'c-conc':'5', 'c-freq':'22', 'c-unit':'350', 'city-unit':'720'};
+}
+function readForm(){
+  const s = {};
+  FIELDS.forEach(function(f){ s[f] = document.getElementById(f).value; });
+  return s;
+}
+function writeForm(s){
+  FIELDS.forEach(function(f){ document.getElementById(f).value = s[f]; });
+}
+
+let tabs = [];
+let activeTab = 0;
+let tabCounter = 1;
+
+function renderTabs(){
+  const bar = document.getElementById('tabbar');
+  bar.innerHTML = '';
+  tabs.forEach(function(t, i){
+    const el = document.createElement('div');
+    el.className = 'tab' + (i === activeTab ? ' active' : '');
+    const lab = document.createElement('span');
+    lab.textContent = t.name;
+    lab.onclick = function(){ switchTab(i); };
+    el.appendChild(lab);
+    const x = document.createElement('span');
+    x.className = 'x';
+    x.textContent = '✕';
+    x.onclick = function(e){ e.stopPropagation(); closeTab(i); };
+    el.appendChild(x);
+    bar.appendChild(el);
+  });
+  const add = document.createElement('div');
+  add.className = 'tab-add';
+  add.textContent = '+';
+  add.title = '새 분석 추가';
+  add.onclick = addTab;
+  bar.appendChild(add);
+}
+function switchTab(i){
+  if(i === activeTab) return;
+  tabs[activeTab].data = readForm();
+  activeTab = i;
+  writeForm(tabs[activeTab].data);
+  renderTabs();
+  recalc();
+}
+function addTab(){
+  tabs[activeTab].data = readForm();
+  tabCounter++;
+  tabs.push({ name: '분석 #' + tabCounter, data: defaultState() });
+  activeTab = tabs.length - 1;
+  writeForm(tabs[activeTab].data);
+  renderTabs();
+  recalc();
+}
+function closeTab(i){
+  if(tabs.length === 1) return; // 최소 1개 유지
+  tabs.splice(i, 1);
+  if(activeTab >= tabs.length){ activeTab = tabs.length - 1; }
+  else if(i < activeTab){ activeTab--; }
+  writeForm(tabs[activeTab].data);
+  renderTabs();
+  recalc();
+}
+
+/* ===== 계산 (원본 로직 유지) ===== */
+function recalc(){
+  const region = document.getElementById('region').value;
+  const tank = parseFloat(document.getElementById('tank').value)||0;
+  const runoff = parseFloat(document.getElementById('runoff').value)||0;
+  const rains = RAIN[region] || [];
+  document.getElementById('regTitle').textContent = region;
+
+  const area = tank>0 ? tank/0.05 : 0;          // 집수면적 ㎡
+  const monthAvail = WORKDAYS * tank;            // 월 사용가능량 ㎥
+
+  let yearUse = 0;
+  const monthUse = [];
+  for(let i=0;i<12;i++){
+    const D = (rains[i]/1000)*area;              // 집수량
+    const active = ACTIVE.includes(i);
+    const E = active ? D : 0;                     // 유효집수(활용기만)
+    const F = E*runoff;                           // 유출계수 적용
+    const G = Math.min(F, monthAvail);            // 처리가능량
+    monthUse.push(G);
+    yearUse += G;
+  }
+  const monthlyAvg = yearUse/8;
+
+  document.getElementById('m-area').textContent = fmt(area);
+  document.getElementById('m-avail').textContent = fmt(monthAvail);
+  document.getElementById('m-year').textContent = fmt(yearUse);
+  document.getElementById('m-mavg').textContent = fmt(monthlyAvg);
+
+  // 2. 유지관리비
+  const sRate = parseFloat(document.getElementById('s-rate').value)||0;
+  const sUnit = parseFloat(document.getElementById('s-unit').value)||0;
+  const sGen = yearUse * sRate;                  // 톤/년
+  const sCost = sGen * sUnit;
+  document.getElementById('s-vol').textContent = fmt(yearUse);
+  document.getElementById('s-gen').textContent = fmt1(sGen);
+  document.getElementById('s-cost').textContent = fmt(sCost);
+
+  const conc = parseFloat(document.getElementById('c-conc').value)||0;
+  const freq = parseFloat(document.getElementById('c-freq').value)||0;
+  const cUnit = parseFloat(document.getElementById('c-unit').value)||0;
+  // 약품량(kg/달) = 우수조용량 * 농도 * 사용횟수 * 1e-3 ; 연간 = *8개월
+  const monthChem = tank*conc*freq*1e-3;
+  const yearChem = monthChem*8;
+  const cCost = yearChem*cUnit;
+  document.getElementById('c-amt').textContent = fmt(yearChem);
+  document.getElementById('c-cost').textContent = fmt(cCost);
+
+  const total = sCost + cCost;
+  document.getElementById('card-sludge').textContent = fmt(sCost);
+  document.getElementById('card-cons').textContent = fmt(cCost);
+  document.getElementById('card-total').textContent = fmt(total);
+
+  // 3. 결과
+  const cityUnit = parseFloat(document.getElementById('city-unit').value)||0;
+  const cityCost = yearUse * cityUnit;
+  const save = cityCost - total;
+  const rate = cityCost>0 ? (save/cityCost*100) : 0;
+  document.getElementById('r-rain').textContent = fmt(total);
+  document.getElementById('r-city').textContent = fmt(cityCost);
+  document.getElementById('r-save').textContent = fmt(save);
+  document.getElementById('r-rate').textContent = (Math.round(rate*10)/10)+' %';
+
+  drawChart(rains);
+  drawCompareChart(total, cityCost, rate);
+}
+
+/* ===== 월별 강수량 차트 (원본 유지) ===== */
+function drawChart(rains){
+  const cv = document.getElementById('rainChart');
+  const dpr = window.devicePixelRatio||1;
+  const w = cv.clientWidth, h = 230;
+  cv.width = w*dpr; cv.height = h*dpr;
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+  const padL=36, padR=10, padT=14, padB=24;
+  const cw = w-padL-padR, ch = h-padT-padB;
+  const maxV = Math.max.apply(null, rains.concat([10]));
+  const niceMax = Math.ceil(maxV/50)*50;
+  // grid + y labels
+  ctx.font = '9px sans-serif'; ctx.fillStyle='#aaa'; ctx.strokeStyle='#eee'; ctx.lineWidth=1;
+  for(let g=0; g<=4; g++){
+    const yv = niceMax*g/4;
+    const y = padT+ch-(yv/niceMax)*ch;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+    ctx.textAlign='right'; ctx.fillText(Math.round(yv), padL-4, y+3);
+  }
+  // bars
+  const n = rains.length;
+  const bw = cw/n*0.62;
+  for(let i=0;i<n;i++){
+    const x = padL + cw*(i+0.5)/n;
+    const bh = (rains[i]/niceMax)*ch;
+    const y = padT+ch-bh;
+    const active = ACTIVE.includes(i);
+    ctx.fillStyle = active ? '#00838f' : '#cbd5d6';
+    ctx.fillRect(x-bw/2, y, bw, bh);
+    ctx.fillStyle='#777'; ctx.font='8px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(MONTHS[i].replace('월',''), x, h-padB+12);
+  }
+  // legend
+  ctx.textAlign='left'; ctx.font='9px sans-serif';
+  ctx.fillStyle='#00838f'; ctx.fillRect(padL, 2, 9, 9);
+  ctx.fillStyle='#777'; ctx.fillText('활용기(3~10월)', padL+12, 10);
+}
+
+/* ===== 우수 재활용 vs 시수 활용 비교 차트 (신규) ===== */
+function drawCompareChart(rainCost, cityCost, rate){
+  const cv = document.getElementById('compareChart');
+  if(!cv) return;
+  const dpr = window.devicePixelRatio||1;
+  const w = cv.clientWidth, h = 300;
+  cv.width = w*dpr; cv.height = h*dpr;
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+  const padL=48, padR=16, padT=34, padB=34;
+  const cw = w-padL-padR, ch = h-padT-padB;
+  const vR = rainCost/1000, vC = cityCost/1000;     // 천원/년
+  const maxV = Math.max(vR, vC, 1);
+  let step = Math.pow(10, Math.floor(Math.log10(maxV/4)));
+  let niceMax = Math.ceil(maxV/step)*step;
+  if(niceMax <= maxV) niceMax += step;
+  // grid + y labels
+  ctx.font = '9px sans-serif';
+  for(let g=0; g<=5; g++){
+    const yv = niceMax*g/5;
+    const y = padT+ch-(yv/niceMax)*ch;
+    ctx.strokeStyle='#eee'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+    ctx.fillStyle='#aaa'; ctx.textAlign='right';
+    ctx.fillText(Math.round(yv).toLocaleString('ko-KR'), padL-5, y+3);
+  }
+  // y축 제목
+  ctx.save();
+  ctx.translate(12, padT+ch/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.textAlign='center'; ctx.fillStyle='#888'; ctx.font='9px sans-serif';
+  ctx.fillText('단위 : 천원/년', 0, 0);
+  ctx.restore();
+  // bars
+  const labels = ['우수 재활용','시수 활용'];
+  const vals = [vR, vC];
+  const colors = ['#00838f','#b8bcc0'];
+  const bw = Math.min(cw/2*0.5, 96);
+  for(let i=0;i<2;i++){
+    const cx = padL + cw*(i+0.5)/2;
+    const bh = (vals[i]/niceMax)*ch;
+    const y = padT+ch-bh;
+    ctx.fillStyle = colors[i];
+    ctx.fillRect(cx-bw/2, y, bw, bh);
+    ctx.fillStyle='#555'; ctx.font='bold 10px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(Math.round(vals[i]).toLocaleString('ko-KR'), cx, y-7);
+    ctx.fillStyle='#444'; ctx.font='11px sans-serif';
+    ctx.fillText(labels[i], cx, h-padB+18);
+  }
+  // 절감 가능 표기
+  ctx.fillStyle='#e85d24'; ctx.font='bold 14px sans-serif'; ctx.textAlign='center';
+  ctx.fillText((Math.round(rate*10)/10)+'% 절감 가능', padL+cw/2, padT-12);
+}
+
+window.addEventListener('resize', recalc);
+
+/* ===== 초기화 ===== */
+tabs = [{ name: '분석 #1', data: defaultState() }];
+activeTab = 0;
+tabCounter = 1;
+renderTabs();
+writeForm(tabs[0].data);
+recalc();
+</script>
+<script>window.__STD_TOOL='703';</script>
+<script>
+/* ============================================================
+   STD Storage  —  표준 저장 모듈 v1 (전 도구 공통)
+   방식: localStorage 우선 + GitHub 동기화(가능 시)
+        + beforeunload 백업 + 저장 후 이동(GoMain)
+   ============================================================ */
+(function(){
+  if (window.STD) return;                         // 중복 주입 방지
+  var TOOL = window.__STD_TOOL || 'tool';
+  function qp(k){ return new URLSearchParams(location.search).get(k) || ''; }
+  function pid(){ return qp('projectId') || qp('project') || qp('id') || ''; }
+  function pname(){ return qp('projectName') || qp('name') || ''; }
+  function lsKey(){ var id=pid(); return 'std_'+TOOL+'_'+(id||'standalone'); }
+  function ghPath(){ var id=pid(); return id ? ('data/'+TOOL+'/'+id+'.json') : null; }
+
+  function genericData(){
+    var o={__std:true, t:Date.now(), fields:{}};
+    document.querySelectorAll('input[id],select[id],textarea[id]').forEach(function(el){
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='button'||ty==='submit'||ty==='reset'||ty==='file') return;
+      o.fields[el.id]=(ty==='checkbox'||ty==='radio') ? el.checked : el.value;
+    });
+    return o;
+  }
+  function genericRestore(o){
+    if(!o||!o.fields) return;
+    Object.keys(o.fields).forEach(function(id){
+      var el=document.getElementById(id); if(!el) return;
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='checkbox'||ty==='radio') el.checked=!!o.fields[id];
+      else el.value=o.fields[id];
+      try{ el.dispatchEvent(new Event('input',{bubbles:true}));
+           el.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){}
+    });
+  }
+  function lsSave(){
+    try{ localStorage.setItem(lsKey(), JSON.stringify(genericData())); return true; }
+    catch(e){ console.warn('[STD] LS save fail', e); return false; }
+  }
+  function lsLoad(){
+    try{ var r=localStorage.getItem(lsKey()); return r? JSON.parse(r):null; }catch(e){ return null; }
+  }
+  function ghSync(){
+    var p=ghPath();
+    if(p && typeof window.ghSaveFile==='function'){
+      return Promise.resolve(window.ghSaveFile(p, genericData(), 'STD save '+TOOL+' '+pid()))
+        .then(function(){ return true; })
+        .catch(function(e){ console.warn('[STD] GH save fail', e); return false; });
+    }
+    return Promise.resolve(null);                 // GitHub 미사용 페이지
+  }
+  function toast(msg, type){
+    if(typeof window._showToast==='function'){ try{ window._showToast(msg, type||'success'); return; }catch(e){} }
+    if(typeof window.showToast==='function'){ try{ window.showToast(msg, type||'success'); return; }catch(e){} }
+    var el=document.getElementById('__stdToast');
+    if(!el){ el=document.createElement('div'); el.id='__stdToast';
+      el.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;opacity:0;transition:opacity .2s';
+      document.body.appendChild(el); }
+    el.textContent=msg; el.style.opacity='1';
+    clearTimeout(el.__t); el.__t=setTimeout(function(){ el.style.opacity='0'; }, 1800);
+  }
+
+  var dirty=false;
+  document.addEventListener('input', function(){ dirty=true; }, true);
+  document.addEventListener('change', function(){ dirty=true; }, true);
+
+  function save(pageSaver, opts){
+    opts=opts||{};
+    lsSave();                                     // 1) 항상 localStorage 백업
+    var hasPage=(typeof pageSaver==='function');
+    if(hasPage){                                  // 2a) 리치 저장(페이지 고유 LS+GitHub)
+      return Promise.resolve().then(pageSaver).then(function(){ dirty=false; return {page:true}; })
+        .catch(function(e){ console.warn('[STD] pageSaver fail', e); dirty=false; return {page:false}; });
+    }
+    return ghSync().then(function(gh){             // 2b) 제네릭 GitHub 동기화(가능 시)
+      dirty=false;
+      if(!opts.silent) toast(gh===false?'로컬에 저장되었습니다 (클라우드 동기화 실패)':'저장되었습니다.', gh===false?'warn':'success');
+      return {gh:gh};
+    });
+  }
+  function load(pageLoader){
+    if(typeof pageLoader==='function'){ try{ return pageLoader(); }catch(e){ console.warn('[STD] pageLoader fail', e); } }
+    var o=lsLoad(); if(o) genericRestore(o); dirty=false; return o;
+  }
+  function goMain(pageSaver){
+    var url=(typeof window.dashboardUrl!=='undefined' && window.dashboardUrl) ? window.dashboardUrl : '../dashboard.html';
+    Promise.resolve(save(pageSaver, {silent:true})).then(function(){ location.href=url; }, function(){ location.href=url; });
+  }
+  window.addEventListener('beforeunload', function(){ try{ lsSave(); }catch(e){} });
+
+  window.STD={ save:save, load:load, goMain:goMain, lsSave:lsSave, lsLoad:lsLoad,
+               genericData:genericData, genericRestore:genericRestore,
+               projectId:pid, projectName:pname, key:lsKey, ghPath:ghPath, isDirty:function(){return dirty;} };
+})();
+</script>
+<script>(function(){function r(f){document.readyState!=='loading'?f():document.addEventListener('DOMContentLoaded',f);}r(function(){try{if(window.STD)STD.load();}catch(e){}});})();</script>
+</body>
+</html>

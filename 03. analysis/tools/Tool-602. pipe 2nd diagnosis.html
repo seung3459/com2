@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/himec-supabase-sync.js"></script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIMEC - 2nd Diagnosis Piping</title>
+<style>
+/* ===== Reset & Base ===== */
+*{ margin: 0; padding: 0; box-sizing: border-box; }
+html, body{
+  height: 100%;
+  font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f4f4f4;
+  display: flex;
+  flex-direction: column;
+}
+/* ===== Page Container ===== */
+.page-container{
+  padding: 0 100px;
+  background: #fff;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+/* ===== HEADER ===== */
+.header{
+  background: #fff;
+  padding: 8px 20px;
+  border-bottom: 1px solid #ddd;
+  flex-shrink: 0;
+  margin-left: -100px;
+  margin-right: -100px;
+  padding-left: 120px;
+  padding-right: 120px;
+  position: relative;
+}
+.header h1{ font-size: 20px; font-weight: 700; color: #222; }
+.header .sub{ font-size: 11px; color: #888; margin-top: 2px; }
+.header h2{ font-size: 15px; font-weight: 600; color: #333; margin-top: 4px; }
+.header-right{
+  position: absolute;
+  bottom: 8px;
+  right: 20px;
+  display: flex;
+  gap: 8px;
+}
+.header-right button{
+  padding: 8px 0;
+  width: 90px;
+  border: none;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+}
+.btn-save{ background: #e85d24; color: #fff; }
+.btn-file{ background: #e85d24; color: #fff; }
+.btn-main{ background: #555f; color: #fff; }
+.btn-save:hover, .btn-file:hover{ opacity: 0.85; }
+.btn-main:hover{ opacity: 0.85; }
+/* ===== FOOTER COPYRIGHT ===== */
+.footer-copyright{
+  flex-shrink: 0;
+  background: #f8fafc;
+  border-top: none;
+  padding: 8px 100px;
+  text-align: center;
+}
+.footer-inner{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 10px;
+  color: #e0e0e0;
+  letter-spacing: 0.01em;
+}
+.footer-divider{
+  color: var(--border);
+}
+
+/* ===== CONTENT AREA ===== */
+.content-area{
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 0;
+  min-height: 0;
+}
+/* ===== Main Panel ===== */
+.main-panel{ display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+
+/* ===== diag2-tab styles ===== */
+.diag2-tab-bar{
+  display: flex;
+  align-items: center;
+  margin: 8px 0 4px;
+  padding: 4px 20px 0;
+  background: #fff;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.diag2-tab-list{
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.diag2-tab{
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 28px 6px 14px;
+  border-radius: 6px 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: #bbb;
+  color: #fff;
+  white-space: nowrap;
+  user-select: none;
+  transition: background .15s;
+}
+.diag2-tab:hover{ background: #999; }
+.diag2-tab.active{ background: #00838f; color: #fff; }
+.diag2-tab-close{
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  line-height: 16px;
+  text-align: center;
+  cursor: pointer;
+  padding: 0;
+}
+.diag2-tab-close:hover{ background: rgba(255,0,0,0.6); color: #fff; }
+
+/* ===== FanEff Panel Styles ===== */
+.fanEff-unit-panel{
+  margin: 8px 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: #fff;
+  overflow: hidden;
+}
+.fanEff-main{
+  display: grid;
+  grid-template-columns: 1fr 1.1fr 0.9fr;
+  gap: 0;
+  padding: 0;
+  min-height: 780px;
+}
+.fanEff-panel{
+  background: #fff;
+  border: 1px solid transparent;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-height: 0;
+}
+.fanEff-section-title{
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: #222;
+  flex-shrink: 0;
+}
+@media (max-width: 1600px) {
+  .page-container { padding: 0 60px; }
+  .header { margin-left: -60px; margin-right: -60px; padding-left: 80px; padding-right: 80px; }
+  .footer-copyright { padding: 6px 80px; margin-left: -60px; margin-right: -60px; }
+}
+@media (max-width: 1300px) {
+  .page-container { padding: 0 30px; }
+  .header { margin-left: -30px; margin-right: -30px; padding-left: 50px; padding-right: 50px; }
+  .footer-copyright { padding: 6px 50px; margin-left: -30px; margin-right: -30px; }
+}
+@media (max-width: 1100px) {
+  .page-container { padding: 0 15px; }
+  .header { margin-left: -15px; margin-right: -15px; padding-left: 35px; padding-right: 35px; }
+  .footer-copyright { padding: 6px 35px; margin-left: -15px; margin-right: -15px; }
+  .fanEff-main{ grid-template-columns: 1fr 1fr; }
+  .fanEff-center-panel{ grid-column: 1 / -1; grid-row: 1; }
+}
+@media (max-width: 700px) {
+  .page-container { padding: 0 10px; }
+  .header { margin-left: -10px; margin-right: -10px; padding-left: 30px; padding-right: 30px; }
+  .footer-copyright { padding: 6px 30px; margin-left: -10px; margin-right: -10px; }
+  .fanEff-main{ grid-template-columns: 1fr; }
+  .fanEff-center-panel{ grid-column: 1; }
+}
+
+/* Table styles */
+.fanEff-unit-panel .info-table{
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  margin-bottom: 6px;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.fanEff-unit-panel .info-table th, .fanEff-unit-panel .info-table td{
+  border: 1px solid #ffffff;
+  padding: 5px 4px;
+  border-bottom: 1.5px solid #ccc;
+  text-align: center;
+}
+.fanEff-unit-panel .info-table th{
+  background: #e8e8e8;
+  color: #555;
+  font-weight: 600;
+  font-size: 10px;
+}
+.fanEff-unit-panel .info-table tr:first-child th:first-child{ border-top-left-radius: 8px; }
+.fanEff-unit-panel .info-table tr:first-child th:last-child{ border-top-right-radius: 8px; }
+.fanEff-unit-panel .info-table td{ background: #fff; }
+.fanEff-unit-panel .info-table .row-header{
+  background: #f0f0f0;
+  font-weight: 600;
+  color: #00838f;
+  font-size: 11px;
+  width: 40px;
+}
+.fanEff-unit-panel .info-table input{
+  width: 100%;
+  border: none;
+  text-align: center;
+  font-size: 11px;
+  background: transparent;
+  outline: none;
+  padding: 3px 2px;
+}
+.fanEff-unit-panel .info-table .highlight-cell{
+  background: #e0f7fa;
+  color: #00838f;
+  font-weight: 700;
+}
+.fanEff-unit-panel .info-table input::placeholder{
+  color: #aaa;
+  font-style: italic;
+  font-size: 10px;
+}
+.fanEff-unit-panel .note{
+  font-size: 9px;
+  color: #888;
+  margin: 4px 0 6px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Photo Grid */
+.fanEff-unit-panel .fanEff-photo-grid{
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 4px 0;
+}
+.fanEff-unit-panel .fanEff-photo-slot{
+  display: flex;
+  flex-direction: column;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fafafa;
+  min-height: 0;
+}
+.fanEff-unit-panel .fanEff-photo-desc{ flex-shrink: 0; border-bottom: 1px solid #e8e8e8; }
+.fanEff-unit-panel .fanEff-photo-desc input{
+  width: 100%; border: none; outline: none; padding: 3px 6px; font-size: 9px; background: #f5f5f5; color: #333;
+}
+.fanEff-unit-panel .fanEff-photo-desc input::placeholder{ color: #aaa; font-style: italic; }
+.fanEff-unit-panel .fanEff-photo-display{
+  flex: 1; position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; min-height: 80px; overflow: hidden;
+}
+.fanEff-unit-panel .fanEff-photo-num{
+  position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: #00838f; color: #fff; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; z-index: 2;
+}
+.fanEff-unit-panel .fanEff-photo-empty{ display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px; }
+.fanEff-unit-panel .fanEff-cam-icon{ font-size: 20px; opacity: 0.4; }
+.fanEff-unit-panel .fanEff-cam-text{ font-size: 10px; color: #999; font-weight: 600; }
+.fanEff-unit-panel .fanEff-cam-sub{ font-size: 8px; color: #bbb; }
+.fanEff-unit-panel .fanEff-photo-preview{ position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; }
+.fanEff-unit-panel .fanEff-photo-preview img{ width: 100%; height: 100%; object-fit: cover; }
+.fanEff-unit-panel .fanEff-photo-actions{
+  position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; padding: 3px; background: rgba(0,0,0,0.5); opacity: 0; transition: opacity 0.2s ease;
+}
+.fanEff-unit-panel .fanEff-photo-display:hover .fanEff-photo-actions{ opacity: 1; }
+.fanEff-unit-panel .fanEff-photo-btn{
+  border: none; background: rgba(255,255,255,0.9); color: #333; font-size: 10px; padding: 2px 6px; border-radius: 3px; cursor: pointer;
+}
+.fanEff-unit-panel .fanEff-photo-btn:hover{ background: #fff; }
+.fanEff-unit-panel .fanEff-photo-btn.del{ color: #e53e3e; font-weight: 700; }
+
+/* Data Input Section */
+.fanEff-unit-panel .data-input-section{ border: none; background: transparent; margin-top: 4px; flex-shrink: 0; }
+.fanEff-unit-panel .data-input-header{ display: flex; align-items: center; justify-content: space-between; padding: 0 0 4px 0; }
+.fanEff-unit-panel .data-input-body{}
+
+/* Meas Grid Table */
+.fanEff-unit-panel .meas-grid-table{
+  margin-bottom: 4px !important;
+  flex: 1;
+  table-layout: fixed;
+}
+.fanEff-unit-panel .meas-grid-table th{
+  font-size: 10px !important;
+  padding: 8px 4px !important;
+  background: #f0f0f0 !important;
+  text-align: center;
+}
+.fanEff-unit-panel .meas-grid-table td{
+  padding: 4px 2px !important;
+}
+.fanEff-unit-panel .meas-grid-table input{
+  font-size: 11px !important;
+  padding: 6px 2px !important;
+  text-align: center;
+}
+.fanEff-unit-panel .meas-grid-table input[readonly]{
+  font-weight: 700;
+  color: #00838f;
+  background: #e0f7fa;
+  cursor: default;
+}
+.fanEff-unit-panel .meas-grid-table .row-header{
+  white-space: nowrap;
+  font-weight: 600;
+  background: #f7f7f7;
+}
+
+/* Meas Summary Table */
+.fanEff-unit-panel .meas-summary-table{
+  table-layout: fixed;
+  margin-bottom: 2px !important;
+}
+.fanEff-unit-panel .meas-summary-table th{
+  background: #e8e8e8;
+  color: #555;
+  font-weight: 600;
+  font-size: 10px;
+  white-space: nowrap;
+  padding: 8px 4px !important;
+  text-align: center;
+  vertical-align: middle;
+}
+.fanEff-unit-panel .meas-summary-table td{
+  background: #ffffff;
+  min-width: 50px;
+  padding: 8px 4px !important;
+  text-align: center;
+  vertical-align: middle;
+}
+.fanEff-unit-panel .meas-sum-val{
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+  color: #222;
+  cursor: default;
+  padding: 0;
+  outline: none;
+}
+
+/* Analysis Result */
+.fanEff-unit-panel .analysis-row{
+  border: none; border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; background: #fafbfc; flex: 1; min-height: 0; display: flex; flex-direction: column;
+}
+.fanEff-unit-panel .analysis-row-header{ display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.fanEff-unit-panel .analysis-row-label{
+  display: inline-block; background: #00838f; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 3px; min-width: 28px; text-align: center;
+}
+.fanEff-unit-panel .analysis-row-label.result{ background: #555; }
+.fanEff-unit-panel .analysis-row-sub{ font-size: 10px; color: #888; font-weight: 500; }
+.fanEff-unit-panel .analysis-row-result{ flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.fanEff-unit-panel .analysis-result-text{
+  width: 100%; flex: 1; min-height: 50px; border: 1px solid #ddd; border-radius: 4px; padding: 6px 8px;
+  font-size: 10px; font-family: 'Noto Sans KR', sans-serif; color: #333; background: #fff; resize: none; outline: none; line-height: 1.5;
+}
+.fanEff-unit-panel .analysis-result-text:focus{ border-color: #00838f; }
+.fanEff-unit-panel .analysis-result-text::placeholder{ color: #aaa; font-style: italic; }
+
+/* Check Group */
+.fanEff-unit-panel .analysis-check-group{ display: flex; gap: 4px; margin-top: 6px; flex-shrink: 0; }
+.fanEff-unit-panel .analysis-check-item{
+  flex: 1; display: flex; align-items: center; gap: 4px; padding: 5px 6px; border-radius: 4px;
+  font-size: 9px; font-weight: 600; color: #555; cursor: pointer; transition: all 0.15s; background: #fff;
+}
+.fanEff-unit-panel .analysis-check-item input[type="checkbox"]{ display: none; }
+.fanEff-unit-panel .analysis-check-dot{
+  width: 12px; height: 12px; border: 1.5px solid #ccc; border-radius: 3px; flex-shrink: 0; position: relative; transition: all 0.15s;
+}
+.fanEff-unit-panel .analysis-check-item.good input:checked ~ .analysis-check-dot.good{ background: #00838f; border-color: #00838f; }
+.fanEff-unit-panel .analysis-check-item.good input:checked ~ .analysis-check-dot.good::after{
+  content: ''; position: absolute; top: 1px; left: 3px; width: 4px; height: 6px; border: solid #fff; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg);
+}
+.fanEff-unit-panel .analysis-check-item.good input:checked ~ span:last-child{ color: #00838f; }
+.fanEff-unit-panel .analysis-check-item.maint input:checked ~ .analysis-check-dot.maint{ background: #ff8c00; border-color: #ff8c00; }
+.fanEff-unit-panel .analysis-check-item.maint input:checked ~ .analysis-check-dot.maint::after{
+  content: ''; position: absolute; top: 1px; left: 3px; width: 4px; height: 6px; border: solid #fff; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg);
+}
+.fanEff-unit-panel .analysis-check-item.maint input:checked ~ span:last-child{ color: #ff8c00; }
+.fanEff-unit-panel .analysis-check-item.replace input:checked ~ .analysis-check-dot.replace{ background: #e53e3e; border-color: #e53e3e; }
+.fanEff-unit-panel .analysis-check-item.replace input:checked ~ .analysis-check-dot.replace::after{
+  content: ''; position: absolute; top: 1px; left: 3px; width: 4px; height: 6px; border: solid #fff; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg);
+}
+.fanEff-unit-panel .analysis-check-item.replace input:checked ~ span:last-child{ color: #e53e3e; }
+.fanEff-unit-panel .analysis-check-item.good:has(input:checked){ background: #e0f7fa; }
+.fanEff-unit-panel .analysis-check-item.maint:has(input:checked){ background: #fff8e1; }
+.fanEff-unit-panel .analysis-check-item.replace:has(input:checked){ background: #ffebee; }
+
+/* Photo Viewer */
+.fanEff-photo-viewer{
+  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.85); z-index: 10000; align-items: center; justify-content: center; cursor: pointer;
+}
+.fanEff-photo-viewer.active{ display: flex; }
+.fanEff-photo-viewer img{ max-width: 90%; max-height: 90%; object-fit: contain; border-radius: 4px; }
+.fanEff-photo-viewer-close{
+  position: absolute; top: 16px; right: 24px; background: none; border: none; color: #fff; font-size: 32px; cursor: pointer; z-index: 10001;
+}
+
+/* ===== PIPE Specific Styles ===== */
+.pipe-help-btn{
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border: none; border-radius: 50%;
+  background: #e8e8e8; color: #555; font-size: 12px; font-weight: 700;
+  cursor: pointer; vertical-align: middle; line-height: 1; padding: 0;
+}
+.pipe-help-btn:hover{ background: #d6d6d6; }
+
+.pipe-chart-area{
+  display: flex; justify-content: space-around; align-items: flex-end;
+  gap: 10px; padding: 14px 8px 8px; height: 300px;
+  background: #fafafa; border: 1px solid #eee; border-radius: 6px;
+}
+.pipe-bar-group{
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-end; flex: 1; height: 100%;
+}
+.pipe-bar-value{ font-size: 15px; font-weight: 700; color: #333; margin-bottom: 4px; }
+.pipe-bar-track{ width: 46px; height: 210px; display: flex; flex-direction: column-reverse; }
+.pipe-bar-fill{ width: 100%; border-radius: 3px 3px 0 0; transition: height .25s; min-height: 0; }
+.pipe-bar-tag{ margin-top: 6px; font-size: 12px; font-weight: 600; color: #444; text-align: center; }
+
+/* Pipe Modal */
+.pipe-modal-overlay{
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.5); z-index: 99999;
+  align-items: center; justify-content: center;
+}
+.pipe-modal-box{
+  background: #e9ecef; width: 560px; max-width: 92vw; max-height: 86vh;
+  border-radius: 10px; display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0,0,0,.3);
+}
+.pipe-modal-head{
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; background: #e8e8e8; color: #555;
+  font-size: 15px; font-weight: 700;
+}
+.pipe-modal-close{ background: none; border: none; color: #555; font-size: 18px; cursor: pointer; line-height: 1; }
+.pipe-modal-body{ padding: 14px 16px; overflow-y: auto; background: #fff; }
+.pipe-modal-group{
+  font-size: 13px; font-weight: 700; color: #2563eb;
+  margin: 14px 0 4px; padding-bottom: 3px; border-bottom: 2px solid #2563eb;
+}
+.pipe-modal-group:first-child{ margin-top: 0; }
+.pipe-modal-mat{ font-size: 12px; font-weight: 600; color: #333; margin: 10px 0 3px; }
+.pipe-modal-table{ width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 4px; }
+.pipe-modal-table th{ background: #f0f4ff; border: 1px solid #d6deeb; padding: 4px 6px; text-align: center; }
+.pipe-modal-table td{ border: 1px solid #e2e2e2; padding: 3px 6px; text-align: center; }
+.pipe-modal-table tr:nth-child(even) td{ background: #fafbfd; }
+
+/* Equipment Add Button */
+.diag-summary-header{
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 20px; border-bottom: 1px solid #e5e7eb;
+}
+.diag-summary-actions{ display: flex; gap: 8px; }
+/* .diag2-tab.add - 탭 추가 버튼 */
+.diag2-tab.add{
+  background: #999; color: #fff; font-size: 14px;
+  padding: 6px 16px; padding-right: 16px !important;
+}
+.diag2-tab.add:hover{ background: #777; }
+
+/* Confirm Modal */
+.confirm-modal-overlay{
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4); z-index: 10001;
+  align-items: center; justify-content: center;
+}
+.confirm-modal-overlay.active{ display: flex; }
+.confirm-modal-box{
+  background: #fff; border-radius: 10px; width: 360px; max-width: 90vw;
+  padding: 20px; text-align: center;
+}
+.confirm-modal-title{ font-size: 15px; font-weight: 700; color: #333; margin-bottom: 8px; }
+.confirm-modal-desc{ font-size: 12px; color: #666; margin-bottom: 16px; }
+.confirm-modal-actions{ display: flex; gap: 8px; justify-content: center; }
+.confirm-modal-btn{
+  padding: 8px 20px; border: none; border-radius: 4px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.confirm-modal-btn.cancel{ background: #e5e7eb; color: #333; }
+.confirm-modal-btn.confirm{ background: #e53e3e; color: #fff; }
+.confirm-modal-btn:hover{ opacity: 0.85; }
+
+/* Toast */
+.toast-container{
+  position: fixed; bottom: 20px; right: 20px; z-index: 10002;
+}
+.toast{
+  background: #333; color: #fff; padding: 10px 16px;
+  border-radius: 6px; font-size: 12px; margin-top: 8px;
+  animation: toastFadeIn 0.3s ease;
+}
+@keyframes toastFadeIn{
+  from{ opacity: 0; transform: translateY(10px); }
+  to{ opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+
+<div class="page-container">
+  <!-- Header -->
+  <div class="header" style="position:relative;">
+    <h1>HIMEC − Mechanical Facility Aging Diagnosis System</h1>
+    <div class="sub">(주)하이멕 − 기계설비 노후화 진단</div>
+    <h2><span id="projectLabel" style="font-size:15px; color:#333; font-weight:600;"></span>2nd Diagnosis Piping</h2>
+    <div class="header-right">
+      <button class="btn-save" id="btnSave" onclick="saveData()">Save</button>
+      <button class="btn-file" onclick="exportFile()">File Trans</button>
+      <button class="btn-main" onclick="GoMain()">Main</button>
+    </div>
+  </div>
+
+  <!-- Main Panel -->
+  <div class="main-panel">
+    
+    <div class="content-area" id="contentArea_pipe">
+      <div id="d2PipeUnits"></div>
+    </div>
+  </div>
+
+  </div>
+
+<!-- Copyright -->
+<footer class="footer-copyright">
+    <div class="footer-inner">
+        <span>© 2026 HIMEC (주)하이멕. All rights reserved. Made by 성재호, 최승연, 신동민</span>
+    </div>
+</footer>
+
+<!-- Photo Viewer -->
+<div class="fanEff-photo-viewer" id="fanefPhotoViewer" onclick="closeFanefPhotoViewer()">
+  <button class="fanEff-photo-viewer-close" onclick="closeFanefPhotoViewer()">&times;</button>
+  <img id="fanefPhotoViewerImg" src="" alt="Photo Viewer">
+</div>
+
+<!-- Confirm Modal -->
+<div class="confirm-modal-overlay" id="confirmModalOverlay">
+  <div class="confirm-modal-box">
+    <div class="confirm-modal-title" id="confirmModalTitle"></div>
+    <div class="confirm-modal-desc" id="confirmModalDesc"></div>
+    <div class="confirm-modal-actions">
+      <button class="confirm-modal-btn cancel" onclick="hideConfirmModal()">취소</button>
+      <button class="confirm-modal-btn confirm" id="confirmModalBtn">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+
+// ========== URL Parameters ==========
+const _urlParams = new URLSearchParams(window.location.search);
+const _projectId = _urlParams.get('projectId') || '';
+const _projectName = _urlParams.get('projectName') || '';
+
+// localStorage 키
+function _getStorageKey() {
+  return _projectId ? 'tool_pipe_' + _projectId : '';
+}
+
+// 프로젝트명 헤더에 표시
+function _showProjectLabel() {
+  var el = document.getElementById('projectLabel');
+  if (el && _projectName) {
+    el.textContent = '[' + decodeURIComponent(_projectName) + '] ';
+  }
+}
+
+// ===== 토스트 알림 =====
+function _showToast(message, type) {
+  var toast = document.getElementById('saveToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'saveToast';
+    toast.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);padding:10px 28px;border-radius:8px;color:#fff;font-size:14px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.style.background = type === 'success' ? '#27ae60' :
+                            type === 'warn' ? '#f39c12' : '#e74c3c';
+  toast.style.opacity = '1';
+  setTimeout(function() { toast.style.opacity = '0'; }, 2500);
+}
+
+// ===== Save 버튼 플래시 =====
+function _flashSaveButton() {
+  var btn = document.getElementById('btnSave');
+  if (!btn) return;
+  var orig = btn.textContent;
+  btn.textContent = 'Saved!';
+  btn.classList.add('saved');
+  setTimeout(function() {
+    btn.classList.remove('saved');
+    btn.textContent = orig;
+  }, 1200);
+}
+
+// ===== 프로젝트별 데이터 저장 (localStorage) =====
+function saveData() {
+  if (!_projectId) {
+    _showToast('프로젝트 정보가 없습니다. 대시보드에서 프로젝트를 선택해주세요.', 'warn');
+    return;
+  }
+
+  // 현재 활성 탭 데이터 저장
+  var st = diag2State['d2Pipe'];
+  if (st && st.activeTab) {
+    pipeEffSaveTabData('d2Pipe', st.activeTab);
+  }
+
+  // 전체 diag2State 직렬화
+  var stateSnapshot = {};
+  for (var type in diag2State) {
+    var s = diag2State[type];
+    stateSnapshot[type] = {
+      nextId: s.nextId,
+      activeTab: s.activeTab,
+      tabData: s.tabData
+    };
+  }
+
+  var payload = {
+    projectId: _projectId,
+    projectName: decodeURIComponent(_projectName),
+    savedAt: new Date().toISOString(),
+    diag2State: stateSnapshot,
+    photoStore: _photoStore || {}
+  };
+
+  try {
+    localStorage.setItem(_getStorageKey(), JSON.stringify(payload));
+    _showToast('저장되었습니다.', 'success');
+    _flashSaveButton();
+  } catch (e) {
+    _showToast('저장 실패: ' + e.message, 'error');
+  }
+}
+
+// ===== 프로젝트별 데이터 로드 (localStorage) =====
+function _loadProjectData() {
+  var key = _getStorageKey();
+  if (!key) return false;
+
+  try {
+    var raw = localStorage.getItem(key);
+    if (!raw) return false;
+    var payload = JSON.parse(raw);
+
+    // photoStore 복원
+    if (payload.photoStore) {
+      _photoStore = payload.photoStore;
+    }
+
+    // diag2State 복원
+    if (payload.diag2State) {
+      var stateData = payload.diag2State;
+
+      for (var type in stateData) {
+        var savedState = stateData[type];
+        if (!savedState || !savedState.tabData) continue;
+
+        // 탭 데이터 순회하여 탭 생성
+        var tabIds = Object.keys(savedState.tabData).map(Number).sort(function(a,b){return a-b;});
+
+        for (var i = 0; i < tabIds.length; i++) {
+          var tabId = tabIds[i];
+          var tabData = savedState.tabData[tabId];
+          if (!tabData) continue;
+
+          // 탭 추가 (첫 번째 탭은 DOMContentLoaded에서 이미 생성됨)
+          var createdId;
+          if (i === 0 && diag2State[type] && diag2State[type].activeTab) {
+            createdId = diag2State[type].activeTab;
+          } else {
+            createdId = window.addUnit(type);
+          }
+
+          if (createdId) {
+            diag2State[type].tabData[createdId] = tabData;
+            pipeEffRestoreTabData(type, createdId);
+
+            // 탭 라벨 업데이트
+            if (tabData['inp-equip']) {
+              var st = diag2State[type];
+              var btn = st.tabsEl.querySelector('.diag2-tab[data-tab-id="' + createdId + '"]');
+              if (btn) {
+                var labelEl = btn.querySelector('.diag2-tab-label');
+                if (labelEl) labelEl.textContent = tabData['inp-equip'];
+              }
+            }
+          }
+        }
+
+        // nextId 복원
+        if (savedState.nextId) {
+          diag2State[type].nextId = savedState.nextId;
+        }
+      }
+    }
+
+    return true;
+  } catch (e) {
+    console.warn('프로젝트 데이터 로드 실패:', e);
+    return false;
+  }
+}
+
+// ===== File Trans =====
+function exportFile() {
+  alert('파일 변환 기능');
+}
+
+// ===== Main 화면 이동 =====
+function GoMain() {
+  if (window.STD) {
+    STD.goMain((typeof saveData === 'function') ? saveData : null);
+  } else {
+    window.location.href = '../dashboard.html';
+  }
+}
+
+// ===== Ctrl+S / Cmd+S 단축키 저장 =====
+window.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveData();
+  }
+});
+
+/* ===== PIPE TABLE DATA ===== */
+/* ===== PIPE TABLE DATA ===== */
+var PIPE_TABLE = {"Copper K(상수도, 의료)":{"8":{"od":9.52,"nt":0.89},"10":{"od":12.7,"nt":1.24},"15":{"od":15.88,"nt":1.24},"19":{"od":19.05,"nt":1.24},"20":{"od":22.22,"nt":1.65},"25":{"od":28.58,"nt":1.65},"32":{"od":34.92,"nt":1.65},"40":{"od":41.28,"nt":1.83},"50":{"od":53.98,"nt":2.11},"65":{"od":66.68,"nt":2.41},"80":{"od":79.38,"nt":2.77},"90":{"od":92.08,"nt":3.05},"100":{"od":104.78,"nt":3.4},"125":{"od":130.18,"nt":4.06},"150":{"od":155.58,"nt":4.88},"200":{"od":206.38,"nt":6.88}},"Copper L(상수도, 공조, 급수급탕)":{"8":{"od":9.52,"nt":0.76},"10":{"od":12.7,"nt":0.89},"15":{"od":15.88,"nt":1.02},"19":{"od":19.05,"nt":1.07},"20":{"od":22.22,"nt":1.14},"25":{"od":28.58,"nt":1.27},"32":{"od":34.92,"nt":1.4},"40":{"od":41.28,"nt":1.52},"50":{"od":53.98,"nt":1.78},"65":{"od":66.68,"nt":2.03},"80":{"od":79.38,"nt":2.29},"90":{"od":92.08,"nt":2.54},"100":{"od":104.78,"nt":2.79},"125":{"od":130.18,"nt":3.18},"150":{"od":155.58,"nt":3.56},"200":{"od":206.38,"nt":5.08},"250":{"od":257.18,"nt":6.35}},"Copper L (공조, 급수급탕)":{"10":{"od":12.7,"nt":0.64},"15":{"od":15.88,"nt":0.71},"20":{"od":22.22,"nt":0.81},"25":{"od":28.58,"nt":0.89},"32":{"od":34.92,"nt":1.07},"40":{"od":41.28,"nt":1.24},"50":{"od":53.98,"nt":1.47},"65":{"od":66.68,"nt":1.65},"80":{"od":79.38,"nt":1.83},"90":{"od":92.08,"nt":2.11},"100":{"od":104.78,"nt":2.41},"125":{"od":130.18,"nt":2.77},"150":{"od":155.58,"nt":3.1},"200":{"od":206.38,"nt":4.38},"250":{"od":257.18,"nt":5.38}},"강관":{"13":{"od":17.3,"nt":2.35},"15":{"od":21.7,"nt":2.65},"20":{"od":27.2,"nt":2.65},"25":{"od":34.0,"nt":3.25},"32":{"od":42.7,"nt":3.25},"40":{"od":48.6,"nt":3.25},"50":{"od":60.5,"nt":3.65},"65":{"od":76.3,"nt":3.65},"80":{"od":89.1,"nt":4.05},"90":{"od":101.6,"nt":4.04},"100":{"od":114.3,"nt":4.5},"125":{"od":139.8,"nt":4.85},"150":{"od":165.2,"nt":4.85},"200":{"od":216.3,"nt":5.85},"250":{"od":267.4,"nt":6.4},"300":{"od":318.5,"nt":7.0},"350":{"od":355.6,"nt":7.6},"400":{"od":406.4,"nt":7.9},"450":{"od":467.2,"nt":7.9},"500":{"od":508.0,"nt":7.9},"550":{"od":558.8,"nt":7.9}},"강관 SCH 40":{"13":{"od":17.3,"nt":2.3},"15":{"od":21.7,"nt":2.8},"20":{"od":27.2,"nt":2.9},"25":{"od":34.0,"nt":3.4},"32":{"od":42.7,"nt":3.6},"40":{"od":48.6,"nt":3.7},"50":{"od":60.5,"nt":3.9},"65":{"od":76.3,"nt":5.2},"80":{"od":89.1,"nt":5.5},"90":{"od":101.6,"nt":5.7},"100":{"od":114.3,"nt":6.0},"125":{"od":139.8,"nt":6.0},"150":{"od":165.2,"nt":7.1},"200":{"od":216.3,"nt":8.2},"250":{"od":267.4,"nt":9.3},"300":{"od":318.5,"nt":10.3},"350":{"od":355.6,"nt":11.1},"400":{"od":406.4,"nt":12.7},"450":{"od":467.2,"nt":14.3},"500":{"od":508.0,"nt":15.1},"550":{"od":558.8,"nt":15.9}},"강관 SCH 80":{"13":{"od":17.3,"nt":2.8},"15":{"od":21.7,"nt":3.2},"20":{"od":27.2,"nt":3.4},"25":{"od":34.0,"nt":3.9},"32":{"od":42.7,"nt":4.5},"40":{"od":48.6,"nt":4.5},"50":{"od":60.5,"nt":4.9},"65":{"od":76.3,"nt":6.0},"80":{"od":89.1,"nt":6.6},"90":{"od":101.6,"nt":7.0},"100":{"od":114.3,"nt":7.1},"125":{"od":139.8,"nt":8.1},"150":{"od":165.2,"nt":9.3},"200":{"od":216.3,"nt":10.3},"250":{"od":267.4,"nt":12.7},"300":{"od":318.5,"nt":14.3},"350":{"od":355.6,"nt":15.1},"400":{"od":406.4,"nt":16.7},"450":{"od":467.2,"nt":19.0},"500":{"od":508.0,"nt":20.6}},"STS SCH5":{"6":{"od":10.5,"nt":1.0},"8":{"od":13.8,"nt":1.2},"10":{"od":17.3,"nt":1.2},"15":{"od":21.7,"nt":1.65},"20":{"od":27.2,"nt":1.65},"25":{"od":34.0,"nt":1.65},"32":{"od":42.7,"nt":1.65},"40":{"od":48.6,"nt":1.65},"50":{"od":60.5,"nt":1.65},"65":{"od":76.3,"nt":2.1},"80":{"od":89.1,"nt":2.1},"90":{"od":101.6,"nt":2.1},"100":{"od":114.3,"nt":2.1},"125":{"od":139.8,"nt":2.8},"150":{"od":165.2,"nt":2.8},"200":{"od":216.3,"nt":2.8},"250":{"od":267.4,"nt":3.4},"300":{"od":318.5,"nt":4.0}},"STS SCH10":{"6":{"od":10.5,"nt":1.2},"8":{"od":13.8,"nt":1.65},"10":{"od":17.3,"nt":1.65},"15":{"od":21.7,"nt":2.1},"20":{"od":27.2,"nt":2.1},"25":{"od":34.0,"nt":2.8},"32":{"od":42.7,"nt":2.8},"40":{"od":48.6,"nt":2.8},"50":{"od":60.5,"nt":2.8},"65":{"od":76.3,"nt":3.0},"80":{"od":89.1,"nt":3.0},"90":{"od":101.6,"nt":3.0},"100":{"od":114.3,"nt":3.0},"125":{"od":139.8,"nt":3.4},"150":{"od":165.2,"nt":3.4},"200":{"od":216.3,"nt":4.0},"250":{"od":267.4,"nt":4.0},"300":{"od":318.5,"nt":4.5}},"STS SCH20":{"6":{"od":10.5,"nt":1.5},"8":{"od":13.8,"nt":2.0},"10":{"od":17.3,"nt":2.0},"15":{"od":21.7,"nt":2.5},"20":{"od":27.2,"nt":2.5},"25":{"od":34.0,"nt":3.0},"32":{"od":42.7,"nt":3.0},"40":{"od":48.6,"nt":3.0},"50":{"od":60.5,"nt":3.5},"65":{"od":76.3,"nt":3.5},"80":{"od":89.1,"nt":4.0},"90":{"od":101.6,"nt":4.0},"100":{"od":114.3,"nt":4.0},"125":{"od":139.8,"nt":5.0},"150":{"od":165.2,"nt":5.0},"200":{"od":216.3,"nt":6.5},"250":{"od":267.4,"nt":6.5},"300":{"od":318.5,"nt":6.5}},"STS SCH40":{"6":{"od":10.5,"nt":1.7},"8":{"od":13.8,"nt":2.2},"10":{"od":17.3,"nt":2.3},"15":{"od":21.7,"nt":2.8},"20":{"od":27.2,"nt":2.9},"25":{"od":34.0,"nt":3.4},"32":{"od":42.7,"nt":3.6},"40":{"od":48.6,"nt":3.7},"50":{"od":60.5,"nt":3.9},"65":{"od":76.3,"nt":5.2},"80":{"od":89.1,"nt":5.5},"90":{"od":101.6,"nt":5.7},"100":{"od":114.3,"nt":6.0},"125":{"od":139.8,"nt":6.6},"150":{"od":165.2,"nt":7.1},"200":{"od":216.3,"nt":8.2},"250":{"od":267.4,"nt":9.3},"300":{"od":318.5,"nt":10.3}},"STS SCH80":{"6":{"od":10.5,"nt":2.4},"8":{"od":13.8,"nt":3.0},"10":{"od":17.3,"nt":3.2},"15":{"od":21.7,"nt":3.7},"20":{"od":27.2,"nt":3.9},"25":{"od":34.0,"nt":4.5},"32":{"od":42.7,"nt":4.9},"40":{"od":48.6,"nt":5.1},"50":{"od":60.5,"nt":5.5},"65":{"od":76.3,"nt":7.0},"80":{"od":89.1,"nt":7.6},"90":{"od":101.6,"nt":8.1},"100":{"od":114.3,"nt":8.6},"125":{"od":139.8,"nt":9.5},"150":{"od":165.2,"nt":11.0},"200":{"od":216.3,"nt":12.7},"250":{"od":267.4,"nt":15.1},"300":{"od":318.5,"nt":17.4}},"주철관":{"80":{"od":98.0,"nt":6.7},"100":{"od":118.0,"nt":6.8},"150":{"od":170.0,"nt":7.0},"200":{"od":222.0,"nt":7.1},"250":{"od":274.0,"nt":7.5},"300":{"od":326.0,"nt":8.0},"350":{"od":378.0,"nt":8.5},"400":{"od":429.0,"nt":9.0},"450":{"od":480.0,"nt":9.5},"500":{"od":532.0,"nt":10.0},"600":{"od":635.0,"nt":11.0},"700":{"od":738.0,"nt":12.0},"800":{"od":842.0,"nt":13.0},"900":{"od":945.0,"nt":14.0},"1000":{"od":1048.0,"nt":15.0},"1100":{"od":1144.0,"nt":16.0},"1200":{"od":1255.0,"nt":17.0}}};
+
+var PIPE_BLOCKS = [
+    { mat: 'Copper K(상수도, 의료)',          group: 'COPPER TUBE' },
+    { mat: 'Copper L(상수도, 공조, 급수급탕)', group: 'COPPER TUBE' },
+    { mat: 'Copper L (공조, 급수급탕)',        group: 'COPPER TUBE' },
+    { mat: '강관',        group: 'STEEL PIPE' },
+    { mat: '강관 SCH 40', group: 'STEEL PIPE' },
+    { mat: '강관 SCH 80', group: 'STEEL PIPE' },
+    { mat: 'STS SCH5',  group: 'STAINLESS (STS)' },
+    { mat: 'STS SCH10', group: 'STAINLESS (STS)' },
+    { mat: 'STS SCH20', group: 'STAINLESS (STS)' },
+    { mat: 'STS SCH40', group: 'STAINLESS (STS)' },
+    { mat: 'STS SCH80', group: 'STAINLESS (STS)' },
+    { mat: '주철관',     group: 'CAST IRON' }
+  ];
+
+var PIPE_ANGLES = [0, 90, 180, 270];
+var PIPE_COLS = 8;
+
+var FANEF_PHOTO_COUNT = 6;
+
+/* ===== Utility Functions ===== */
+function _pn(v) {
+  if (typeof v === 'number') return v;
+  if (!v) return 0;
+  return parseFloat(String(v).replace(/,/g,'')) || 0;
+}
+
+function _fc(v, dec) {
+  if (v === '' || v === null || v === undefined) return '';
+  var n = typeof v === 'number' ? v : parseFloat(String(v).replace(/,/g,''));
+  if (isNaN(n)) return String(v);
+  if (typeof dec === 'number') n = parseFloat(n.toFixed(dec));
+  var parts = String(n).split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  if (typeof dec === 'number' && dec > 0) {
+    parts[1] = (parts[1] || '').padEnd(dec, '0').substring(0, dec);
+  }
+  return (typeof dec === 'number' && dec === 0) ? parts[0] : parts.join('.');
+}
+
+/* ===== Toast / Confirm Modal ===== */
+function showToast(msg) {
+  var container = document.getElementById('toastContainer');
+  var toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(function() { toast.remove(); }, 3000);
+}
+
+var _confirmCallback = null;
+function showConfirmModal(title, desc, callback) {
+  var overlay = document.getElementById('confirmModalOverlay');
+  var titleEl = document.getElementById('confirmModalTitle');
+  var descEl = document.getElementById('confirmModalDesc');
+  var btnEl = document.getElementById('confirmModalBtn');
+
+  titleEl.textContent = title;
+  descEl.textContent = desc;
+  _confirmCallback = callback;
+
+  if (callback) {
+    btnEl.style.display = '';
+    btnEl.onclick = function() {
+      hideConfirmModal();
+      if (_confirmCallback) _confirmCallback();
+    };
+  } else {
+    btnEl.style.display = 'none';
+  }
+
+  overlay.classList.add('active');
+}
+
+function hideConfirmModal() {
+  var overlay = document.getElementById('confirmModalOverlay');
+  overlay.classList.remove('active');
+  _confirmCallback = null;
+}
+
+/* ===== Photo Viewer ===== */
+function closeFanefPhotoViewer() {
+  var viewer = document.getElementById('fanefPhotoViewer');
+  if (viewer) viewer.classList.remove('active');
+}
+
+/* ===== diag2-tabs.js - PIPE Only ===== */
+(function () {
+  'use strict';
+
+  var diag2State = {};
+  var PREFIX_MAP = { d2Pipe: 'PIPE' };
+
+  function isPipeType(type) { return type === 'd2Pipe'; }
+
+  /* Add Unit */
+  window.addUnit = function (type, equipName, equipData) {
+    if (type !== 'd2Pipe') return;
+    return diag2AddTab(type, equipName, equipData);
+  };
+
+  function diag2AddTab(type, equipName, equipData) {
+    var st = diag2State[type];
+
+    if (!st) {
+      st = { nextId: 1, activeTab: null, barEl: null, tabsEl: null, contentEl: null, tabData: {} };
+      diag2State[type] = st;
+
+      var container = document.getElementById(type + 'Units');
+      if (!container) return;
+
+      var bar = document.createElement('div');
+      bar.className = 'diag2-tab-bar';
+
+      var tabs = document.createElement('div');
+      tabs.className = 'diag2-tab-list';
+
+      /* + 버튼 추가 (tab.add) */
+      var addBtn = document.createElement('div');
+      addBtn.className = 'diag2-tab add';
+      addBtn.textContent = '+';
+      addBtn.onclick = function() { window.addUnit(type); };
+      tabs.appendChild(addBtn);
+
+      bar.appendChild(tabs);
+      container.appendChild(bar);
+
+      var contentArea = document.createElement('div');
+      contentArea.className = 'diag2-content-area';
+      container.appendChild(contentArea);
+
+      st.barEl = bar;
+      st.tabsEl = tabs;
+      st.contentEl = contentArea;
+    }
+
+    var id = st.nextId++;
+    var abbr = PREFIX_MAP[type] || 'EQ';
+    var label = abbr + ' #' + String(id).padStart(2, '0');
+
+    var btn = document.createElement('div');
+    btn.className = 'diag2-tab active';
+    btn.setAttribute('data-tab-id', id);
+
+    var span = document.createElement('span');
+    span.className = 'diag2-tab-label';
+    span.textContent = label;
+
+    var closeBtn = document.createElement('span');
+    closeBtn.className = 'diag2-tab-close';
+    closeBtn.textContent = '\u00D7';
+    closeBtn.onclick = function (e) {
+      e.stopPropagation();
+      diag2RemoveTab(type, id, btn);
+    };
+
+    btn.appendChild(span);
+    btn.appendChild(closeBtn);
+    btn.onclick = function () { diag2SwitchTab(type, id); };
+
+    if (st.activeTab) {
+      pipeEffSaveTabData(type, st.activeTab);
+    }
+    var all = st.tabsEl.querySelectorAll('.diag2-tab');
+    for (var i = 0; i < all.length; i++) {
+      all[i].classList.remove('active');
+    }
+
+    /* + 버튼 앞에 새 탭 삽입 */
+    var addBtnEl = st.tabsEl.querySelector('.diag2-tab.add');
+    if (addBtnEl) {
+      st.tabsEl.insertBefore(btn, addBtnEl);
+    } else {
+      st.tabsEl.appendChild(btn);
+    }
+    st.activeTab = id;
+
+    st.tabData[id] = null;
+    pipeEffRenderPanel(type, id);
+
+    if (equipName) {
+      var pfx = type + '-' + id + '-';
+      var eqInput = document.getElementById(pfx + 'inp-equip');
+      if (eqInput) eqInput.value = equipName;
+      var labelEl = btn.querySelector('.diag2-tab-label');
+      if (labelEl) labelEl.textContent = equipName;
+    }
+
+    if (equipData) {
+      var ed = equipData;
+      var pfx2 = type + '-' + id + '-';
+      var fieldMap = {
+        'name': 'inp-equip',
+        'location': 'inp-loc',
+        'use': 'inp-use',
+        'note': 'inp-note',
+        'material': 'inp-material',
+        'dia': 'inp-dia'
+      };
+      for (var key in fieldMap) {
+        if (ed[key] !== undefined && ed[key] !== '') {
+          var targetEl = document.getElementById(pfx2 + fieldMap[key]);
+          if (targetEl) targetEl.value = ed[key];
+        }
+      }
+      pipeApplyLookup(pfx2);
+      pipeEffRecalc(pfx2);
+    }
+
+    return id;
+  }
+
+  function diag2SwitchTab(type, tabId) {
+    var st = diag2State[type];
+    if (!st || st.activeTab === tabId) return;
+
+    if (st.activeTab) {
+      pipeEffSaveTabData(type, st.activeTab);
+    }
+
+    var all = st.tabsEl.querySelectorAll('.diag2-tab');
+    for (var i = 0; i < all.length; i++) {
+      var tid = Number(all[i].getAttribute('data-tab-id'));
+      all[i].classList.toggle('active', tid === tabId);
+    }
+    st.activeTab = tabId;
+
+    pipeEffRenderPanel(type, tabId);
+    pipeEffRestoreTabData(type, tabId);
+  }
+
+  function diag2RemoveTab(type, tabId, btnEl) {
+    var st = diag2State[type];
+    var tabs = st.tabsEl.querySelectorAll('.diag2-tab');
+
+    if (tabs.length <= 1) {
+      showConfirmModal('삭제 불가', '최소 1개의 장비는 유지해야 합니다.', null);
+      return;
+    }
+
+    var label = btnEl.querySelector('.diag2-tab-label').textContent;
+    showConfirmModal(
+      '"' + label + '" 장비를 삭제하시겠습니까?',
+      '입력하신 데이터가 모두 사라집니다.',
+      function() {
+        btnEl.remove();
+        delete st.tabData[tabId];
+
+        if (typeof _photoStore !== 'undefined') {
+          delete _photoStore[type + '-' + tabId + '-'];
+        }
+
+        if (st.activeTab === tabId) {
+          var remaining = st.tabsEl.querySelectorAll('.diag2-tab');
+          if (remaining.length) {
+            var first = remaining[0];
+            first.classList.add('active');
+            st.activeTab = Number(first.getAttribute('data-tab-id'));
+            pipeEffRenderPanel(type, st.activeTab);
+            pipeEffRestoreTabData(type, st.activeTab);
+          } else {
+            st.contentEl.innerHTML = '';
+            st.activeTab = null;
+          }
+        }
+        showToast('✅ ' + label + ' 삭제 완료');
+      }
+    );
+  }
+
+  /* ===== PIPE Panel ===== */
+  function pipeEffRenderPanel(type, tabId) {
+    var st = diag2State[type];
+    if (!st || !st.contentEl) return;
+
+    var p = type + '-' + tabId + '-';
+    st.contentEl.innerHTML = pipeEffBuildHTML(p, tabId, type);
+
+    pipeEffInitMeasGrid(p);
+    pipeEffBindEvents(p, type, tabId);
+    pipeEffRecalc(p);
+  }
+
+  function pipeNominalKey(diaStr) {
+    if (!diaStr) return '';
+    var m = String(diaStr).match(/(\d+(?:\.\d+)?)/);
+    return m ? String(parseFloat(m[1])) : '';
+  }
+
+  function pipeLookup(material, diaStr) {
+    if (!material || !PIPE_TABLE[material]) return null;
+    var key = pipeNominalKey(diaStr);
+    if (!key) return null;
+    var rec = PIPE_TABLE[material][key];
+    return rec ? { od: rec.od, nt: rec.nt } : null;
+  }
+
+  function pipeApplyLookup(p) {
+    var matEl = document.getElementById(p + 'inp-material');
+    var diaEl = document.getElementById(p + 'inp-dia');
+    if (!matEl || !diaEl) return;
+    var rec = pipeLookup(matEl.value, diaEl.value);
+    var odEl = document.getElementById(p + 'inp-od');
+    var ntEl = document.getElementById(p + 'inp-nt');
+    var nomEl = document.getElementById(p + 'inp-nominal');
+    if (nomEl) nomEl.value = diaEl.value || '';
+    if (rec) {
+      if (odEl) odEl.value = rec.od;
+      if (ntEl) ntEl.value = rec.nt;
+    }
+  }
+  window.pipeApplyLookup = pipeApplyLookup;
+
+  function pipeEffBuildHTML(p, tabId, type) {
+    var html = '';
+    html += '<div class="fanEff-unit-panel"><div class="fanEff-main">';
+
+    /* LEFT PANEL */
+    html += '<div class="fanEff-panel" id="' + p + 'left-panel">';
+
+    html += '<div class="fanEff-section-title">■ 장비 개요</div>';
+    html += '<table class="info-table"><tr><th>장비</th><th>용도</th><th>비고</th></tr><tr>';
+    html += '<td><input id="' + p + 'inp-equip" value="" placeholder="P-01" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
+    html += '<td><input id="' + p + 'inp-use" value="" placeholder="용도" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
+    html += '<td><input id="' + p + 'inp-note" value="" placeholder="비고" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
+    html += '</tr></table>';
+
+    html += '<div class="fanEff-section-title" style="margin-top:4px;">■ 설계 Data</div>';
+    html += '<table class="info-table"><tr><th>측정위치</th><th>재질</th><th>배관경</th></tr><tr>';
+    html += '<td><input id="' + p + 'inp-loc" value="" placeholder="측정위치" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
+    html += '<td><input id="' + p + 'inp-material" value="" placeholder="재질(예: 강관)" onchange="window.pipeEffOnLookupChange(\'' + p + '\')"></td>';
+    html += '<td><input id="' + p + 'inp-dia" value="" placeholder="예: 100A" onchange="window.pipeEffOnLookupChange(\'' + p + '\')"></td>';
+    html += '</tr></table>';
+
+    html += '<div class="fanEff-section-title" style="margin-top:4px;">■ 측정 결과';
+    html += ' <button type="button" class="pipe-help-btn" onclick="window.pipeShowTable()" title="배관 관경표 보기">?</button></div>';
+    html += '<table class="info-table">';
+    html += '<tr><th>측정관경</th><th>외경<br>[mm]</th><th>공칭두께<br>[mm]</th><th>운전압력</th><th>허용응력</th><th>사용연수<br>[year]</th></tr><tr>';
+    html += '<td><input id="' + p + 'inp-nominal" type="text" readonly style="background:#f5f5f5;cursor:default;"></td>';
+    html += '<td style="background:#e0f7fa;"><input id="' + p + 'inp-od" type="text" readonly style="font-weight:700;color:#00838f;background:#e0f7fa;cursor:default;"></td>';
+    html += '<td style="background:#e0f7fa;"><input id="' + p + 'inp-nt" type="text" readonly style="font-weight:700;color:#00838f;background:#e0f7fa;cursor:default;"></td>';
+    html += '<td><input id="' + p + 'inp-press" type="text" inputmode="decimal" value="5.0" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
+    html += '<td><input id="' + p + 'inp-stress" type="text" inputmode="decimal" value="5.0" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
+    html += '<td><input id="' + p + 'inp-years" type="text" inputmode="decimal" value="" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
+    html += '</tr></table>';
+    html += '<div class="note">※ 최소허용두께 = (운전압력 × 외경) / (2 × 허용응력 + 운전압력) / 100 + 부식여유, SCH 및 동관의 경우 1cm</div>';
+
+    html += '<div class="data-input-section">';
+    html += '<div class="data-input-header"><span style="font-size:11px;font-weight:600;color:#333;">■ 측정치 입력 [mm]</span></div>';
+    html += '<div class="data-input-body">';
+    html += '<table class="info-table meas-grid-table" id="' + p + 'pipeGrid"><thead><tr><th>각도</th>';
+    for (var c = 1; c <= PIPE_COLS; c++) html += '<th>' + c + '</th>';
+    html += '</tr></thead><tbody>';
+    for (var a = 0; a < PIPE_ANGLES.length; a++) {
+      var ang = PIPE_ANGLES[a];
+      html += '<tr><td class="row-header">' + ang + '°</td>';
+      for (var c2 = 1; c2 <= PIPE_COLS; c2++) {
+        html += '<td><input id="' + p + 'g-' + ang + '-' + c2 + '" type="text" inputmode="decimal" value="" onchange="window.pipeEffOnChange(\'' + p + '\')"></td>';
+      }
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+
+    html += '<table class="info-table meas-summary-table" style="margin-top:6px;">';
+    html += '<tbody>';
+    html += '<tr><th>최소 허용 두께<br>[mm]</th><th>측정 최소 두께<br>[mm]</th><th>부식두께<br>[mm]</th></tr>';
+    html += '<tr><td><input id="' + p + 'calc-min-allow" type="text" readonly class="meas-sum-val"></td>';
+    html += '<td><input id="' + p + 'calc-meas-min" type="text" readonly class="meas-sum-val"></td>';
+    html += '<td><input id="' + p + 'calc-corr" type="text" readonly class="meas-sum-val"></td></tr>';
+    html += '<tr><th>최대 부식 속도<br>[mm/year]</th><th>추정 잔존 수명<br>[year]</th><th>등급<br>[Level]</th></tr>';
+    html += '<tr><td><input id="' + p + 'calc-corr-rate" type="text" readonly class="meas-sum-val"></td>';
+    html += '<td><input id="' + p + 'calc-life" type="text" readonly class="meas-sum-val"></td>';
+    html += '<td><input id="' + p + 'calc-grade" type="text" readonly class="meas-sum-val"></td></tr>';
+    html += '</tbody></table>';
+    html += '</div></div>';
+    html += '</div>';
+
+    /* CENTER PANEL - Photos */
+    html += '<div class="fanEff-panel fanEff-center-panel" id="' + p + 'center-panel">';
+    html += '<div class="fanEff-section-title">■ 현장 사진</div>';
+    html += '<div class="fanEff-photo-grid" id="' + p + 'photoGrid">';
+    for (var i = 0; i < FANEF_PHOTO_COUNT; i++) {
+      html += '<div class="fanEff-photo-slot" id="' + p + 'photoSlot' + i + '">';
+      html += '<div class="fanEff-photo-desc"><input type="text" placeholder="사진 ' + (i+1) + ' 설명" id="' + p + 'photoDesc' + i + '"></div>';
+      html += '<div class="fanEff-photo-display" onclick="window.fanEffTriggerPhoto(\'' + p + '\',' + i + ')">';
+      html += '<div class="fanEff-photo-num">' + (i+1) + '</div>';
+      html += '<div class="fanEff-photo-empty" id="' + p + 'photoEmpty' + i + '">';
+      html += '<div class="fanEff-cam-icon">📷</div><div class="fanEff-cam-text">사진 ' + (i+1) + '</div><div class="fanEff-cam-sub">클릭하여 촬영/선택</div>';
+      html += '</div>';
+      html += '<div class="fanEff-photo-preview" id="' + p + 'photoPreview' + i + '" style="display:none;">';
+      html += '<img id="' + p + 'photoImg' + i + '" src="" alt="사진 ' + (i+1) + '">';
+      html += '<div class="fanEff-photo-actions">';
+      html += '<button class="fanEff-photo-btn" onclick="event.stopPropagation();window.fanEffViewPhoto(\'' + p + '\',' + i + ')" title="크게 보기">🔍</button>';
+      html += '<button class="fanEff-photo-btn" onclick="event.stopPropagation();window.fanEffTriggerPhoto(\'' + p + '\',' + i + ')" title="다시 찍기">🔄</button>';
+      html += '<button class="fanEff-photo-btn del" onclick="event.stopPropagation();window.fanEffRemovePhoto(\'' + p + '\',' + i + ')" title="삭제">✕</button>';
+      html += '</div></div></div>';
+      html += '<input type="file" accept="image/*" capture="environment" id="' + p + 'photoInput' + i + '" style="display:none;" onchange="window.fanEffHandlePhoto(\'' + p + '\',' + i + ',this)">';
+      html += '</div>';
+    }
+    html += '</div></div>';
+
+    /* RIGHT PANEL - Analysis */
+    html += '<div class="fanEff-panel fanEff-right-panel" id="' + p + 'right-panel">';
+    html += '<div class="fanEff-section-title">■ 분석 결과</div>';
+    html += '<div class="pipe-chart-area">';
+    var bars = [
+      { key: 'nominal', label: '공칭 두께', color: '#555555' },
+      { key: 'allow', label: '최소 허용 두께', color: '#e85d24' },
+      { key: 'measmin', label: '측정 최소 두께', color: '#00838f' }
+    ];
+    for (var b = 0; b < bars.length; b++) {
+      html += '<div class="pipe-bar-group">';
+      html += '<div class="pipe-bar-value" id="' + p + 'pbv-' + bars[b].key + '">-</div>';
+      html += '<div class="pipe-bar-track"><div class="pipe-bar-fill" id="' + p + 'pb-' + bars[b].key + '" style="height:0%;background:' + bars[b].color + ';"></div></div>';
+      html += '<div class="pipe-bar-tag">' + bars[b].label + '</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="analysis-row analysis-row-result">';
+    html += '<div class="analysis-row-header"><span class="analysis-row-label result">결과</span><span class="analysis-row-sub">두께측정 결과</span></div>';
+    html += '<textarea class="analysis-result-text" id="' + p + 'inp-performance-result" placeholder="두께측정 결과를 입력하세요..."></textarea>';
+    html += '<div class="analysis-check-group">';
+    html += '<label class="analysis-check-item good"><input type="checkbox" name="' + p + 'perf-check" value="good" onchange="window.pipeEffOnPerfCheck(\'' + p + '\',this)"><span class="analysis-check-dot good"></span><span>양호</span></label>';
+    html += '<label class="analysis-check-item maint"><input type="checkbox" name="' + p + 'perf-check" value="maintenance" onchange="window.pipeEffOnPerfCheck(\'' + p + '\',this)"><span class="analysis-check-dot maint"></span><span>교체권고</span></label>';
+    html += '<label class="analysis-check-item replace"><input type="checkbox" name="' + p + 'perf-check" value="replace" onchange="window.pipeEffOnPerfCheck(\'' + p + '\',this)"><span class="analysis-check-dot replace"></span><span>즉시교체</span></label>';
+    html += '</div></div>';
+
+    html += '</div>';
+    html += '</div></div>';
+    return html;
+  }
+
+  /* ===== PIPE Calculations ===== */
+  function pipeEffGetMeasMin(p) {
+    var vals = [];
+    for (var a = 0; a < PIPE_ANGLES.length; a++) {
+      for (var c = 1; c <= PIPE_COLS; c++) {
+        var el = document.getElementById(p + 'g-' + PIPE_ANGLES[a] + '-' + c);
+        if (el) { var v = _pn(el.value); if (el.value !== '' && v > 0) vals.push(v); }
+      }
+    }
+    if (!vals.length) return null;
+    return Math.min.apply(null, vals);
+  }
+
+  function pipeEffRecalc(p) {
+    var gv = function(id) { var el = document.getElementById(p + id); return el ? _pn(el.value) : 0; };
+    var sv = function(id, v) { var el = document.getElementById(p + id); if (el) el.value = v; };
+
+    var od = gv('inp-od');
+    var nt = gv('inp-nt');
+    var press = gv('inp-press');
+    var stress = gv('inp-stress');
+    var years = gv('inp-years');
+
+    var measMin = pipeEffGetMeasMin(p);
+
+    var matEl = document.getElementById(p + 'inp-material');
+    var matStr = matEl ? String(matEl.value) : '';
+    var corrAllow = (/SCH/i.test(matStr) || /Copper/i.test(matStr) || matStr.indexOf('동관') !== -1) ? 1 : 2.54;
+
+    var denom = 2 * stress + press;
+    var minAllow = (denom > 0 ? (press * od) / denom / 100 : 0) + corrAllow;
+    sv('calc-min-allow', _fc(minAllow, 2));
+
+    sv('calc-meas-min', measMin !== null ? _fc(measMin, 2) : '');
+
+    var corr = (nt > 0 && measMin !== null) ? (nt - measMin) : null;
+    sv('calc-corr', corr !== null ? _fc(corr, 2) : '');
+
+    var corrRate = (corr !== null && years > 0) ? (corr / years) : null;
+    sv('calc-corr-rate', corrRate !== null ? _fc(corrRate, 4) : '');
+
+    var lifeVal = null, lifeText = '';
+    if (measMin !== null && years > 0) {
+      if (corrRate !== null && corrRate > 0) {
+        lifeVal = (measMin - minAllow) / corrRate;
+      } else {
+        lifeVal = 999;
+      }
+      lifeText = lifeVal > 10 ? '10년이상' : _fc(lifeVal, 1);
+    }
+    sv('calc-life', lifeText);
+
+    var nominalV = nt > 0 ? nt : 0;
+    var allowV = minAllow;
+    var measV = measMin !== null ? measMin : 0;
+    pipeEffSetBars(p, nominalV, allowV, measV);
+
+    pipeEffAutoJudge(p, measMin, minAllow, lifeVal);
+  }
+  window.pipeEffRecalc = pipeEffRecalc;
+
+  function pipeEffSetBars(p, nominalV, allowV, measV) {
+    var maxV = Math.max(nominalV, allowV, measV, 0.01);
+    var set = function(key, val) {
+      var fill = document.getElementById(p + 'pb-' + key);
+      var lab = document.getElementById(p + 'pbv-' + key);
+      if (fill) fill.style.height = ((val / maxV) * 100).toFixed(1) + '%';
+      if (lab) lab.textContent = val > 0 ? _fc(val, 2) : '-';
+    };
+    set('nominal', nominalV);
+    set('allow', allowV);
+    set('measmin', measV);
+  }
+
+  function pipeEffAutoJudge(p, measMin, minAllow, lifeVal) {
+    var gradeEl = document.getElementById(p + 'calc-grade');
+    var textEl = document.getElementById(p + 'inp-performance-result');
+    if (measMin === null || lifeVal === null) {
+      if (gradeEl) { gradeEl.value = ''; gradeEl.style.color = ''; }
+      if (!textEl || !textEl._userJudged) {
+        var cbs0 = document.querySelectorAll('input[name="' + p + 'perf-check"]');
+        cbs0.forEach(function(cb) { cb.checked = false; });
+      }
+      return;
+    }
+
+    var judge, gradeKor;
+    if (measMin <= minAllow) { judge = 'replace'; gradeKor = '즉시 교체'; }
+    else if (lifeVal >= 10) { judge = 'good'; gradeKor = '양호'; }
+    else if (lifeVal >= 5) { judge = 'maintenance'; gradeKor = '교체 권고'; }
+    else { judge = 'replace'; gradeKor = '즉시 교체'; }
+
+    if (gradeEl) {
+      gradeEl.value = gradeKor;
+      gradeEl.style.color = judge === 'replace' ? '#e53e3e' : (judge === 'maintenance' ? '#ff8c00' : '#00838f');
+    }
+
+    var cbs = document.querySelectorAll('input[name="' + p + 'perf-check"]');
+    var anyChecked = false;
+    cbs.forEach(function(cb) { if (cb.checked) anyChecked = true; });
+    if (!anyChecked || !textEl || !textEl._userJudged) {
+      cbs.forEach(function(cb) { cb.checked = (cb.value === judge); });
+    }
+    if (textEl && !textEl._userEdited) {
+      textEl.value = '측정최소 ' + _fc(measMin, 2) + 'mm / 최소허용 ' + _fc(minAllow, 2) + 'mm — ' + gradeKor;
+    }
+  }
+
+  /* ===== Tab Data Save/Restore ===== */
+  var ALL_PIPE_FIELDS = [
+    'inp-equip','inp-use','inp-note','inp-loc','inp-material','inp-dia',
+    'inp-nominal','inp-od','inp-nt','inp-press','inp-stress','inp-years',
+    'calc-min-allow','calc-meas-min','calc-corr','calc-corr-rate','calc-life','calc-grade',
+    'inp-performance-result'
+  ];
+
+  function pipeEffSaveTabData(type, tabId) {
+    var st = diag2State[type];
+    if (!st) return;
+    var p = type + '-' + tabId + '-';
+    var data = {};
+    ALL_PIPE_FIELDS.forEach(function(suf) {
+      var el = document.getElementById(p + suf);
+      data[suf] = el ? el.value : '';
+    });
+    data['_grid'] = pipeEffSaveGrid(p);
+    data['_photos'] = _getPhotoStore(p).map(function(item, idx) {
+      var descEl = document.getElementById(p + 'photoDesc' + idx);
+      return { img: item.img, desc: descEl ? descEl.value : '' };
+    });
+    var cbs = document.querySelectorAll('input[name="' + p + 'perf-check"]');
+    cbs.forEach(function(cb) { if (cb.checked) data['_perfCheck'] = cb.value; });
+    st.tabData[tabId] = data;
+  }
+
+  function pipeEffRestoreTabData(type, tabId) {
+    var st = diag2State[type];
+    if (!st || !st.tabData[tabId]) return;
+    var p = type + '-' + tabId + '-';
+    var data = st.tabData[tabId];
+    ALL_PIPE_FIELDS.forEach(function(suf) {
+      var el = document.getElementById(p + suf);
+      if (el && data[suf] !== undefined) el.value = data[suf];
+    });
+    if (data['_grid']) pipeEffRestoreGrid(p, data['_grid']);
+    if (data['_photos']) {
+      var store = _getPhotoStore(p);
+      data['_photos'].forEach(function(item, idx) {
+        store[idx] = { img: item.img, desc: item.desc };
+        var descEl = document.getElementById(p + 'photoDesc' + idx);
+        if (descEl) descEl.value = item.desc || '';
+        var emptyEl = document.getElementById(p + 'photoEmpty' + idx);
+        var prevEl = document.getElementById(p + 'photoPreview' + idx);
+        var imgEl = document.getElementById(p + 'photoImg' + idx);
+        if (item.img) {
+          if (emptyEl) emptyEl.style.display = 'none';
+          if (prevEl) prevEl.style.display = '';
+          if (imgEl) imgEl.src = item.img;
+        }
+      });
+    }
+    if (data['_perfCheck']) {
+      var cbs = document.querySelectorAll('input[name="' + p + 'perf-check"]');
+      cbs.forEach(function(cb) { cb.checked = (cb.value === data['_perfCheck']); });
+    }
+    pipeEffRecalc(p);
+  }
+
+  function pipeEffSaveGrid(p) {
+    var data = {};
+    for (var a = 0; a < PIPE_ANGLES.length; a++) {
+      for (var c = 1; c <= PIPE_COLS; c++) {
+        var id = 'g-' + PIPE_ANGLES[a] + '-' + c;
+        var el = document.getElementById(p + id);
+        data[id] = el ? el.value : '';
+      }
+    }
+    return data;
+  }
+
+  function pipeEffRestoreGrid(p, data) {
+    if (!data) return;
+    for (var k in data) {
+      var el = document.getElementById(p + k);
+      if (el) el.value = data[k];
+    }
+  }
+
+  function pipeEffInitMeasGrid(p) { /* Fixed grid - no init needed */ }
+
+  function pipeEffBindEvents(p, type, tabId) {
+    var equipEl = document.getElementById(p + 'inp-equip');
+    if (equipEl) {
+      equipEl.addEventListener('input', function() {
+        var st = diag2State[type];
+        if (!st) return;
+        var btn = st.tabsEl.querySelector('.diag2-tab[data-tab-id="' + tabId + '"]');
+        if (btn) {
+          var labelEl = btn.querySelector('.diag2-tab-label');
+          if (labelEl) {
+            var abbr = PREFIX_MAP[type] || 'EQ';
+            labelEl.textContent = equipEl.value || (abbr + ' #' + String(tabId).padStart(2, '0'));
+          }
+        }
+      });
+    }
+    var textEl = document.getElementById(p + 'inp-performance-result');
+    if (textEl) textEl.addEventListener('input', function() { textEl._userEdited = true; });
+  }
+
+  window.pipeEffOnChange = function(p) { pipeEffRecalc(p); };
+  window.pipeEffOnLookupChange = function(p) { pipeApplyLookup(p); pipeEffRecalc(p); };
+  window.pipeEffOnPerfCheck = function(p, el) {
+    var cbs = document.querySelectorAll('input[name="' + p + 'perf-check"]');
+    cbs.forEach(function(cb) { if (cb !== el) cb.checked = false; });
+    var textEl = document.getElementById(p + 'inp-performance-result');
+    if (textEl) textEl._userJudged = true;
+  };
+
+  /* ===== Pipe Table Modal ===== */
+  window.pipeShowTable = function() {
+    var ov = document.getElementById('pipeTableModal');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'pipeTableModal';
+      ov.className = 'pipe-modal-overlay';
+      ov.onclick = function(e) { if (e.target === ov) window.pipeHideTable(); };
+      ov.innerHTML = pipeBuildTableHTML();
+      document.body.appendChild(ov);
+    }
+    ov.style.display = 'flex';
+  };
+
+  window.pipeHideTable = function() {
+    var ov = document.getElementById('pipeTableModal');
+    if (ov) ov.style.display = 'none';
+  };
+
+  function pipeBuildTableHTML() {
+    var h = '<div class="pipe-modal-box">';
+    h += '<div class="pipe-modal-head"><span>배관 관경표</span><button class="pipe-modal-close" onclick="window.pipeHideTable()">✕</button></div>';
+    h += '<div class="pipe-modal-body">';
+    var lastGroup = '';
+    for (var i = 0; i < PIPE_BLOCKS.length; i++) {
+      var blk = PIPE_BLOCKS[i];
+      if (blk.group !== lastGroup) { h += '<div class="pipe-modal-group">' + blk.group + '</div>'; lastGroup = blk.group; }
+      var d = PIPE_TABLE[blk.mat] || {};
+      h += '<div class="pipe-modal-mat">' + blk.mat + '</div>';
+      h += '<table class="pipe-modal-table"><thead><tr><th>호칭경</th><th>외경(mm)</th><th>공칭두께(mm)</th></tr></thead><tbody>';
+      var keys = Object.keys(d).map(Number).sort(function(a,b){return a-b;});
+      for (var k = 0; k < keys.length; k++) {
+        var r = d[String(keys[k])];
+        h += '<tr><td>' + keys[k] + '</td><td>' + r.od + '</td><td>' + r.nt + '</td></tr>';
+      }
+      h += '</tbody></table>';
+    }
+    h += '</div></div>';
+    return h;
+  }
+
+  /* ===== Photo Handling ===== */
+  var _photoStore = {};
+
+  function _getPhotoStore(p) {
+    if (!_photoStore[p]) {
+      _photoStore[p] = [];
+      for (var i = 0; i < FANEF_PHOTO_COUNT; i++) _photoStore[p].push({ img: null, desc: '' });
+    }
+    return _photoStore[p];
+  }
+
+  window.fanEffTriggerPhoto = function(p, idx) {
+    var inp = document.getElementById(p + 'photoInput' + idx);
+    if (inp) inp.click();
+  };
+
+  window.fanEffHandlePhoto = function(p, idx, input) {
+    var file = input.files && input.files[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    _resizeImg(file, 800, 0.7).then(function(dataURL) {
+      var photos = _getPhotoStore(p);
+      photos[idx].img = dataURL;
+      var emptyEl = document.getElementById(p + 'photoEmpty' + idx);
+      var prevEl = document.getElementById(p + 'photoPreview' + idx);
+      var imgEl = document.getElementById(p + 'photoImg' + idx);
+      if (emptyEl) emptyEl.style.display = 'none';
+      if (prevEl) { prevEl.style.display = ''; if (imgEl) imgEl.src = dataURL; }
+      input.value = '';
+    });
+  };
+
+  window.fanEffRemovePhoto = function(p, idx) {
+    var photos = _getPhotoStore(p);
+    photos[idx].img = null;
+    var emptyEl = document.getElementById(p + 'photoEmpty' + idx);
+    var prevEl = document.getElementById(p + 'photoPreview' + idx);
+    var imgEl = document.getElementById(p + 'photoImg' + idx);
+    if (emptyEl) emptyEl.style.display = '';
+    if (prevEl) prevEl.style.display = 'none';
+    if (imgEl) imgEl.src = '';
+  };
+
+  window.fanEffViewPhoto = function(p, idx) {
+    var photos = _getPhotoStore(p);
+    if (!photos[idx] || !photos[idx].img) return;
+    var viewer = document.getElementById('fanefPhotoViewer');
+    var vImg = document.getElementById('fanefPhotoViewerImg');
+    if (viewer && vImg) { vImg.src = photos[idx].img; viewer.classList.add('active'); }
+  };
+
+  function _resizeImg(file, maxSize, quality) {
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+          var w = img.width, h = img.height;
+          if (w > maxSize || h > maxSize) {
+            if (w > h) { h = Math.round(h * (maxSize / w)); w = maxSize; }
+            else { w = Math.round(w * (maxSize / h)); h = maxSize; }
+          }
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+})();
+
+/* ===== Initialize with first equipment ===== */
+document.addEventListener('DOMContentLoaded', function() {
+  // 프로젝트명 헤더에 표시
+  _showProjectLabel();
+
+  // 기본 탭 추가
+  window.addUnit('d2Pipe');
+
+  // 프로젝트 데이터가 있으면 localStorage에서 로드
+  if (_projectId) {
+    setTimeout(function() {
+      _loadProjectData();
+    }, 100);
+  }
+});
+
+</script>
+<script>window.__STD_TOOL='pipe';</script>
+<script>
+/* ============================================================
+   STD Storage  —  표준 저장 모듈 v1 (전 도구 공통)
+   방식: localStorage 우선 + GitHub 동기화(가능 시)
+        + beforeunload 백업 + 저장 후 이동(GoMain)
+   ============================================================ */
+(function(){
+  if (window.STD) return;                         // 중복 주입 방지
+  var TOOL = window.__STD_TOOL || 'tool';
+  function qp(k){ return new URLSearchParams(location.search).get(k) || ''; }
+  function pid(){ return qp('projectId') || qp('project') || qp('id') || ''; }
+  function pname(){ return qp('projectName') || qp('name') || ''; }
+  function lsKey(){ var id=pid(); return 'std_'+TOOL+'_'+(id||'standalone'); }
+  function ghPath(){ var id=pid(); return id ? ('data/'+TOOL+'/'+id+'.json') : null; }
+
+  function genericData(){
+    var o={__std:true, t:Date.now(), fields:{}};
+    document.querySelectorAll('input[id],select[id],textarea[id]').forEach(function(el){
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='button'||ty==='submit'||ty==='reset'||ty==='file') return;
+      o.fields[el.id]=(ty==='checkbox'||ty==='radio') ? el.checked : el.value;
+    });
+    return o;
+  }
+  function genericRestore(o){
+    if(!o||!o.fields) return;
+    Object.keys(o.fields).forEach(function(id){
+      var el=document.getElementById(id); if(!el) return;
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='checkbox'||ty==='radio') el.checked=!!o.fields[id];
+      else el.value=o.fields[id];
+      try{ el.dispatchEvent(new Event('input',{bubbles:true}));
+           el.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){}
+    });
+  }
+  function lsSave(){
+    try{ localStorage.setItem(lsKey(), JSON.stringify(genericData())); return true; }
+    catch(e){ console.warn('[STD] LS save fail', e); return false; }
+  }
+  function lsLoad(){
+    try{ var r=localStorage.getItem(lsKey()); return r? JSON.parse(r):null; }catch(e){ return null; }
+  }
+  function ghSync(){
+    var p=ghPath();
+    if(p && typeof window.ghSaveFile==='function'){
+      return Promise.resolve(window.ghSaveFile(p, genericData(), 'STD save '+TOOL+' '+pid()))
+        .then(function(){ return true; })
+        .catch(function(e){ console.warn('[STD] GH save fail', e); return false; });
+    }
+    return Promise.resolve(null);                 // GitHub 미사용 페이지
+  }
+  function toast(msg, type){
+    if(typeof window._showToast==='function'){ try{ window._showToast(msg, type||'success'); return; }catch(e){} }
+    if(typeof window.showToast==='function'){ try{ window.showToast(msg, type||'success'); return; }catch(e){} }
+    var el=document.getElementById('__stdToast');
+    if(!el){ el=document.createElement('div'); el.id='__stdToast';
+      el.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;opacity:0;transition:opacity .2s';
+      document.body.appendChild(el); }
+    el.textContent=msg; el.style.opacity='1';
+    clearTimeout(el.__t); el.__t=setTimeout(function(){ el.style.opacity='0'; }, 1800);
+  }
+
+  var dirty=false;
+  document.addEventListener('input', function(){ dirty=true; }, true);
+  document.addEventListener('change', function(){ dirty=true; }, true);
+
+  function save(pageSaver, opts){
+    opts=opts||{};
+    lsSave();                                     // 1) 항상 localStorage 백업
+    var hasPage=(typeof pageSaver==='function');
+    if(hasPage){                                  // 2a) 리치 저장(페이지 고유 LS+GitHub)
+      return Promise.resolve().then(pageSaver).then(function(){ dirty=false; return {page:true}; })
+        .catch(function(e){ console.warn('[STD] pageSaver fail', e); dirty=false; return {page:false}; });
+    }
+    return ghSync().then(function(gh){             // 2b) 제네릭 GitHub 동기화(가능 시)
+      dirty=false;
+      if(!opts.silent) toast(gh===false?'로컬에 저장되었습니다 (클라우드 동기화 실패)':'저장되었습니다.', gh===false?'warn':'success');
+      return {gh:gh};
+    });
+  }
+  function load(pageLoader){
+    if(typeof pageLoader==='function'){ try{ return pageLoader(); }catch(e){ console.warn('[STD] pageLoader fail', e); } }
+    var o=lsLoad(); if(o) genericRestore(o); dirty=false; return o;
+  }
+  function goMain(pageSaver){
+    var url=(typeof window.dashboardUrl!=='undefined' && window.dashboardUrl) ? window.dashboardUrl : '../dashboard.html';
+    Promise.resolve(save(pageSaver, {silent:true})).then(function(){ location.href=url; }, function(){ location.href=url; });
+  }
+  window.addEventListener('beforeunload', function(){ try{ lsSave(); }catch(e){} });
+
+  window.STD={ save:save, load:load, goMain:goMain, lsSave:lsSave, lsLoad:lsLoad,
+               genericData:genericData, genericRestore:genericRestore,
+               projectId:pid, projectName:pname, key:lsKey, ghPath:ghPath, isDirty:function(){return dirty;} };
+})();
+</script>
+</body>
+</html>

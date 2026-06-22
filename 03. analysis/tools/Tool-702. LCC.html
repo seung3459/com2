@@ -1,0 +1,2874 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/himec-supabase-sync.js"></script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LCC 생애주기비용 분석</title>
+    <style>
+/* ===================================================
+   LCC 분석 - Stylesheet (멀티 Item 지원)
+   헤더: psychart.html과 동일한 3분할 구조 적용
+   =================================================== */
+
+/* --- Reset & Base --- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --c-primary: #2563eb;
+    --c-primary-light: #dbeafe;
+    --c-primary-dark: #1d4ed8;
+    --c-success: #059669;
+    --c-success-light: #d1fae5;
+    --c-danger: #dc2626;
+    --c-danger-light: #fee2e2;
+    --c-warning: #d97706;
+    --c-bg: #ffffff;
+    --c-surface: #ffffff;
+    --c-text: #0f172a;
+    --c-text-secondary: #64748b;
+    --c-border: #e2e8f0;
+    --c-border-focus: #93c5fd;
+    --radius: 8px;
+    --radius-sm: 5px;
+    --radius-lg: 12px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,.08);
+    --font: 'Pretendard', 'Noto Sans KR', sans-serif;
+    --transition: 150ms ease;
+}
+
+html, body {
+    font-family: var(--font);
+    background: #f5f5f5;
+    color: #333;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== HEADER (hcdload 스타일) ===== */
+.header {
+    background: #fff;
+    padding: 8px 20px;
+    border-bottom: 1px solid #ddd;
+    flex-shrink: 0;
+    margin-left: -100px;
+    margin-right: -100px;
+    padding-left: 120px;
+    padding-right: 120px;
+}
+.header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #222;
+}
+.header .sub {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+}
+.header h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    margin-top: 4px;
+}
+.header h2 #projectLabel {
+    color: #333;
+}
+.header-right {
+    position: absolute;
+    bottom: 8px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+}
+.header-right button {
+    padding: 8px 0;
+    width: 90px;
+    border: none;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+}
+.btn-save { background: #e85d24; color: #fff; }
+.btn-file { background: #e85d24; color: #fff; }
+.btn-main { background: #555f; color: #fff; }
+.btn-save:hover, .btn-file:hover { opacity: 0.85; }
+.btn-main:hover { opacity: 0.85; }
+.btn-save.saved {
+    background: #27ae60;
+    border: none;
+    animation: save-flash 0.6s ease;
+}
+@keyframes save-flash {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+.btn-save:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ─── Save Toast ─── */
+.save-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    padding: 10px 24px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font);
+    z-index: 9999;
+    opacity: 0;
+    transition: all 0.35s ease;
+    pointer-events: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+.save-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* --- Buttons --- */
+.btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 12px; font-weight: 600;
+    border: none; cursor: pointer;
+    transition: all var(--transition);
+    font-family: var(--font);
+}
+.btn-primary {
+    background: var(--c-primary); color: #fff;
+}
+.btn-primary:hover { background: var(--c-primary-dark); }
+.btn-secondary {
+    background: var(--c-surface); color: var(--c-primary);
+    border: 1.5px solid var(--c-primary);
+}
+.btn-secondary:hover { background: var(--c-primary-light); }
+.btn-ghost {
+    background: transparent; color: var(--c-text-secondary);
+    border: 1px solid var(--c-border);
+}
+.btn-ghost:hover { background: var(--c-bg); color: var(--c-text); }
+.btn-block { width: 100%; justify-content: center; padding: 10px; }
+.btn-xs { font-size: 10.5px; padding: 3px 8px; }
+
+.btn-group-single {
+    margin-bottom: 10px;
+}
+
+/* 상단 예시/초기화 버튼 그룹 */
+.btn-group-top {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--c-border);
+}
+.btn-group-top .btn {
+    flex: 1;
+}
+.btn-sm {
+    font-size: 11px;
+    padding: 6px 10px;
+}
+.btn-group-vertical {
+    display: flex; flex-direction: column; gap: 8px;
+    margin-top: 10px;
+}
+
+/* ===== CONTENT AREA ===== */
+.content-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    background: #fff;
+}
+
+/* --- Layout --- */
+.main-layout {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 16px;
+    padding: 16px 20px;
+    align-items: start;
+    height: 100%;
+    min-height: 0;
+}
+
+.panel {
+    background: var(--c-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--c-border);
+    box-shadow: var(--shadow);
+}
+
+/* --- Input Panel --- */
+.panel-input {
+    min-height: 0;
+    overflow: hidden;
+    scrollbar-width: thin;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+}
+.panel-input::-webkit-scrollbar { width: 4px; }
+.panel-input::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 4px; }
+
+/* Input Tabs */
+.input-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--c-border);
+    position: sticky; top: 0;
+    background: var(--c-surface);
+    z-index: 5;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.input-tab {
+    flex: 1;
+    padding: 10px 0;
+    font-size: 11.9px;
+    font-weight: 600;
+    color: var(--c-text-secondary);
+    border: none; background: none;
+    cursor: pointer;
+    transition: all var(--transition);
+    border-bottom: 2px solid transparent;
+    font-family: var(--font);
+}
+.input-tab.active {
+    color: var(--c-primary);
+    border-bottom-color: var(--c-primary);
+    background: var(--c-primary-light);
+}
+.input-tab:hover:not(.active) { background: var(--c-bg); }
+.input-tab-content { display: none; padding: 12px 14px 14px; }
+.input-tab-content.active { display: block; flex: 1; overflow-y: auto; }
+
+/* --- Item List Section --- */
+.item-list-section {
+    margin-bottom: 14px !important;
+    padding-bottom: 14px !important;
+}
+.item-count-badge {
+    font-size: 9.5px;
+    background: var(--c-primary);
+    color: #fff;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+    margin-left: auto;
+}
+.item-list-container {
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+.item-list-container::-webkit-scrollbar { width: 3px; }
+.item-list-container::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 3px; }
+
+.item-list-empty {
+    text-align: center;
+    padding: 16px 8px;
+    color: #94a3b8;
+    font-size: 10px;
+    border: 1px dashed var(--c-border);
+    border-radius: var(--radius-sm);
+}
+
+.item-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 4px;
+    background: var(--c-surface);
+    transition: all var(--transition);
+}
+.item-card:hover {
+    border-color: var(--c-border-focus);
+    box-shadow: var(--shadow-sm);
+}
+
+.item-card-check {
+    display: flex; align-items: center; gap: 6px;
+    cursor: pointer; flex-shrink: 0;
+}
+.item-card-check input[type="checkbox"] {
+    width: 16px; height: 16px;
+    accent-color: var(--c-primary);
+    cursor: pointer;
+}
+.item-color-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.item-card-body {
+    flex: 1;
+    min-width: 0;
+}
+.item-card-name {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--c-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.item-card-sub {
+    display: block;
+    font-size: 9.5px;
+    color: var(--c-text-secondary);
+}
+
+.item-card-actions {
+    display: flex; gap: 2px; flex-shrink: 0;
+}
+.item-btn {
+    background: none; border: none; cursor: pointer;
+    font-size: 11.5px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: background var(--transition);
+}
+.item-btn:hover { background: var(--c-bg); }
+
+/* Input Sections */
+.input-section {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--c-border);
+}
+.input-section:last-of-type { border-bottom: none; margin-bottom: 4px; }
+
+.section-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+}
+.section-num {
+    font-size: 9.1px; font-weight: 800;
+    color: var(--c-primary);
+    background: var(--c-primary-light);
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+}
+.input-label-main {
+    font-weight: 700; font-size: 12px;
+}
+.unit-badge, .auto-badge {
+    font-size: 8px; padding: 1px 6px;
+    border-radius: 4px; font-weight: 600;
+}
+.unit-badge { background: #f0fdf4; color: #166534; }
+.auto-badge { background: #eff6ff; color: #1e40af; }
+
+/* Compact Inputs */
+.input-row-compact {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.input-row-single {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin-bottom: 8px;
+}
+.input-row-single label { font-size: 10px; color: var(--c-text-secondary); white-space: nowrap; }
+.input-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+.input-cell label {
+    display: block;
+    font-size: 10px;
+    color: var(--c-text-secondary);
+    margin-bottom: 3px;
+    font-weight: 500;
+}
+
+.input-text, .input-number {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    font-family: var(--font);
+    transition: all var(--transition);
+    background: var(--c-surface);
+}
+.input-text:focus, .input-number:focus {
+    outline: none;
+    border-color: var(--c-border-focus);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+.input-sm { max-width: 120px; }
+.input-row-single .input-sm { max-width: 140px; text-align: right; }
+
+.computed-value {
+    padding: 7px 10px;
+    background: var(--c-bg);
+    border-radius: var(--radius-sm);
+    font-size: 11.9px;
+    font-weight: 600;
+    color: var(--c-primary);
+    border: 1px solid var(--c-border);
+    min-height: 34px;
+}
+.computed-row { margin-top: 6px; }
+
+.rate-linked {
+    background: #fffbeb !important;
+    cursor: default;
+}
+.rate-link-note {
+    font-size: 10px;
+    color: var(--c-warning);
+    margin-top: 4px;
+}
+
+/* --- Rate Tab --- */
+.rate-info-box {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--c-primary-light);
+    color: var(--c-primary);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 10.5px;
+    font-weight: 500;
+    margin-bottom: 12px;
+}
+
+.rate-tables-wrap {
+    display: flex; flex-direction: column; gap: 16px;
+}
+.rate-table-title {
+    font-size: 11.2px; font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--c-text);
+}
+
+.rate-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.9px;
+}
+.rate-table th {
+    background: var(--c-bg);
+    padding: 5px 6px;
+    font-weight: 600;
+    color: var(--c-text-secondary);
+    border-bottom: 2px solid var(--c-border);
+    text-align: center;
+    font-size: 9.8px;
+}
+.rate-table td {
+    padding: 2px 4px;
+    border-bottom: 1px solid var(--c-border);
+    text-align: center;
+}
+.rate-table input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: center;
+    font-size: 10.9px;
+    padding: 3px 2px;
+    font-family: var(--font);
+    outline: none;
+}
+.rate-table input:focus { background: var(--c-primary-light); border-radius: 3px; }
+.rate-avg-row {
+    background: #fef9c3;
+    font-weight: 700;
+}
+.rate-avg-row td { padding: 5px 6px; }
+
+.rate-table-actions {
+    display: flex; gap: 4px; margin-top: 4px;
+}
+
+.rate-summary-card {
+    display: flex;
+    align-items: center;
+    background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-top: 14px;
+    gap: 12px;
+}
+.rate-summary-item {
+    flex: 1; text-align: center;
+}
+.rate-summary-item span {
+    display: block; font-size: 9.5px; color: var(--c-text-secondary); margin-bottom: 2px;
+}
+.rate-summary-item strong {
+    font-size: 14px; color: var(--c-text);
+}
+.rate-summary-item.highlight strong { color: var(--c-primary); font-size: 15.4px; }
+.rate-summary-divider {
+    width: 1px; height: 32px; background: var(--c-border);
+}
+
+/* --- Result Panel --- */
+.panel-result { min-height: calc(100vh - 180px); min-width: 0; overflow: hidden; }
+
+/* Empty State */
+.empty-state {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 80px 20px;
+    text-align: center;
+}
+.empty-title { font-weight: 600; color: var(--c-text-secondary); margin-top: 16px; }
+.empty-desc { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+
+.hidden { display: none !important; }
+
+/* Result Content */
+.result-content { padding: 16px; }
+
+/* Metric Cards */
+.metric-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.metric-card {
+    padding: 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--c-border);
+    background: var(--c-surface);
+    display: flex; align-items: flex-start; gap: 10px;
+    transition: all var(--transition);
+}
+.metric-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+.metric-highlight {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border-color: transparent;
+}
+.metric-highlight .metric-label { color: rgba(255,255,255,.8); }
+.metric-highlight .metric-value { color: #fff; }
+.metric-icon {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+.metric-highlight .metric-icon { background: rgba(255,255,255,.2); color: #fff; }
+.icon-before { background: #fef3c7; color: #92400e; }
+.icon-after { background: #d1fae5; color: #065f46; }
+
+.metric-label {
+    display: block; font-size: 10.1px;
+    color: var(--c-text-secondary); font-weight: 500;
+}
+.metric-value {
+    display: block; font-size: 14px; font-weight: 600;
+    line-height: 1.2; margin-top: 2px;
+}
+.metric-unit {
+    font-size: 9.5px; color: var(--c-text-secondary); font-weight: 500;
+}
+.metric-delta {
+    display: inline-block;
+    font-size: 10.1px; font-weight: 700;
+    padding: 1px 6px; border-radius: 4px;
+    margin-top: 2px;
+}
+.delta-positive { background: var(--c-success-light); color: var(--c-success); }
+.delta-negative { background: var(--c-danger-light); color: var(--c-danger); }
+
+/* Result Tabs */
+.result-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--c-border);
+    margin-bottom: 14px;
+}
+.result-tab {
+    padding: 8px 18px;
+    font-size: 11.9px; font-weight: 600;
+    color: var(--c-text-secondary);
+    border: none; background: none; cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all var(--transition);
+    font-family: var(--font);
+}
+.result-tab.active {
+    color: var(--c-primary);
+    border-bottom-color: var(--c-primary);
+}
+.result-tab:hover:not(.active) { color: var(--c-text); }
+.result-tab-content { display: none; }
+.result-tab-content.active { display: block; }
+
+/* Chart */
+.chart-container {
+    position: relative;
+    height: calc(100vh - 400px);
+    background: var(--c-surface);
+    border-radius: var(--radius);
+}
+.chart-legend-custom {
+    display: flex; justify-content: center; gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    font-size: 10px;
+}
+.legend-item {
+    display: flex; align-items: center; gap: 5px;
+}
+.legend-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.legend-line {
+    width: 16px; height: 3px; border-radius: 2px; flex-shrink: 0;
+}
+.crossover-note {
+    text-align: center;
+    margin-top: 6px;
+    font-size: 11.2px;
+    font-weight: 600;
+    color: var(--c-primary);
+    background: var(--c-primary-light);
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+}
+
+/* Compare Table */
+.compare-item-title {
+    font-size: 12.3px;
+    font-weight: 700;
+    color: var(--c-text);
+    margin: 16px 0 8px;
+    padding-left: 4px;
+}
+.compare-item-title:first-child { margin-top: 0; }
+.compare-total-title {
+    color: var(--c-primary);
+    border-top: none;
+    padding-top: 12px;
+}
+
+.compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+}
+.compare-table th {
+    background: var(--c-bg);
+    padding: 10px 14px;
+    font-weight: 600;
+    font-size: 11.2px;
+    color: var(--c-text-secondary);
+    border-bottom: 2px solid var(--c-border);
+    text-align: right;
+}
+.compare-table th:first-child { text-align: left; }
+.compare-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--c-border);
+    font-size: 11.9px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.compare-table td:first-child { text-align: left; font-weight: 600; }
+.compare-table tr:hover { background: #f8fafc; }
+.val-up { color: var(--c-danger); font-weight: 600; }
+.val-down { color: var(--c-success); font-weight: 600; }
+
+/* --- Yearly Table --- */
+.yearly-controls {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+}
+.yearly-select {
+    padding: 6px 10px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-sm);
+    font-size: 11.5px;
+    font-family: var(--font);
+    font-weight: 600;
+    background: var(--c-surface);
+    color: var(--c-text);
+    cursor: pointer;
+}
+.yearly-select:focus {
+    outline: none;
+    border-color: var(--c-border-focus);
+}
+
+.yearly-table-wrap {
+    height: calc(100vh - 400px);
+    overflow: auto;
+    border-radius: var(--radius);
+    border: 1px solid var(--c-border);
+}
+.yearly-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5px;
+}
+.yearly-table th {
+    position: sticky; top: 0;
+    background: var(--c-bg);
+    padding: 6px 10px;
+    font-weight: 600;
+    border-bottom: 2px solid var(--c-border);
+    white-space: nowrap;
+    text-align: center;
+    font-size: 9.8px;
+    z-index: 3;
+}
+.yearly-table th:first-child, .yearly-table th:nth-child(2) {
+    position: sticky; left: 0; z-index: 4; background: #eef2ff;
+}
+.yearly-table th:nth-child(2) { left: 50px; }
+.yearly-table td {
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--c-border);
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.yearly-table td:first-child, .yearly-table td:nth-child(2) {
+    position: sticky; left: 0; background: var(--c-surface);
+    font-weight: 600; text-align: center;
+    z-index: 1;
+}
+.yearly-table td:nth-child(2) { left: 50px; }
+.yearly-table tr:nth-child(even) td { background: #fafbfc; }
+.yearly-table tr:nth-child(even) td:first-child,
+.yearly-table tr:nth-child(even) td:nth-child(2) { background: #f5f7ff; }
+.yearly-table .row-header { background: #eef2ff !important; font-weight: 700; text-align: left; }
+.yearly-table .row-cumul { background: #fffbeb !important; font-weight: 700; }
+
+/* ===== Responsive (hcdload 스타일) ===== */
+@media (max-width: 1600px) {
+    .page-container { padding: 0 60px; }
+    .header { margin-left: -60px; margin-right: -60px; padding-left: 80px; padding-right: 80px; }
+    .footer-copyright { padding: 6px 80px; margin-left: -60px; margin-right: -60px; }
+}
+@media (max-width: 1300px) {
+    .page-container { padding: 0 30px; }
+    .header { margin-left: -30px; margin-right: -30px; padding-left: 50px; padding-right: 50px; }
+    .footer-copyright { padding: 6px 50px; margin-left: -30px; margin-right: -30px; }
+}
+@media (max-width: 1100px) {
+    .page-container { padding: 0 15px; }
+    .header { margin-left: -15px; margin-right: -15px; padding-left: 35px; padding-right: 35px; }
+    .footer-copyright { padding: 6px 35px; margin-left: -15px; margin-right: -15px; }
+    .main-layout { grid-template-columns: 1fr !important; }
+    .panel-input {
+        position: static;
+        max-height: none;
+        height: auto !important;
+    }
+    .panel-result {
+        min-height: 500px;
+    }
+}
+@media (max-width: 1024px) {
+    .metric-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (max-width: 640px) {
+    .metric-cards { grid-template-columns: 1fr; }
+}
+
+/* --- Print --- */
+@media print {
+    .panel-input { display: none; }
+    .header { position: static; }
+}
+
+/* ===== PAGE CONTAINER (hcdload 스타일) ===== */
+.page-container {
+    padding: 0 100px;
+    background: #fff;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ---- Footer Copyright ---- */
+.footer-copyright {
+    flex-shrink: 0;
+    background: #f8fafc;
+    border-top: none;
+    padding: 8px 100px;
+    text-align: center;
+}
+
+.footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 10px;
+    color: #e0e0e0;
+    letter-spacing: 0.01em;
+}
+
+.footer-divider {
+    color: var(--border);
+}
+
+</style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="page-container">
+<!-- ===== HEADER (hcdload 스타일) ===== -->
+<div class="header" style="position:relative;">
+  <h1>HIMEC − Mechanical Facility Aging Diagnosis System</h1>
+  <div class="sub">(주)하이멕 − 기계설비 노후화 진단</div>
+  <h2 id="pageTitle"><span id="projectLabel"></span>LCC Analysis Tool</h2>
+  <div class="header-right">
+    <button class="btn-save" id="btnSave" onclick="lccSaveData()">Save</button>
+    <button class="btn-file" onclick="lccExportFile()">File Trans</button>
+    <button class="btn-main" onclick="GoMain()">Main</button>
+  </div>
+</div>
+
+    <div class="content-area">
+<div class="main-layout">
+        <!-- Left: Input Panel -->
+        <aside class="panel panel-input">
+            <!-- Tab navigation for input -->
+            <div class="input-tabs">
+                <button class="input-tab active" data-tab="tab-basic">기본 입력</button>
+                <button class="input-tab" data-tab="tab-rates">이자율·물가</button>
+            </div>
+
+            <!-- Tab: Basic Input -->
+            <div class="input-tab-content active" id="tab-basic">
+
+                <!-- 예시 데이터 & 초기화 버튼 -->
+                <div class="btn-group-top">
+                    <button class="btn btn-primary btn-sm" id="btnExample">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M2 4a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V4zm2-.5a.5.5 0 00-.5.5v8a.5.5 0 00.5.5h8a.5.5 0 00.5-.5V4a.5.5 0 00-.5-.5H4zm1 2a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm0 2a.5.5 0 01.5-.5h3a.5.5 0 010 1h-3a.5.5 0 01-.5-.5z"/></svg>
+                        예시 데이터
+                    </button>
+                    <button class="btn btn-ghost btn-sm" id="btnReset">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM0 8a8 8 0 1116 0A8 8 0 010 8zm8-3.5a.75.75 0 01.75.75v2.69l1.78 1.78a.75.75 0 11-1.06 1.06l-2-2A.75.75 0 017.25 8V5.25A.75.75 0 018 4.5z"/></svg>
+                        초기화
+                    </button>
+                </div>
+
+                <!-- === Item 목록 === -->
+                <div class="input-section item-list-section">
+                    <div class="section-header">
+                        <span class="section-num">★</span>
+                        <label class="input-label-main">등록된 Item 목록</label>
+                        <span class="item-count-badge" id="itemCountBadge">0개</span>
+                    </div>
+                    <div id="itemListContainer" class="item-list-container">
+                        <div class="item-list-empty" id="itemListEmpty">
+                            <span>등록된 Item이 없습니다</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-group-single">
+                    <button class="btn btn-secondary btn-block" id="btnAddItem">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 018 2z"/></svg>
+                        Item 등록
+                    </button>
+                </div>
+
+                <!-- Item Name -->
+                <div class="input-section">
+                    <label class="input-label-main">Item명</label>
+                    <input type="text" id="itemName" class="input-text" placeholder="분석 대상 입력">
+                </div>
+
+                <!-- 초기투자비 -->
+                <div class="input-section">
+                    <div class="section-header">
+                        <span class="section-num">01</span>
+                        <label class="input-label-main">초기투자비</label>
+                        <span class="unit-badge">천원</span>
+                    </div>
+                    <div class="input-row-compact">
+                        <div class="input-cell">
+                            <label>적용 전</label>
+                            <input type="text" id="initCostBefore" class="input-number" placeholder="0" inputmode="numeric">
+                        </div>
+                        <div class="input-cell">
+                            <label>적용 후</label>
+                            <input type="text" id="initCostAfter" class="input-number" placeholder="0" inputmode="numeric">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 교체비용 -->
+                <div class="input-section">
+                    <div class="section-header">
+                        <span class="section-num">02</span>
+                        <label class="input-label-main">교체비용</label>
+                        <span class="unit-badge">천원</span>
+                    </div>
+                    <div class="input-row-compact">
+                        <div class="input-cell">
+                            <label>적용 전</label>
+                            <input type="text" id="replaceCostBefore" class="input-number" placeholder="0" inputmode="numeric">
+                        </div>
+                        <div class="input-cell">
+                            <label>적용 후</label>
+                            <input type="text" id="replaceCostAfter" class="input-number" placeholder="0" inputmode="numeric">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 합계 (자동) -->
+                <div class="input-section">
+                    <div class="section-header">
+                        <span class="section-num">03</span>
+                        <label class="input-label-main">합계</label>
+                        <span class="auto-badge">자동계산</span>
+                    </div>
+                    <div class="input-row-compact">
+                        <div class="input-cell">
+                            <label>적용 전</label>
+                            <div class="computed-value" id="totalBefore">0</div>
+                        </div>
+                        <div class="input-cell">
+                            <label>적용 후</label>
+                            <div class="computed-value" id="totalAfter">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 에너지비용 -->
+                <div class="input-section">
+                    <div class="section-header">
+                        <span class="section-num">04</span>
+                        <label class="input-label-main">에너지 비용</label>
+                    </div>
+                    <div class="input-row-single">
+                        <label>전기 단가 (원/kWh)</label>
+                        <input type="text" id="elecPrice" class="input-number input-sm" placeholder="125" inputmode="numeric">
+                    </div>
+                    <div class="input-row-compact">
+                        <div class="input-cell">
+                            <label>사용량 (kWh) - 전</label>
+                            <input type="text" id="energyBefore" class="input-number" placeholder="0" inputmode="numeric">
+                        </div>
+                        <div class="input-cell">
+                            <label>사용량 (kWh) - 후</label>
+                            <input type="text" id="energyAfter" class="input-number" placeholder="0" inputmode="numeric">
+                        </div>
+                    </div>
+                    <div class="input-row-compact computed-row">
+                        <div class="input-cell">
+                            <label>운전비 (천원)</label>
+                            <div class="computed-value" id="operCostBefore">0</div>
+                        </div>
+                        <div class="input-cell">
+                            <label>운전비 (천원)</label>
+                            <div class="computed-value" id="operCostAfter">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 분석 조건 -->
+                <div class="input-section">
+                    <div class="section-header">
+                        <span class="section-num">05</span>
+                        <label class="input-label-main">분석 조건</label>
+                    </div>
+                    <div class="input-grid-3">
+                        <div class="input-cell">
+                            <label>분석기간 (년)</label>
+                            <input type="number" id="analysisPeriod" class="input-number input-sm" value="40" min="1" max="60">
+                        </div>
+                        <div class="input-cell">
+                            <label>교체주기 (년)</label>
+                            <input type="number" id="replaceCycle" class="input-number input-sm" value="16" min="0" max="40">
+                        </div>
+                        <div class="input-cell">
+                            <label>실질할인율</label>
+                            <div class="computed-value" id="rdrDisplay">-</div>
+                        </div>
+                    </div>
+                    <div class="input-row-compact" style="margin-top:6px;">
+                        <div class="input-cell">
+                            <label>평균 이자율 (%)</label>
+                            <input type="text" id="avgInterestRate" class="input-number input-sm rate-linked" placeholder="2.21" readonly>
+                        </div>
+                        <div class="input-cell">
+                            <label>평균 물가상승률 (%)</label>
+                            <input type="text" id="avgInflationRate" class="input-number input-sm rate-linked" placeholder="1.85" readonly>
+                        </div>
+                    </div>
+                    <p class="rate-link-note">※ 이자율·물가 탭에서 자동 연동됩니다</p>
+                </div>
+
+                <!-- 분석 버튼 -->
+                <div class="btn-group-vertical">
+                    <button class="btn btn-primary btn-block" id="btnCalculate">
+                        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M11.536 3.464a5 5 0 010 7.072L8 14.07l-3.536-3.535a5 5 0 117.072-7.072zm-1.06 1.06a3.5 3.5 0 10-4.95 4.95L8 11.94l2.474-2.465a3.5 3.5 0 000-4.95z"/></svg>
+                        전체 분석 실행
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab: Rate Data -->
+            <div class="input-tab-content" id="tab-rates">
+                <div class="rate-info-box">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM0 8a8 8 0 1116 0A8 8 0 010 8zm6.5-.25A.75.75 0 017.25 7h1v4.25a.75.75 0 01-1.5 0V8.5h-.25A.75.75 0 016.5 7.75zM8 6a1 1 0 100-2 1 1 0 000 2z"/></svg>
+                    <span>한국은행 경제 통계 자료 (ecos.bok.or.kr)</span>
+                </div>
+
+                <div class="rate-tables-wrap">
+                    <!-- 이자율 테이블 -->
+                    <div class="rate-table-section">
+                        <h3 class="rate-table-title">이자율 추이</h3>
+                        <table class="rate-table" id="interestTable">
+                            <thead>
+                                <tr>
+                                    <th>연도</th>
+                                    <th>국고채(5년) 수익률</th>
+                                    <th>평균 금리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="interestBody">
+                            </tbody>
+                            <tfoot>
+                                <tr class="rate-avg-row">
+                                    <td>평균</td>
+                                    <td id="avgBondYield">-</td>
+                                    <td id="avgInterest">-</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <div class="rate-table-actions">
+                            <button class="btn btn-xs btn-ghost" id="btnAddInterestRow">+ 행 추가</button>
+                            <button class="btn btn-xs btn-ghost" id="btnDelInterestRow">- 행 삭제</button>
+                        </div>
+                    </div>
+
+                    <!-- 물가상승률 테이블 -->
+                    <div class="rate-table-section">
+                        <h3 class="rate-table-title">물가상승률 추이</h3>
+                        <table class="rate-table" id="inflationTable">
+                            <thead>
+                                <tr>
+                                    <th>연도</th>
+                                    <th>소비자 물가지수</th>
+                                    <th>소비자 물가상승</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inflationBody">
+                            </tbody>
+                            <tfoot>
+                                <tr class="rate-avg-row">
+                                    <td>평균</td>
+                                    <td id="avgCPI">-</td>
+                                    <td id="avgInflation">-</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <div class="rate-table-actions">
+                            <button class="btn btn-xs btn-ghost" id="btnAddInflationRow">+ 행 추가</button>
+                            <button class="btn btn-xs btn-ghost" id="btnDelInflationRow">- 행 삭제</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rate-summary-card">
+                    <div class="rate-summary-item">
+                        <span>평균 이자율</span>
+                        <strong id="rateSummaryInterest">2.21%</strong>
+                    </div>
+                    <div class="rate-summary-divider"></div>
+                    <div class="rate-summary-item">
+                        <span>평균 물가상승률</span>
+                        <strong id="rateSummaryInflation">1.85%</strong>
+                    </div>
+                    <div class="rate-summary-divider"></div>
+                    <div class="rate-summary-item highlight">
+                        <span>실질할인율 (RDR)</span>
+                        <strong id="rateSummaryRDR">0.354%</strong>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Right: Results Panel -->
+        <section class="panel panel-result" id="resultPanel">
+            <!-- 초기 상태 -->
+            <div class="empty-state" id="emptyState">
+                <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                    <circle cx="32" cy="32" r="30" stroke="#d1d5db" stroke-width="2" stroke-dasharray="6 4"/>
+                    <line x1="32" y1="20" x2="32" y2="44" stroke="#9ca3af" stroke-width="3" stroke-linecap="round"/>
+					<line x1="20" y1="32" x2="44" y2="32" stroke="#9ca3af" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+                <p class="empty-title">분석 결과가 여기에 표시됩니다</p>
+                <p class="empty-desc">Item을 등록하고 체크박스를 선택하면 차트가 자동으로 갱신됩니다</p>
+            </div>
+
+            <!-- 결과 콘텐츠 -->
+            <div class="result-content hidden" id="resultContent">
+                <!-- Metric Cards -->
+                <div class="metric-cards">
+                    <div class="metric-card metric-highlight">
+                        <div class="metric-icon">
+                            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM0 8a8 8 0 1116 0A8 8 0 010 8zm8-3.5a.75.75 0 01.75.75v2.69l1.78 1.78a.75.75 0 11-1.06 1.06l-2-2A.75.75 0 017.25 8V5.25A.75.75 0 018 4.5z"/></svg>
+                        </div>
+                        <div class="metric-body">
+                            <span class="metric-label">선택 Item 수</span>
+                            <span class="metric-value" id="metricItemCount">-</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon icon-before">
+                            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M4 0a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V2a2 2 0 00-2-2H4zm0 1.5h8a.5.5 0 01.5.5v12a.5.5 0 01-.5.5H4a.5.5 0 01-.5-.5V2a.5.5 0 01.5-.5z"/></svg>
+                        </div>
+                        <div class="metric-body">
+                            <span class="metric-label" id="metricLccBeforeLabel">기존 LCC</span>
+                            <span class="metric-value" id="metricLccBefore">-</span>
+                            <span class="metric-unit">천원</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon icon-after">
+                            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm3.28 5.78l-4 4a.75.75 0 01-1.06 0l-2-2a.75.75 0 111.06-1.06L6.75 8.19l3.47-3.47a.75.75 0 111.06 1.06z"/></svg>
+                        </div>
+                        <div class="metric-body">
+                            <span class="metric-label" id="metricLccAfterLabel">적용 후 LCC</span>
+                            <span class="metric-value" id="metricLccAfter">-</span>
+                            <span class="metric-unit">천원</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-body">
+                            <span class="metric-label">LCC 절감액</span>
+                            <span class="metric-value" id="metricSaving">-</span>
+                            <span class="metric-delta" id="metricSavingRate"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Result Tabs -->
+                <div class="result-tabs">
+                    <button class="result-tab active" data-rtab="rtab-chart">LCC 차트</button>
+                    <button class="result-tab" data-rtab="rtab-compare">비교 분석</button>
+                    <button class="result-tab" data-rtab="rtab-yearly">연차별 상세</button>
+                </div>
+
+                <!-- Chart Tab -->
+                <div class="result-tab-content active" id="rtab-chart">
+                    <div class="chart-container">
+                        <canvas id="lccChart"></canvas>
+                    </div>
+                    <div class="chart-legend-custom" id="chartLegend"></div>
+                    <div class="crossover-note" id="crossoverNote"></div>
+                </div>
+
+                <!-- Compare Tab -->
+                <div class="result-tab-content" id="rtab-compare">
+                    <div id="compareContent"></div>
+                </div>
+
+                <!-- Yearly Tab -->
+                <div class="result-tab-content" id="rtab-yearly">
+                    <div class="yearly-controls">
+                        <select id="yearlyItemSelect" class="yearly-select">
+                            <option value="__all__">전체 합계</option>
+                        </select>
+                    </div>
+                    <div class="yearly-table-wrap">
+                        <table class="yearly-table" id="yearlyTable">
+                            <thead id="yearlyHead"></thead>
+                            <tbody id="yearlyBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<!-- ===== COPYRIGHT (hcdload 스타일) ===== -->
+<footer class="footer-copyright">
+    <div class="footer-inner">
+        <span>© 2026 HIMEC (주)하이멕. All rights reserved. Made by 성재호, 최승연, 신동민</span>
+    </div>
+</footer>
+
+    <!-- Toast (저장 알림용) -->
+    <div id="saveToast" class="save-toast"></div>
+
+    <!-- Scripts -->
+    
+    
+    
+    
+    
+    
+<script>
+// ===== CONFIG (/data/lcc-config.js) =====
+/* ===================================================
+   lcc-config.js — 설정값 및 기본 데이터 정의
+   =================================================== */
+
+const LCC_CONFIG = {
+    defaultPeriod: 40,
+    defaultCycle: 16,
+    defaultElecPrice: 125,
+    maxItems: 10,
+    unit: '천원',
+
+    /* 기존 단일 Item 차트 색상 (하위호환) */
+    chartColors: {
+        before: {
+            line:   '#f59e0b',
+            fill:   'rgba(245,158,11,0.10)',
+            point:  '#d97706'
+        },
+        after: {
+            line:   '#2563eb',
+            fill:   'rgba(37,99,235,0.10)',
+            point:  '#1d4ed8'
+        },
+        crossover: '#ef4444',
+        grid: '#e5e7eb'
+    },
+
+    /* 멀티 Item 색상 팔레트 — 각 Item의 before/after 색상 쌍 */
+    itemPalette: [
+        { before: '#f59e0b', after: '#2563eb' },
+        { before: '#ef4444', after: '#10b981' },
+        { before: '#8b5cf6', after: '#06b6d4' },
+        { before: '#ec4899', after: '#14b8a6' },
+        { before: '#f97316', after: '#6366f1' },
+        { before: '#e11d48', after: '#0891b2' },
+        { before: '#a855f7', after: '#059669' },
+        { before: '#d946ef', after: '#0284c7' },
+        { before: '#dc2626', after: '#4f46e5' },
+        { before: '#ca8a04', after: '#7c3aed' }
+    ]
+};
+
+/* 예시 데이터 (엑셀 원본) */
+const EXAMPLE_DATA = [
+    {
+        itemName: 'LED 조명',
+        initCostBefore: 19061.25,
+        initCostAfter: 55473.844,
+        replaceCostBefore: 19061.25,
+        replaceCostAfter: 55473.844,
+        elecPrice: 125,
+        energyBefore: 113731,
+        energyAfter: 59141,
+        replaceCycle: 16
+    },
+    {
+        itemName: '고효율 단열재',
+        initCostBefore: 12000,
+        initCostAfter: 28000,
+        replaceCostBefore: 12000,
+        replaceCostAfter: 28000,
+        elecPrice: 125,
+        energyBefore: 85000,
+        energyAfter: 52000,
+        replaceCycle: 20
+    }
+];
+
+/* 이자율 기본 데이터 */
+const DEFAULT_INTEREST_DATA = [
+    { year: 2014, bondYield: 2.84, avgRate: 2.84 },
+    { year: 2015, bondYield: 1.97, avgRate: 1.97 },
+    { year: 2016, bondYield: 1.53, avgRate: 1.53 },
+    { year: 2017, bondYield: 2.00, avgRate: 2.00 },
+    { year: 2018, bondYield: 2.31, avgRate: 2.31 },
+    { year: 2019, bondYield: 1.59, avgRate: 1.59 },
+    { year: 2020, bondYield: 1.23, avgRate: 1.23 },
+    { year: 2021, bondYield: 1.72, avgRate: 1.72 },
+    { year: 2022, bondYield: 3.32, avgRate: 3.32 },
+    { year: 2023, bondYield: 3.59, avgRate: 3.59 }
+];
+
+/* 물가상승률 기본 데이터 */
+const DEFAULT_INFLATION_DATA = [
+    { year: 2014, cpi: 0.942, inflation: 1.3 },
+    { year: 2015, cpi: 0.949, inflation: 0.7 },
+    { year: 2016, cpi: 0.958, inflation: 1.0 },
+    { year: 2017, cpi: 0.976, inflation: 1.9 },
+    { year: 2018, cpi: 0.991, inflation: 1.5 },
+    { year: 2019, cpi: 0.995, inflation: 0.4 },
+    { year: 2020, cpi: 1.000, inflation: 0.5 },
+    { year: 2021, cpi: 1.025, inflation: 2.5 },
+    { year: 2022, cpi: 1.077, inflation: 5.1 },
+    { year: 2023, cpi: 1.116, inflation: 3.6 }
+];
+
+// ===== RATE (/data/lcc-rate.js) =====
+/* ===================================================
+   lcc-rate.js — 이자율·물가상승률 테이블 관리
+   exportData / importData 추가 (프로젝트 저장/복원용)
+   =================================================== */
+
+const RateManager = (() => {
+    let interestData = [];
+    let inflationData = [];
+
+    /* ---------- 초기화 ---------- */
+    function init() {
+        interestData = JSON.parse(JSON.stringify(DEFAULT_INTEREST_DATA));
+        inflationData = JSON.parse(JSON.stringify(DEFAULT_INFLATION_DATA));
+        renderInterestTable();
+        renderInflationTable();
+        recalcAverages();
+    }
+
+    /* ---------- 이자율 테이블 렌더 ---------- */
+    function renderInterestTable() {
+        const tbody = document.getElementById('interestBody');
+        tbody.innerHTML = '';
+        interestData.forEach((d, i) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="number" class="rate-input" value="${d.year}" data-idx="${i}" data-field="year" data-table="interest"></td>
+                <td><input type="number" step="0.01" class="rate-input" value="${d.bondYield}" data-idx="${i}" data-field="bondYield" data-table="interest"></td>
+                <td><input type="number" step="0.01" class="rate-input" value="${d.avgRate}" data-idx="${i}" data-field="avgRate" data-table="interest"></td>
+            `;
+            tbody.appendChild(tr);
+        });
+        bindRateInputs();
+    }
+
+    /* ---------- 물가 테이블 렌더 ---------- */
+    function renderInflationTable() {
+        const tbody = document.getElementById('inflationBody');
+        tbody.innerHTML = '';
+        inflationData.forEach((d, i) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="number" class="rate-input" value="${d.year}" data-idx="${i}" data-field="year" data-table="inflation"></td>
+                <td><input type="number" step="0.001" class="rate-input" value="${d.cpi}" data-idx="${i}" data-field="cpi" data-table="inflation"></td>
+                <td><input type="number" step="0.01" class="rate-input" value="${d.inflation}" data-idx="${i}" data-field="inflation" data-table="inflation"></td>
+            `;
+            tbody.appendChild(tr);
+        });
+        bindRateInputs();
+    }
+
+    /* ---------- 입력 이벤트 바인딩 ---------- */
+    function bindRateInputs() {
+        document.querySelectorAll('.rate-input').forEach(input => {
+            input.removeEventListener('change', onRateChange);
+            input.addEventListener('change', onRateChange);
+        });
+    }
+
+    function onRateChange(e) {
+        const { idx, field, table } = e.target.dataset;
+        const val = parseFloat(e.target.value) || 0;
+        if (table === 'interest') {
+            interestData[idx][field] = val;
+        } else {
+            inflationData[idx][field] = val;
+        }
+        recalcAverages();
+    }
+
+    /* ---------- 행 추가/삭제 ---------- */
+    function addInterestRow() {
+        const lastYear = interestData.length > 0 ? interestData[interestData.length - 1].year + 1 : 2024;
+        interestData.push({ year: lastYear, bondYield: 0, avgRate: 0 });
+        renderInterestTable();
+        recalcAverages();
+    }
+
+    function delInterestRow() {
+        if (interestData.length > 1) {
+            interestData.pop();
+            renderInterestTable();
+            recalcAverages();
+        }
+    }
+
+    function addInflationRow() {
+        const lastYear = inflationData.length > 0 ? inflationData[inflationData.length - 1].year + 1 : 2024;
+        inflationData.push({ year: lastYear, cpi: 0, inflation: 0 });
+        renderInflationTable();
+        recalcAverages();
+    }
+
+    function delInflationRow() {
+        if (inflationData.length > 1) {
+            inflationData.pop();
+            renderInflationTable();
+            recalcAverages();
+        }
+    }
+
+    /* ---------- 평균 재계산 & UI 연동 ---------- */
+    function recalcAverages() {
+        // 이자율 평균
+        const avgBond = interestData.reduce((s, d) => s + d.bondYield, 0) / interestData.length;
+        const avgInt = interestData.reduce((s, d) => s + d.avgRate, 0) / interestData.length;
+        document.getElementById('avgBondYield').textContent = avgBond.toFixed(2) + '%';
+        document.getElementById('avgInterest').textContent = avgInt.toFixed(2) + '%';
+
+        // 물가 평균
+        const avgCpi = inflationData.reduce((s, d) => s + d.cpi, 0) / inflationData.length;
+        const avgInf = inflationData.reduce((s, d) => s + d.inflation, 0) / inflationData.length;
+        document.getElementById('avgCPI').textContent = avgCpi.toFixed(3);
+        document.getElementById('avgInflation').textContent = avgInf.toFixed(2) + '%';
+
+        // 실질할인율 (RDR)
+        const interestPct = avgInt / 100;
+        const inflationPct = avgInf / 100;
+        const rdr = ((1 + interestPct) / (1 + inflationPct)) - 1;
+
+        // 기본입력 탭에 연동
+        document.getElementById('avgInterestRate').value = avgInt.toFixed(2);
+        document.getElementById('avgInflationRate').value = avgInf.toFixed(2);
+        document.getElementById('rdrDisplay').textContent = (rdr * 100).toFixed(3) + '%';
+
+        // Rate Summary 카드
+        document.getElementById('rateSummaryInterest').textContent = avgInt.toFixed(2) + '%';
+        document.getElementById('rateSummaryInflation').textContent = avgInf.toFixed(2) + '%';
+        document.getElementById('rateSummaryRDR').textContent = (rdr * 100).toFixed(3) + '%';
+    }
+
+    /* ---------- 현재 값 조회 ---------- */
+    function getAvgInterestRate() {
+        return interestData.reduce((s, d) => s + d.avgRate, 0) / interestData.length / 100;
+    }
+
+    function getAvgInflationRate() {
+        return inflationData.reduce((s, d) => s + d.inflation, 0) / inflationData.length / 100;
+    }
+
+    function getRDR() {
+        return ((1 + getAvgInterestRate()) / (1 + getAvgInflationRate())) - 1;
+    }
+
+    /* ---------- 프로젝트 저장용 데이터 내보내기 ---------- */
+    function exportData() {
+        return {
+            interestData: JSON.parse(JSON.stringify(interestData)),
+            inflationData: JSON.parse(JSON.stringify(inflationData))
+        };
+    }
+
+    /* ---------- 프로젝트 복원용 데이터 가져오기 ---------- */
+    function importData(savedRateData) {
+        if (!savedRateData) return;
+        if (savedRateData.interestData) {
+            interestData = JSON.parse(JSON.stringify(savedRateData.interestData));
+        }
+        if (savedRateData.inflationData) {
+            inflationData = JSON.parse(JSON.stringify(savedRateData.inflationData));
+        }
+        renderInterestTable();
+        renderInflationTable();
+        recalcAverages();
+    }
+
+    return {
+        init,
+        addInterestRow, delInterestRow,
+        addInflationRow, delInflationRow,
+        recalcAverages,
+        getAvgInterestRate, getAvgInflationRate, getRDR,
+        exportData, importData
+    };
+})();
+
+// ===== CALC (/data/lcc-calc.js) =====
+/* ===================================================
+   lcc-calc.js — LCC 핵심 계산 로직 (멀티 Item 지원)
+   =================================================== */
+
+const LccCalc = (() => {
+
+    /**
+     * 단일 Item LCC 계산
+     */
+    function calculate(params) {
+        const {
+            initCostBefore, initCostAfter,
+            replaceCostBefore, replaceCostAfter,
+            operCostBefore, operCostAfter,
+            period, cycle, rdr
+        } = params;
+
+        // 1) 단순 투자 회수기간
+        const additionalInvest = (initCostAfter + replaceCostAfter) - (initCostBefore + replaceCostBefore);
+        const annualSaving = operCostBefore - operCostAfter;
+        const paybackPeriod = annualSaving > 0 ? additionalInvest / annualSaving : Infinity;
+
+        // 2) 연차별 현가 계산
+        const yearlyBefore = [];
+        const yearlyAfter = [];
+
+        for (let n = 0; n <= period; n++) {
+            const pvEnergyB = n === 0 ? operCostBefore : operCostBefore / Math.pow(1 + rdr, n);
+            const pvEnergyA = n === 0 ? operCostAfter : operCostAfter / Math.pow(1 + rdr, n);
+
+            let investB = 0, investA = 0;
+            if (n === 0) {
+                investB = initCostBefore;
+                investA = initCostAfter;
+            } else if (cycle > 0 && n % cycle === 0 && n < period) {
+                investB = replaceCostBefore / Math.pow(1 + rdr, n);
+                investA = replaceCostAfter / Math.pow(1 + rdr, n);
+            }
+
+            const totalB = investB + (n === 0 ? 0 : pvEnergyB);
+            const totalA = investA + (n === 0 ? 0 : pvEnergyA);
+
+            const prevCumulB = n > 0 ? yearlyBefore[n - 1].cumulative : 0;
+            const prevCumulA = n > 0 ? yearlyAfter[n - 1].cumulative : 0;
+
+            yearlyBefore.push({
+                year: n,
+                invest: investB,
+                energy: n === 0 ? 0 : pvEnergyB,
+                total: n === 0 ? investB : totalB,
+                cumulative: (n === 0 ? investB : prevCumulB + totalB)
+            });
+
+            yearlyAfter.push({
+                year: n,
+                invest: investA,
+                energy: n === 0 ? 0 : pvEnergyA,
+                total: n === 0 ? investA : totalA,
+                cumulative: (n === 0 ? investA : prevCumulA + totalA)
+            });
+        }
+
+        // 3) 교차 시점
+        let crossoverYear = -1;
+        for (let n = 1; n <= period; n++) {
+            const diffPrev = yearlyBefore[n - 1].cumulative - yearlyAfter[n - 1].cumulative;
+            const diffCurr = yearlyBefore[n].cumulative - yearlyAfter[n].cumulative;
+            if (diffPrev < 0 && diffCurr >= 0) {
+                crossoverYear = (n - 1) + (-diffPrev) / (diffCurr - diffPrev);
+                break;
+            }
+        }
+
+        // 4) 총 LCC
+        const totalLccBefore = yearlyBefore[period].cumulative;
+        const totalLccAfter = yearlyAfter[period].cumulative;
+
+        return {
+            paybackPeriod,
+            crossoverYear,
+            totalLccBefore,
+            totalLccAfter,
+            savingAmount: totalLccBefore - totalLccAfter,
+            savingRate: ((totalLccBefore - totalLccAfter) / totalLccBefore) * 100,
+            yearlyBefore,
+            yearlyAfter,
+            additionalInvest,
+            annualSaving
+        };
+    }
+
+    /**
+     * 여러 Item 결과를 합산
+     * @param {Array} results - 각 Item의 calculate 결과 배열
+     * @param {number} period
+     * @returns {Object} 합산 결과
+     */
+    function aggregate(results, period) {
+        if (results.length === 0) return null;
+        if (results.length === 1) return results[0];
+
+        const yearlyBefore = [];
+        const yearlyAfter = [];
+
+        for (let n = 0; n <= period; n++) {
+            let sumB = { invest: 0, energy: 0, total: 0, cumulative: 0 };
+            let sumA = { invest: 0, energy: 0, total: 0, cumulative: 0 };
+
+            results.forEach(r => {
+                sumB.invest += r.yearlyBefore[n].invest;
+                sumB.energy += r.yearlyBefore[n].energy;
+                sumB.total += r.yearlyBefore[n].total;
+                sumB.cumulative += r.yearlyBefore[n].cumulative;
+                sumA.invest += r.yearlyAfter[n].invest;
+                sumA.energy += r.yearlyAfter[n].energy;
+                sumA.total += r.yearlyAfter[n].total;
+                sumA.cumulative += r.yearlyAfter[n].cumulative;
+            });
+
+            yearlyBefore.push({ year: n, ...sumB });
+            yearlyAfter.push({ year: n, ...sumA });
+        }
+
+        // 합산 교차 시점
+        let crossoverYear = -1;
+        for (let n = 1; n <= period; n++) {
+            const diffPrev = yearlyBefore[n - 1].cumulative - yearlyAfter[n - 1].cumulative;
+            const diffCurr = yearlyBefore[n].cumulative - yearlyAfter[n].cumulative;
+            if (diffPrev < 0 && diffCurr >= 0) {
+                crossoverYear = (n - 1) + (-diffPrev) / (diffCurr - diffPrev);
+                break;
+            }
+        }
+
+        const totalLccBefore = yearlyBefore[period].cumulative;
+        const totalLccAfter = yearlyAfter[period].cumulative;
+
+        return {
+            paybackPeriod: null,
+            crossoverYear,
+            totalLccBefore,
+            totalLccAfter,
+            savingAmount: totalLccBefore - totalLccAfter,
+            savingRate: totalLccBefore !== 0 ? ((totalLccBefore - totalLccAfter) / totalLccBefore) * 100 : 0,
+            yearlyBefore,
+            yearlyAfter
+        };
+    }
+
+    /**
+     * 비교 테이블 데이터 생성
+     */
+    function getCompareData(params, result) {
+        return [
+            {
+                label: '초기투자비',
+                before: params.initCostBefore,
+                after: params.initCostAfter,
+            },
+            {
+                label: '교체비용',
+                before: params.replaceCostBefore,
+                after: params.replaceCostAfter,
+            },
+            {
+                label: '합계 (투자비)',
+                before: params.initCostBefore + params.replaceCostBefore,
+                after: params.initCostAfter + params.replaceCostAfter,
+            },
+            {
+                label: '연간 에너지 비용',
+                before: params.operCostBefore,
+                after: params.operCostAfter,
+            },
+            {
+                label: 'LCC 총비용 (' + params.period + '년)',
+                before: result.totalLccBefore,
+                after: result.totalLccAfter,
+            }
+        ];
+    }
+
+    return { calculate, aggregate, getCompareData };
+})();
+
+// ===== CHART (/data/lcc-chart.js) =====
+/* ===================================================
+   lcc-chart.js — Chart.js 기반 LCC 차트 (적용 전/후 2라인)
+   등록된 Item 합산 기준 적용 전, 적용 후 2개 그래프만 표시
+   =================================================== */
+
+const LccChart = (() => {
+    let chartInstance = null;
+
+    /* ---------- Chart.js 확인 (HTML에서 CDN 로드) ---------- */
+    function loadChartJS() {
+        return new Promise((resolve, reject) => {
+            if (window.Chart) { resolve(); return; }
+            reject(new Error('Chart.js가 로드되지 않았습니다. HTML에 CDN 스크립트를 확인하세요.'));
+        });
+    }
+
+    /**
+     * 적용 전/후 2라인 차트 렌더링
+     * @param {Array} checkedItems - [{ id, name, result, colorIdx }]
+     * @param {Object|null} aggResult - 합산 결과 (2개 이상일 때)
+     * @param {number} period
+     */
+    async function render(checkedItems, aggResult, period) {
+        await loadChartJS();
+
+        const ctx = document.getElementById('lccChart').getContext('2d');
+        if (chartInstance) chartInstance.destroy();
+
+        const labels = Array.from({ length: period + 1 }, (_, i) => i);
+        const datasets = [];
+
+        // 표시할 결과 결정: 2개 이상이면 합산, 1개면 해당 Item
+        const displayResult = (checkedItems.length >= 2 && aggResult)
+            ? aggResult
+            : (checkedItems.length === 1 ? checkedItems[0].result : null);
+
+        if (!displayResult) return;
+
+        const dataBefore = displayResult.yearlyBefore.map(d => d.cumulative);
+        const dataAfter  = displayResult.yearlyAfter.map(d => d.cumulative);
+        const allValues = [...dataBefore, ...dataAfter];
+
+        // 적용 전 라인
+        datasets.push({
+            label: '적용 전',
+            data: dataBefore,
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245,158,11,0.10)',
+            borderWidth: 2.5,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: '#d97706',
+            pointHoverBorderColor: '#fff',
+            pointHoverBorderWidth: 2,
+            fill: true,
+            tension: 0.3
+        });
+
+        // 적용 후 라인
+        datasets.push({
+            label: '적용 후',
+            data: dataAfter,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37,99,235,0.10)',
+            borderWidth: 2.5,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: '#1d4ed8',
+            pointHoverBorderColor: '#fff',
+            pointHoverBorderWidth: 2,
+            fill: true,
+            tension: 0.3
+        });
+
+        /* Y축 Max: tick 간격의 배수로 올림 */
+        const rawMax = Math.max(...allValues);
+        const niceStep = getNiceStep(rawMax);
+        const yMax = Math.ceil(rawMax / niceStep) * niceStep;
+
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: { top: 24 }
+                },
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(15,23,42,0.92)',
+                        titleFont: { family: "'Pretendard', sans-serif", size: 12, weight: '600' },
+                        bodyFont: { family: "'Pretendard', sans-serif", size: 12 },
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: true,
+                        boxPadding: 4,
+                        callbacks: {
+                            title: (items) => items[0].label + '년차',
+                            label: (item) => ' ' + item.dataset.label + ': ' + formatNum(item.raw) + ' 천원'
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true, text: '년차',
+                            font: { family: "'Pretendard', sans-serif", size: 12, weight: '600' },
+                            color: '#64748b'
+                        },
+                        grid: { color: '#e5e7eb', drawTicks: false },
+                        ticks: {
+                            font: { family: "'Pretendard', sans-serif", size: 11 },
+                            color: '#94a3b8',
+                            maxTicksLimit: 12,
+                            callback: (v) => v + '년'
+                        }
+                    },
+                    y: {
+                        min: 0,
+                        max: yMax,
+                        title: {
+                            display: true, text: '현가 누계 (천원)',
+                            font: { family: "'Pretendard', sans-serif", size: 12, weight: '600' },
+                            color: '#64748b'
+                        },
+                        grid: { color: '#e5e7eb', drawTicks: false },
+                        ticks: {
+                            font: { family: "'Pretendard', sans-serif", size: 11 },
+                            color: '#94a3b8',
+                            stepSize: niceStep,
+                            callback: (v) => formatNum(v)
+                        }
+                    }
+                },
+                animation: { duration: 800, easing: 'easeOutQuart' }
+            },
+            plugins: [crossoverPlugin(displayResult)]
+        });
+
+        // 커스텀 범례
+        renderLegend(checkedItems);
+        renderCrossoverNote(displayResult.crossoverYear);
+    }
+
+    /* ---------- 교차선 플러그인 ---------- */
+    function crossoverPlugin(result) {
+        return {
+            id: 'crossoverLine',
+            afterDraw(chart) {
+                if (!result || result.crossoverYear < 0) return;
+                const { ctx, scales: { x, y } } = chart;
+                const xPos = x.getPixelForValue(result.crossoverYear);
+
+                ctx.save();
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 4]);
+                ctx.beginPath();
+                ctx.moveTo(xPos, y.top);
+                ctx.lineTo(xPos, y.bottom);
+                ctx.stroke();
+
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#ef4444';
+                ctx.font = "bold 11px 'Pretendard', sans-serif";
+                ctx.textAlign = 'center';
+                ctx.fillText('역전 ' + result.crossoverYear.toFixed(1) + '년', xPos, y.top - 6);
+                ctx.restore();
+            }
+        };
+    }
+
+    /* ---------- 커스텀 범례 ---------- */
+    function renderLegend(checkedItems) {
+        const el = document.getElementById('chartLegend');
+        const itemNames = checkedItems.map(i => i.name).join(', ');
+        const itemLabel = checkedItems.length >= 2
+            ? '합계 (' + checkedItems.length + '개 Item)'
+            : checkedItems[0].name;
+
+        let html = `
+            <div class="legend-item">
+                <span class="legend-dot" style="background:#f59e0b"></span>
+                <span>${itemLabel} — 적용 전</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot" style="background:#2563eb"></span>
+                <span>${itemLabel} — 적용 후</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-line" style="background: repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 5px, transparent 5px, transparent 9px); width:20px; height:2px; border-radius:0;"></span>
+                <span>역전 시점</span>
+            </div>
+        `;
+        el.innerHTML = html;
+    }
+
+    /* ---------- 교차점 안내 ---------- */
+    function renderCrossoverNote(crossoverYear) {
+        const el = document.getElementById('crossoverNote');
+        if (crossoverYear < 0) {
+            el.textContent = '분석 기간 내 LCC 역전이 발생하지 않았습니다.';
+            el.style.background = '#fee2e2';
+            el.style.color = '#dc2626';
+        } else {
+            el.innerHTML = `📍 LCC 역전 시점: <strong>${crossoverYear.toFixed(1)}년차</strong> — 이후 Item 적용 시 경제적 이점 발생`;
+            el.style.background = '';
+            el.style.color = '';
+        }
+    }
+
+    /* ---------- 유틸 ---------- */
+    /** 데이터 최대값에 맞는 깔끔한 tick 간격 반환 */
+    function getNiceStep(maxVal) {
+        if (maxVal <= 0) return 1;
+        const rough = maxVal / 6;                // 약 6개 구간 목표
+        const pow = Math.pow(10, Math.floor(Math.log10(rough)));
+        const normalized = rough / pow;
+        let nice;
+        if (normalized <= 1)      nice = 1;
+        else if (normalized <= 2) nice = 2;
+        else if (normalized <= 5) nice = 5;
+        else                      nice = 10;
+        return nice * pow;
+    }
+
+    function formatNum(v) {
+        if (Math.abs(v) >= 1000) return Math.round(v).toLocaleString('ko-KR');
+        return v.toFixed(1);
+    }
+
+    function destroy() {
+        if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+    }
+
+    return { render, destroy };
+})();
+
+// ===== UI (/data/lcc-ui.js) =====
+/* ===================================================
+   lcc-ui.js — UI 렌더링 (Item 목록, 결과 표시, 비교표, 연차별)
+   =================================================== */
+
+const LccUI = (() => {
+
+    /* ---------- 숫자 포맷 유틸 ---------- */
+    function fmt(v, decimal = 0) {
+        if (v === Infinity || isNaN(v)) return '-';
+        return decimal > 0
+            ? v.toFixed(decimal).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+            : Math.round(v).toLocaleString('ko-KR');
+    }
+
+    function fmtPct(v) {
+        if (v === Infinity || isNaN(v)) return '-';
+        const prefix = v > 0 ? '+' : '';
+        return prefix + v.toFixed(1) + '%';
+    }
+
+    /* ---------- Item 목록 렌더링 ---------- */
+    function renderItemList(items, onCheckChange, onEdit, onDelete) {
+        const container = document.getElementById('itemListContainer');
+        const emptyEl = document.getElementById('itemListEmpty');
+        const badge = document.getElementById('itemCountBadge');
+
+        badge.textContent = items.length + '개';
+
+        if (items.length === 0) {
+            emptyEl.style.display = '';
+            // 기존 아이템 카드 제거
+            container.querySelectorAll('.item-card').forEach(el => el.remove());
+            return;
+        }
+
+        emptyEl.style.display = 'none';
+        const palette = LCC_CONFIG.itemPalette;
+
+        // 기존 카드 제거
+        container.querySelectorAll('.item-card').forEach(el => el.remove());
+
+        items.forEach((item, idx) => {
+            const ci = idx % palette.length;
+            const card = document.createElement('div');
+            card.className = 'item-card';
+            card.dataset.id = item.id;
+
+            card.innerHTML = `
+                <label class="item-card-check">
+                    <input type="checkbox" ${item.checked ? 'checked' : ''} data-item-id="${item.id}">
+                </label>
+                <div class="item-card-body">
+                    <span class="item-card-name">${item.name || 'Item ' + (idx + 1)}</span>
+                    <span class="item-card-sub">투자 ${fmt(item.params.initCostAfter)}천원 · 교체${item.params.cycle}년</span>
+                </div>
+                <div class="item-card-actions">
+                    <button class="item-btn item-btn-edit" data-item-id="${item.id}" title="편집">✏️</button>
+                    <button class="item-btn item-btn-del" data-item-id="${item.id}" title="삭제">🗑️</button>
+                </div>
+            `;
+            container.appendChild(card);
+
+            // 이벤트
+            card.querySelector('input[type="checkbox"]').addEventListener('change', (e) => {
+                onCheckChange(item.id, e.target.checked);
+            });
+            card.querySelector('.item-btn-edit').addEventListener('click', () => onEdit(item.id));
+            card.querySelector('.item-btn-del').addEventListener('click', () => onDelete(item.id));
+        });
+    }
+
+    /* ---------- 메트릭 카드 업데이트 ---------- */
+    function updateMetrics(aggResult, period, checkedCount) {
+        document.getElementById('metricItemCount').textContent = checkedCount + '개';
+        document.getElementById('metricLccBeforeLabel').textContent = '기존 LCC (' + period + '년)';
+        document.getElementById('metricLccAfterLabel').textContent = '적용 후 LCC (' + period + '년)';
+
+        if (!aggResult) {
+            document.getElementById('metricLccBefore').textContent = '-';
+            document.getElementById('metricLccAfter').textContent = '-';
+            document.getElementById('metricSaving').textContent = '-';
+            document.getElementById('metricSavingRate').textContent = '';
+            return;
+        }
+
+        document.getElementById('metricLccBefore').textContent = fmt(aggResult.totalLccBefore);
+        document.getElementById('metricLccAfter').textContent = fmt(aggResult.totalLccAfter);
+
+        const savingEl = document.getElementById('metricSaving');
+        const rateEl = document.getElementById('metricSavingRate');
+        savingEl.textContent = fmt(aggResult.savingAmount) + ' 천원';
+
+        if (aggResult.savingAmount > 0) {
+            rateEl.textContent = '▼ ' + aggResult.savingRate.toFixed(1) + '% 절감';
+            rateEl.className = 'metric-delta delta-positive';
+        } else if (aggResult.savingAmount < 0) {
+            rateEl.textContent = '▲ ' + Math.abs(aggResult.savingRate).toFixed(1) + '% 증가';
+            rateEl.className = 'metric-delta delta-negative';
+        } else {
+            rateEl.textContent = '동일';
+            rateEl.className = 'metric-delta';
+        }
+    }
+
+    /* ---------- 비교 테이블 렌더 (합산만 표시) ---------- */
+    function renderCompareTable(checkedItems, aggResult, period) {
+        const wrap = document.getElementById('compareContent');
+
+        if (checkedItems.length === 0) {
+            wrap.innerHTML = '<p style="color:#94a3b8; text-align:center; padding:40px;">선택된 Item이 없습니다</p>';
+            return;
+        }
+
+        let html = '';
+
+        // 합산 비교 데이터 생성
+        const compareRows = buildAggregateCompareData(checkedItems, period);
+        const itemCount = checkedItems.length;
+        const titleLabel = itemCount >= 2
+            ? '합계 (' + itemCount + '개 Item) 적용 비교'
+            : checkedItems[0].name + ' 적용 비교';
+
+        html += `<h4 class="compare-item-title compare-total-title">${titleLabel}</h4>`;
+        html += `<table class="compare-table">
+            <thead><tr>
+                <th>구분</th><th>기존</th><th>적용 후</th><th>증감</th><th>증감율</th>
+            </tr></thead><tbody>`;
+
+        compareRows.forEach(row => {
+            const diff = row.after - row.before;
+            const rate = row.before !== 0 ? (diff / row.before) * 100 : 0;
+            const cls = diff > 0 ? 'val-up' : diff < 0 ? 'val-down' : '';
+            html += `<tr>
+                <td>${row.label}</td>
+                <td>${fmt(row.before)}</td>
+                <td>${fmt(row.after)}</td>
+                <td class="${cls}">${diff > 0 ? '+' : ''}${fmt(diff)}</td>
+                <td class="${cls}">${fmtPct(rate)}</td>
+            </tr>`;
+        });
+
+        html += '</tbody></table>';
+        wrap.innerHTML = html;
+    }
+
+    /**
+     * 체크된 Item들의 비교 데이터를 합산하여 반환
+     */
+    function buildAggregateCompareData(checkedItems, period) {
+        let sumInitBefore = 0, sumInitAfter = 0;
+        let sumReplaceBefore = 0, sumReplaceAfter = 0;
+        let sumOperBefore = 0, sumOperAfter = 0;
+        let sumLccBefore = 0, sumLccAfter = 0;
+
+        checkedItems.forEach(item => {
+            const p = item.params;
+            const r = item.result;
+            sumInitBefore    += p.initCostBefore;
+            sumInitAfter     += p.initCostAfter;
+            sumReplaceBefore += p.replaceCostBefore;
+            sumReplaceAfter  += p.replaceCostAfter;
+            sumOperBefore    += p.operCostBefore;
+            sumOperAfter     += p.operCostAfter;
+            sumLccBefore     += r.totalLccBefore;
+            sumLccAfter      += r.totalLccAfter;
+        });
+
+        return [
+            { label: '초기투자비',            before: sumInitBefore,                        after: sumInitAfter },
+            { label: '교체비용',              before: sumReplaceBefore,                     after: sumReplaceAfter },
+            { label: '합계 (투자비)',         before: sumInitBefore + sumReplaceBefore,      after: sumInitAfter + sumReplaceAfter },
+            { label: '연간 에너지 비용',      before: sumOperBefore,                        after: sumOperAfter },
+            { label: 'LCC 총비용 (' + period + '년)', before: sumLccBefore,                 after: sumLccAfter },
+        ];
+    }
+
+    /* ---------- 연차별 상세 — select 옵션 갱신 ---------- */
+    function updateYearlySelect(checkedItems) {
+        const sel = document.getElementById('yearlyItemSelect');
+        const prev = sel.value;
+        sel.innerHTML = '<option value="__all__">전체 합계</option>';
+        checkedItems.forEach(item => {
+            sel.innerHTML += `<option value="${item.id}">${item.name}</option>`;
+        });
+        // 이전 선택 유지
+        if ([...sel.options].some(o => o.value === prev)) {
+            sel.value = prev;
+        }
+    }
+
+    /* ---------- 연차별 상세 테이블 렌더 ---------- */
+    function renderYearlyTable(result, period, label) {
+        const thead = document.getElementById('yearlyHead');
+        const tbody = document.getElementById('yearlyBody');
+
+        let headerHTML = '<tr><th>구분</th><th>항목</th>';
+        for (let n = 0; n <= period; n++) {
+            headerHTML += `<th>${n}년</th>`;
+        }
+        headerHTML += '</tr>';
+        thead.innerHTML = headerHTML;
+
+        const groupBefore = label ? label + ' (기존)' : '기존';
+        const groupAfter = label ? label + ' (적용 후)' : 'Item 적용';
+
+        const rows = [
+            { group: groupBefore, label: '투자비', key: 'invest', data: result.yearlyBefore },
+            { group: '',     label: '에너지비', key: 'energy', data: result.yearlyBefore },
+            { group: '',     label: '합계', key: 'total', data: result.yearlyBefore, cls: 'row-header' },
+            { group: '',     label: '현가누계', key: 'cumulative', data: result.yearlyBefore, cls: 'row-cumul' },
+            { group: groupAfter, label: '투자비', key: 'invest', data: result.yearlyAfter },
+            { group: '',     label: '에너지비', key: 'energy', data: result.yearlyAfter },
+            { group: '',     label: '합계', key: 'total', data: result.yearlyAfter, cls: 'row-header' },
+            { group: '',     label: '현가누계', key: 'cumulative', data: result.yearlyAfter, cls: 'row-cumul' },
+        ];
+
+        tbody.innerHTML = '';
+        rows.forEach(r => {
+            const tr = document.createElement('tr');
+            if (r.cls) tr.classList.add(r.cls);
+            let html = `<td>${r.group}</td><td>${r.label}</td>`;
+            for (let n = 0; n <= period; n++) {
+                const v = r.data[n][r.key];
+                html += `<td>${v !== 0 ? fmt(v) : '-'}</td>`;
+            }
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+        });
+    }
+
+    /* ---------- 결과 패널 표시/숨기기 ---------- */
+    function showResults() {
+        document.getElementById('emptyState').classList.add('hidden');
+        document.getElementById('resultContent').classList.remove('hidden');
+    }
+
+    function hideResults() {
+        document.getElementById('emptyState').classList.remove('hidden');
+        document.getElementById('resultContent').classList.add('hidden');
+    }
+
+    return {
+        fmt, fmtPct,
+        renderItemList, updateMetrics,
+        renderCompareTable,
+        updateYearlySelect, renderYearlyTable,
+        showResults, hideResults
+    };
+})();
+
+// ===== MAIN (/data/lcc-main.js) =====
+/* ===================================================
+   lcc-main.js — 이벤트 바인딩 & 앱 초기화 (멀티 Item)
+   로컬 저장 버전 (localStorage)
+   =================================================== */
+
+(function () {
+    'use strict';
+
+    /* ========== URL 파라미터에서 프로젝트 정보 추출 ========== */
+    function getProjectParams() {
+        const params = new URLSearchParams(window.location.search);
+        return {
+            projectId: params.get('projectId') || '',
+            projectName: params.get('projectName') || ''
+        };
+    }
+
+    /* ========== localStorage 키 ========== */
+    function getStorageKey(projectId) {
+        return 'lcc_' + projectId;
+    }
+
+    /* ========== 헤더 프로젝트명 표시 ========== */
+    function displayProjectName() {
+        const { projectName } = getProjectParams();
+        const el = document.getElementById('projectLabel');
+        if (el && projectName) {
+            el.textContent = '[ ' + projectName + ' ] ';
+        }
+    }
+
+    /* ========== DOM 참조 ========== */
+    const $ = (id) => document.getElementById(id);
+
+    const inputs = {
+        itemName:          $('itemName'),
+        initCostBefore:    $('initCostBefore'),
+        initCostAfter:     $('initCostAfter'),
+        replaceCostBefore: $('replaceCostBefore'),
+        replaceCostAfter:  $('replaceCostAfter'),
+        elecPrice:         $('elecPrice'),
+        energyBefore:      $('energyBefore'),
+        energyAfter:       $('energyAfter'),
+        analysisPeriod:    $('analysisPeriod'),
+        replaceCycle:      $('replaceCycle')
+    };
+
+    /* ========== Item Store ========== */
+    let itemStore = [];
+    let editingItemId = null;
+
+    /* ========== 유틸 ========== */
+    function parseNum(el) {
+        return parseFloat(String(el.value).replace(/,/g, '')) || 0;
+    }
+
+    function getNextAvailableId() {
+        const usedIds = itemStore.map(it => it.id).sort((a, b) => a - b);
+        let candidate = 1;
+        for (const id of usedIds) {
+            if (id === candidate) candidate++;
+            else break;
+        }
+        return candidate;
+    }
+
+    function formatInput(el) {
+        const raw = el.value.replace(/,/g, '');
+        const num = parseFloat(raw);
+        if (!isNaN(num) && raw !== '') {
+            el.value = num.toLocaleString('ko-KR', { maximumFractionDigits: 3 });
+        }
+    }
+
+    /* ========== 자동 계산 (합계, 운전비) ========== */
+    function autoCalc() {
+        const ib = parseNum(inputs.initCostBefore);
+        const ia = parseNum(inputs.initCostAfter);
+        const rb = parseNum(inputs.replaceCostBefore);
+        const ra = parseNum(inputs.replaceCostAfter);
+
+        $('totalBefore').textContent = LccUI.fmt(ib + rb);
+        $('totalAfter').textContent = LccUI.fmt(ia + ra);
+
+        const ep = parseNum(inputs.elecPrice);
+        const eb = parseNum(inputs.energyBefore);
+        const ea = parseNum(inputs.energyAfter);
+
+        $('operCostBefore').textContent = LccUI.fmt(ep * eb / 1000);
+        $('operCostAfter').textContent = LccUI.fmt(ep * ea / 1000);
+    }
+
+    /* ========== 현재 폼에서 params 추출 ========== */
+    function getParamsFromForm() {
+        const ep = parseNum(inputs.elecPrice);
+        const period = parseInt(inputs.analysisPeriod.value) || 40;
+        const cycle = parseInt(inputs.replaceCycle.value) || 0;
+        const rdr = RateManager.getRDR();
+
+        return {
+            initCostBefore:    parseNum(inputs.initCostBefore),
+            initCostAfter:     parseNum(inputs.initCostAfter),
+            replaceCostBefore: parseNum(inputs.replaceCostBefore),
+            replaceCostAfter:  parseNum(inputs.replaceCostAfter),
+            operCostBefore:    ep * parseNum(inputs.energyBefore) / 1000,
+            operCostAfter:     ep * parseNum(inputs.energyAfter) / 1000,
+            period,
+            cycle,
+            rdr
+        };
+    }
+
+    /* ========== Item 등록 ========== */
+    function addItem() {
+        const trimmedName = inputs.itemName.value.trim();
+        const name = trimmedName || (editingItemId !== null ? ('Item ' + editingItemId) : ('Item ' + String(getNextAvailableId()).padStart(2, '0')));
+        const params = getParamsFromForm();
+        const result = LccCalc.calculate(params);
+
+        if (editingItemId !== null) {
+            const item = itemStore.find(it => it.id === editingItemId);
+            if (item) {
+                item.name = name;
+                item.params = params;
+                item.result = result;
+            }
+            editingItemId = null;
+            $('btnAddItem').innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 018 2z"/></svg> Item 등록';
+        } else {
+            if (itemStore.length >= LCC_CONFIG.maxItems) {
+                alert('최대 ' + LCC_CONFIG.maxItems + '개까지 등록 가능합니다.');
+                return;
+            }
+            const newId = getNextAvailableId();
+            itemStore.push({
+                id: newId,
+                name,
+                checked: true,
+                params,
+                result
+            });
+        }
+
+        clearForm();
+        refreshAll();
+    }
+
+    /* ========== 폼 초기화 ========== */
+    function clearForm() {
+        inputs.itemName.value = '';
+        inputs.initCostBefore.value = '';
+        inputs.initCostAfter.value = '';
+        inputs.replaceCostBefore.value = '';
+        inputs.replaceCostAfter.value = '';
+        inputs.elecPrice.value = '';
+        inputs.energyBefore.value = '';
+        inputs.energyAfter.value = '';
+        inputs.replaceCycle.value = LCC_CONFIG.defaultCycle;
+        autoCalc();
+    }
+
+    /* ========== 체크박스 변경 ========== */
+    function onItemCheckChange(itemId, checked) {
+        const item = itemStore.find(it => it.id === itemId);
+        if (item) item.checked = checked;
+        refreshResults();
+    }
+
+    /* ========== 편집 ========== */
+    function onItemEdit(itemId) {
+        const item = itemStore.find(it => it.id === itemId);
+        if (!item) return;
+
+        editingItemId = itemId;
+        const p = item.params;
+
+        inputs.itemName.value = item.name;
+        inputs.initCostBefore.value = p.initCostBefore;
+        inputs.initCostAfter.value = p.initCostAfter;
+        inputs.replaceCostBefore.value = p.replaceCostBefore;
+        inputs.replaceCostAfter.value = p.replaceCostAfter;
+        inputs.elecPrice.value = Math.round(p.operCostBefore * 1000 / (parseNum(inputs.energyBefore) || 1));
+        inputs.replaceCycle.value = p.cycle;
+
+        [inputs.initCostBefore, inputs.initCostAfter,
+         inputs.replaceCostBefore, inputs.replaceCostAfter].forEach(formatInput);
+
+        autoCalc();
+
+        $('btnAddItem').innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M12.854 2.854a.5.5 0 00-.708-.708L2 12.293V13.5a.5.5 0 00.5.5h1.207L12.854 2.854z"/></svg> Item 수정 완료';
+        inputs.itemName.focus();
+    }
+
+    /* ========== 삭제 ========== */
+    function onItemDelete(itemId) {
+        itemStore = itemStore.filter(it => it.id !== itemId);
+        if (editingItemId === itemId) {
+            editingItemId = null;
+            $('btnAddItem').innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 018 2z"/></svg> Item 등록';
+            clearForm();
+        }
+        renumberItems();
+        refreshAll();
+    }
+
+    /* ========== Item 번호 재정렬 ========== */
+    function renumberItems() {
+        const autoNamePattern = /^Item \d{2}$/;
+        itemStore.forEach((item, idx) => {
+            const newId = idx + 1;
+            if (editingItemId === item.id) {
+                editingItemId = newId;
+            }
+            if (autoNamePattern.test(item.name)) {
+                item.name = 'Item ' + String(newId).padStart(2, '0');
+            }
+            item.id = newId;
+        });
+    }
+
+    /* ========== 전체 UI 갱신 ========== */
+    function refreshAll() {
+        LccUI.renderItemList(itemStore, onItemCheckChange, onItemEdit, onItemDelete);
+        refreshResults();
+    }
+
+    /* ========== 결과 갱신 (체크된 Item만) ========== */
+    function refreshResults() {
+        const period = parseInt(inputs.analysisPeriod.value) || 40;
+        const rdr = RateManager.getRDR();
+
+        const checkedItems = itemStore
+            .map((item, idx) => {
+                if (!item.checked) return null;
+                const p = { ...item.params, period, rdr };
+                const result = LccCalc.calculate(p);
+                item.result = result;
+                item.params.period = period;
+                item.params.rdr = rdr;
+                return { id: item.id, name: item.name, params: p, result, colorIdx: idx };
+            })
+            .filter(Boolean);
+
+        if (checkedItems.length === 0) {
+            LccUI.hideResults();
+            LccChart.destroy();
+            return;
+        }
+
+        LccUI.showResults();
+
+        const aggResult = LccCalc.aggregate(checkedItems.map(i => i.result), period);
+        LccUI.updateMetrics(aggResult, period, checkedItems.length);
+        LccChart.render(checkedItems, checkedItems.length >= 2 ? aggResult : null, period);
+        LccUI.renderCompareTable(checkedItems, checkedItems.length >= 2 ? aggResult : null, period);
+        LccUI.updateYearlySelect(checkedItems);
+        renderSelectedYearly(checkedItems, aggResult, period);
+    }
+
+    /* ========== 연차별 상세 ========== */
+    function renderSelectedYearly(checkedItems, aggResult, period) {
+        const sel = $('yearlyItemSelect');
+        const val = sel.value;
+
+        if (val === '__all__') {
+            const result = checkedItems.length >= 2 ? aggResult : (checkedItems.length === 1 ? checkedItems[0].result : null);
+            if (result) LccUI.renderYearlyTable(result, period, checkedItems.length >= 2 ? '전체 합계' : checkedItems[0].name);
+        } else {
+            const item = checkedItems.find(i => String(i.id) === val);
+            if (item) LccUI.renderYearlyTable(item.result, period, item.name);
+        }
+    }
+
+    /* ========== 전체 분석 실행 ========== */
+    function runAnalysis() {
+        if (itemStore.length === 0) {
+            alert('먼저 Item을 등록해주세요.');
+            return;
+        }
+        itemStore.forEach(item => item.checked = true);
+        refreshAll();
+        $('resultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* ========== 예시 데이터 ========== */
+    function loadExample() {
+        const period = 40;
+        const rdr = RateManager.getRDR();
+
+        itemStore = [];
+
+        EXAMPLE_DATA.forEach(d => {
+            const params = {
+                initCostBefore: d.initCostBefore,
+                initCostAfter: d.initCostAfter,
+                replaceCostBefore: d.replaceCostBefore,
+                replaceCostAfter: d.replaceCostAfter,
+                operCostBefore: d.elecPrice * d.energyBefore / 1000,
+                operCostAfter: d.elecPrice * d.energyAfter / 1000,
+                period,
+                cycle: d.replaceCycle,
+                rdr
+            };
+            const result = LccCalc.calculate(params);
+            itemStore.push({
+                id: getNextAvailableId(),
+                name: d.itemName,
+                checked: true,
+                params,
+                result
+            });
+        });
+
+        inputs.analysisPeriod.value = period;
+        clearForm();
+        refreshAll();
+        $('resultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* ========== 초기화 ========== */
+    function resetAll() {
+        itemStore = [];
+        editingItemId = null;
+        clearForm();
+        inputs.analysisPeriod.value = LCC_CONFIG.defaultPeriod;
+        inputs.replaceCycle.value = LCC_CONFIG.defaultCycle;
+        autoCalc();
+        LccUI.hideResults();
+        LccChart.destroy();
+        LccUI.renderItemList(itemStore, onItemCheckChange, onItemEdit, onItemDelete);
+        RateManager.init();
+        $('btnAddItem').innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 018 2z"/></svg> Item 등록';
+    }
+
+    /* ========== 프로젝트 데이터 저장 (localStorage) ========== */
+    function saveProjectData() {
+        const { projectId, projectName } = getProjectParams();
+        if (!projectId) {
+            showToast('프로젝트 정보가 없습니다. 대시보드에서 프로젝트를 선택해주세요.', 'warn');
+            return;
+        }
+
+        const data = {
+            projectId: projectId,
+            projectName: projectName,
+            savedAt: new Date().toISOString(),
+            analysisPeriod: parseInt(inputs.analysisPeriod.value) || 40,
+            itemStore: itemStore.map(item => ({
+                id: item.id,
+                name: item.name,
+                checked: item.checked,
+                params: { ...item.params }
+            })),
+            rateData: RateManager.exportData ? RateManager.exportData() : null
+        };
+
+        try {
+            localStorage.setItem(getStorageKey(projectId), JSON.stringify(data));
+            showToast('저장되었습니다.', 'success');
+            flashSaveButton();
+        } catch (e) {
+            showToast('저장 실패: ' + e.message, 'error');
+        }
+    }
+
+    /* ========== 프로젝트 데이터 불러오기 (localStorage) ========== */
+    function loadProjectData() {
+        const { projectId } = getProjectParams();
+        if (!projectId) return null;
+
+        try {
+            const raw = localStorage.getItem(getStorageKey(projectId));
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /* ========== 저장된 데이터 복원 ========== */
+    function restoreData(data) {
+        if (!data) return;
+
+        if (data.analysisPeriod) {
+            inputs.analysisPeriod.value = data.analysisPeriod;
+        }
+
+        if (data.rateData && RateManager.importData) {
+            RateManager.importData(data.rateData);
+        }
+
+        if (data.itemStore && data.itemStore.length > 0) {
+            const rdr = RateManager.getRDR();
+            const period = parseInt(inputs.analysisPeriod.value) || 40;
+
+            itemStore = data.itemStore.map(saved => {
+                const params = { ...saved.params, period, rdr };
+                const result = LccCalc.calculate(params);
+                return {
+                    id: saved.id,
+                    name: saved.name,
+                    checked: saved.checked,
+                    params,
+                    result
+                };
+            });
+
+            refreshAll();
+        }
+    }
+
+    /* ========== 저장 토스트 ========== */
+    function showToast(message, type) {
+        let toast = document.getElementById('saveToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'saveToast';
+            toast.className = 'save-toast';
+            document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        toast.style.background = type === 'success' ? '#27ae60' :
+                                  type === 'warn' ? '#f39c12' : '#e74c3c';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    /* ========== Save 버튼 플래시 효과 ========== */
+    function flashSaveButton() {
+        const btn = document.getElementById('btnSave');
+        if (!btn) return;
+        btn.textContent = 'Saved!';
+        btn.classList.add('saved');
+        setTimeout(() => {
+            btn.classList.remove('saved');
+            btn.textContent = 'Save';
+        }, 1200);
+    }
+
+    /* ========== 입력 탭 전환 ========== */
+    function initInputTabs() {
+        document.querySelectorAll('.input-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.input-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.input-tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                $(tab.dataset.tab).classList.add('active');
+            });
+        });
+    }
+
+    /* ========== 결과 탭 전환 ========== */
+    function initResultTabs() {
+        document.querySelectorAll('.result-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.result-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.result-tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                $(tab.dataset.rtab).classList.add('active');
+            });
+        });
+    }
+
+    /* ========== 이벤트 바인딩 ========== */
+    function bindEvents() {
+        const calcFields = [
+            inputs.initCostBefore, inputs.initCostAfter,
+            inputs.replaceCostBefore, inputs.replaceCostAfter,
+            inputs.elecPrice, inputs.energyBefore, inputs.energyAfter
+        ];
+        calcFields.forEach(el => {
+            el.addEventListener('input', autoCalc);
+            el.addEventListener('blur', function () { formatInput(this); });
+        });
+
+        $('btnAddItem').addEventListener('click', addItem);
+        $('btnCalculate').addEventListener('click', runAnalysis);
+        $('btnExample').addEventListener('click', loadExample);
+        $('btnReset').addEventListener('click', resetAll);
+
+        const btnSave = $('btnSave');
+        if (btnSave) {
+            btnSave.addEventListener('click', saveProjectData);
+        }
+
+        const { projectId } = getProjectParams();
+        if (!projectId && btnSave) {
+            btnSave.title = '프로젝트를 선택하지 않아 저장할 수 없습니다';
+        }
+
+        $('btnAddInterestRow').addEventListener('click', RateManager.addInterestRow);
+        $('btnDelInterestRow').addEventListener('click', RateManager.delInterestRow);
+        $('btnAddInflationRow').addEventListener('click', RateManager.addInflationRow);
+        $('btnDelInflationRow').addEventListener('click', RateManager.delInflationRow);
+
+        $('yearlyItemSelect').addEventListener('change', () => {
+            const period = parseInt(inputs.analysisPeriod.value) || 40;
+            const rdr = RateManager.getRDR();
+            const checkedItems = itemStore
+                .map((item, idx) => {
+                    if (!item.checked) return null;
+                    return { id: item.id, name: item.name, params: item.params, result: item.result, colorIdx: idx };
+                })
+                .filter(Boolean);
+            const aggResult = LccCalc.aggregate(checkedItems.map(i => i.result), period);
+            renderSelectedYearly(checkedItems, aggResult, period);
+        });
+
+        document.querySelectorAll('.input-number, .input-text').forEach(el => {
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') addItem();
+            });
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveProjectData();
+            }
+        });
+    }
+
+    /* ========== 좌측 패널 높이 동기화 ========== */
+    function syncPanelHeight() {
+        const inputPanel  = document.querySelector('.panel-input');
+        const resultPanel = document.querySelector('.panel-result');
+        if (!inputPanel || !resultPanel) return;
+
+        const mq = window.matchMedia('(max-width: 1024px)');
+
+        function apply() {
+            if (mq.matches) {
+                inputPanel.style.height = '';
+                return;
+            }
+            inputPanel.style.height = resultPanel.offsetHeight + 'px';
+        }
+
+        if (typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(apply).observe(resultPanel);
+        }
+        window.addEventListener('resize', apply);
+        apply();
+    }
+
+    /* ========== 앱 초기화 ========== */
+    function boot() {
+        displayProjectName();
+        initInputTabs();
+        initResultTabs();
+        syncPanelHeight();
+        RateManager.init();
+        bindEvents();
+        autoCalc();
+        LccUI.renderItemList(itemStore, onItemCheckChange, onItemEdit, onItemDelete);
+
+        // 저장된 데이터 복원
+        const savedData = loadProjectData();
+        if (savedData) {
+            restoreData(savedData);
+        }
+    }
+
+    /* ========== 전역 함수 (헤더 버튼용) ========== */
+    window.lccSaveData = function() {
+        saveProjectData();
+    };
+
+    window.lccExportFile = function() {
+        showToast('파일 내보내기 기능 준비 중입니다.', 'warn');
+    };
+
+    window.GoMain = function(){ if(window.STD){ STD.goMain(saveProjectData); } else { window.location.href='../dashboard.html'; } };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
+    }
+
+})();
+
+</script>
+<script>window.__STD_TOOL='702';</script>
+<script>
+/* ============================================================
+   STD Storage  —  표준 저장 모듈 v1 (전 도구 공통)
+   방식: localStorage 우선 + GitHub 동기화(가능 시)
+        + beforeunload 백업 + 저장 후 이동(GoMain)
+   ============================================================ */
+(function(){
+  if (window.STD) return;                         // 중복 주입 방지
+  var TOOL = window.__STD_TOOL || 'tool';
+  function qp(k){ return new URLSearchParams(location.search).get(k) || ''; }
+  function pid(){ return qp('projectId') || qp('project') || qp('id') || ''; }
+  function pname(){ return qp('projectName') || qp('name') || ''; }
+  function lsKey(){ var id=pid(); return 'std_'+TOOL+'_'+(id||'standalone'); }
+  function ghPath(){ var id=pid(); return id ? ('data/'+TOOL+'/'+id+'.json') : null; }
+
+  function genericData(){
+    var o={__std:true, t:Date.now(), fields:{}};
+    document.querySelectorAll('input[id],select[id],textarea[id]').forEach(function(el){
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='button'||ty==='submit'||ty==='reset'||ty==='file') return;
+      o.fields[el.id]=(ty==='checkbox'||ty==='radio') ? el.checked : el.value;
+    });
+    return o;
+  }
+  function genericRestore(o){
+    if(!o||!o.fields) return;
+    Object.keys(o.fields).forEach(function(id){
+      var el=document.getElementById(id); if(!el) return;
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='checkbox'||ty==='radio') el.checked=!!o.fields[id];
+      else el.value=o.fields[id];
+      try{ el.dispatchEvent(new Event('input',{bubbles:true}));
+           el.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){}
+    });
+  }
+  function lsSave(){
+    try{ localStorage.setItem(lsKey(), JSON.stringify(genericData())); return true; }
+    catch(e){ console.warn('[STD] LS save fail', e); return false; }
+  }
+  function lsLoad(){
+    try{ var r=localStorage.getItem(lsKey()); return r? JSON.parse(r):null; }catch(e){ return null; }
+  }
+  function ghSync(){
+    var p=ghPath();
+    if(p && typeof window.ghSaveFile==='function'){
+      return Promise.resolve(window.ghSaveFile(p, genericData(), 'STD save '+TOOL+' '+pid()))
+        .then(function(){ return true; })
+        .catch(function(e){ console.warn('[STD] GH save fail', e); return false; });
+    }
+    return Promise.resolve(null);                 // GitHub 미사용 페이지
+  }
+  function toast(msg, type){
+    if(typeof window._showToast==='function'){ try{ window._showToast(msg, type||'success'); return; }catch(e){} }
+    if(typeof window.showToast==='function'){ try{ window.showToast(msg, type||'success'); return; }catch(e){} }
+    var el=document.getElementById('__stdToast');
+    if(!el){ el=document.createElement('div'); el.id='__stdToast';
+      el.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;opacity:0;transition:opacity .2s';
+      document.body.appendChild(el); }
+    el.textContent=msg; el.style.opacity='1';
+    clearTimeout(el.__t); el.__t=setTimeout(function(){ el.style.opacity='0'; }, 1800);
+  }
+
+  var dirty=false;
+  document.addEventListener('input', function(){ dirty=true; }, true);
+  document.addEventListener('change', function(){ dirty=true; }, true);
+
+  function save(pageSaver, opts){
+    opts=opts||{};
+    lsSave();                                     // 1) 항상 localStorage 백업
+    var hasPage=(typeof pageSaver==='function');
+    if(hasPage){                                  // 2a) 리치 저장(페이지 고유 LS+GitHub)
+      return Promise.resolve().then(pageSaver).then(function(){ dirty=false; return {page:true}; })
+        .catch(function(e){ console.warn('[STD] pageSaver fail', e); dirty=false; return {page:false}; });
+    }
+    return ghSync().then(function(gh){             // 2b) 제네릭 GitHub 동기화(가능 시)
+      dirty=false;
+      if(!opts.silent) toast(gh===false?'로컬에 저장되었습니다 (클라우드 동기화 실패)':'저장되었습니다.', gh===false?'warn':'success');
+      return {gh:gh};
+    });
+  }
+  function load(pageLoader){
+    if(typeof pageLoader==='function'){ try{ return pageLoader(); }catch(e){ console.warn('[STD] pageLoader fail', e); } }
+    var o=lsLoad(); if(o) genericRestore(o); dirty=false; return o;
+  }
+  function goMain(pageSaver){
+    var url=(typeof window.dashboardUrl!=='undefined' && window.dashboardUrl) ? window.dashboardUrl : '../dashboard.html';
+    Promise.resolve(save(pageSaver, {silent:true})).then(function(){ location.href=url; }, function(){ location.href=url; });
+  }
+  window.addEventListener('beforeunload', function(){ try{ lsSave(); }catch(e){} });
+
+  window.STD={ save:save, load:load, goMain:goMain, lsSave:lsSave, lsLoad:lsLoad,
+               genericData:genericData, genericRestore:genericRestore,
+               projectId:pid, projectName:pname, key:lsKey, ghPath:ghPath, isDirty:function(){return dirty;} };
+})();
+</script>
+</body>
+</html>

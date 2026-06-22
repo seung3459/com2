@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/himec-supabase-sync.js"></script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIMEC - Metrics</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --accent:#e85d24;        /* HIMEC 포인트(주황) */
+  --active:#1a8a96;        /* 활성 탭(teal) */
+  --line:#ddd;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{font-family:'Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f5;color:#333;}
+.page{max-width:1500px;margin:0 auto;background:#fff;min-height:100vh;}
+
+/* Header */
+.header{background:#fff;padding:10px 24px;border-bottom:1px solid var(--line);position:relative;}
+.header h1{font-size:20px;font-weight:700;color:#222;}
+.header .sub{font-size:11px;color:#888;margin-top:2px;}
+.header h2{font-size:16px;font-weight:700;color:#222;margin-top:6px;}
+.header-right{position:absolute;top:14px;right:24px;display:flex;gap:8px;}
+.header-right button{padding:8px 0;width:90px;border:none;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;color:#fff;}
+.btn-save,.btn-file{background:var(--accent);}
+.btn-main{background:#555;}
+
+/* Tabs */
+.tabs{display:flex;gap:12px;padding:16px 24px 4px;}
+.tab{padding:9px 22px;border:1px solid #bbb;border-radius:22px;background:#e9e9e9;font-size:13px;font-weight:600;color:#333;cursor:pointer;}
+.tab.active{background:var(--active);color:#fff;border-color:var(--active);}
+
+/* Filter bar */
+.filterbar{display:flex;align-items:center;gap:10px;padding:14px 24px;font-size:12px;color:#555;flex-wrap:wrap;}
+.filterbar label{font-weight:600;}
+.filterbar select{padding:5px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;background:#fff;}
+
+/* Body */
+.body{padding:4px 24px 40px;}
+.cols{display:grid;grid-template-columns:1fr 420px;gap:24px;align-items:start;}
+
+/* Table */
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{background:#7d7d7d;color:#fff;font-weight:600;padding:12px 10px;text-align:center;}
+tbody td{padding:11px 10px;text-align:center;border-bottom:1px solid #eee;}
+tbody tr:nth-child(odd){background:#fafafa;}
+tbody tr:nth-child(even){background:#f0f0f0;}
+td.left{text-align:left;}
+td.right{text-align:right;padding-right:18px;}
+tr.subtotal td{background:#fff !important;font-weight:700;border-top:2px solid #999;border-bottom:none;}
+.act-cell{background:#fff !important;font-weight:700;vertical-align:middle;}
+.empty{padding:30px;text-align:center;color:#aaa;font-size:13px;}
+
+/* Charts */
+.chart-card{margin-bottom:18px;}
+.chart-card h3{font-size:14px;font-weight:700;text-align:center;margin-bottom:6px;color:#333;}
+.chart-card svg{width:100%;height:auto;display:block;}
+
+/* Note */
+.note{margin-top:34px;font-size:12.5px;line-height:1.9;color:#333;}
+.note b{font-weight:700;}
+.footer{text-align:center;font-size:11px;color:#ccc;padding:16px;}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="header">
+    <h1>HIMEC &ndash; Mechanical Facility Aging Diagnosis System</h1>
+    <div class="sub">(주)하이멕 &ndash; 기계설비 노후화 진단</div>
+    <h2>Metrics</h2>
+    <div class="header-right">
+      <button class="btn-save" onclick="saveData()">Save</button>
+      <button class="btn-file" onclick="exportFile()">File Trans</button>
+      <button class="btn-main" onclick="GoMain()">Main</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="reset"   onclick="switchTab('reset',this)">초기화</div>
+    <div class="tab"        data-tab="history" onclick="switchTab('history',this)">Project 이력</div>
+    <div class="tab"        data-tab="result"  onclick="switchTab('result',this)">진단 결과</div>
+  </div>
+
+  <!-- ===== TAB 1: 초기화 ===== -->
+  <div id="tab-reset" class="tabpane">
+    <div class="filterbar">
+      <label>Filter Index 01</label>
+      <select id="f1-year" onchange="renderReset()"></select>
+      <label style="margin-left:18px;">Filter Index 02</label>
+      <select id="f1-act" onchange="renderReset()"></select>
+    </div>
+    <div class="body"><div id="reset-table"></div></div>
+  </div>
+
+  <!-- ===== TAB 2: Project 이력 ===== -->
+  <div id="tab-history" class="tabpane" style="display:none;">
+    <div class="body">
+      <div class="cols">
+        <div id="history-table"></div>
+        <div>
+          <div class="chart-card"><h3>연도별 진단 이력</h3><div id="chart-count"></div></div>
+          <div class="chart-card"><h3>연도별 진단 금액 (억)</h3><div id="chart-amount"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB 3: 진단 결과 ===== -->
+  <div id="tab-result" class="tabpane" style="display:none;">
+    <div class="filterbar">
+      <label>장비 Filter</label>
+      <select id="f3-equip" onchange="renderResult()"></select>
+      <label style="margin-left:18px;">진단 결과</label>
+      <select id="f3-type" onchange="renderResult()"></select>
+    </div>
+    <div class="body">
+      <div id="result-table"></div>
+      <div class="note">
+        <div>· <b>장비 Filter</b> : 장비 리스트 기준 (압축식냉동기, 흡수식냉동기 등등, Heat source, HVAC, Pump, Plumbing, piping 전부)</div>
+        <div>· <b>장비 Filter value</b> : 진단 결과(1,2차 포함), 1차 진단 결과, 2차 진단 결과, 성능 측정 결과(2차진단 및 Analysis 포함)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">© 2026 HIMEC (주)하이멕. All rights reserved.</div>
+</div>
+
+<script>
+
+/* =========================================================
+   DATA  ── 실제 운영 시 이 부분을 DB/API 조회로 교체하세요.
+   예) const projects = await fetch('/api/projects').then(r=>r.json());
+   ========================================================= */
+const projects = [
+  {no:1, year:2026, name:'영락교회 노후 진단 용역',            activity:'노후진단', amount:50000000,  report:'Y'},
+  {no:2, year:2025, name:'무역센터 기계설비 정밀진단용역',     activity:'노후진단', amount:500000000, report:'Y'},
+  {no:3, year:2025, name:'OO빌딩 에너지 진단 용역',            activity:'에너지진단', amount:250000000, report:'Y'},
+  {no:4, year:2026, name:'XX병원 에너지 진단 용역',            activity:'에너지진단', amount:430000000, report:'N'},
+  {no:5, year:2027, name:'△△공장 노후 진단 용역',             activity:'노후진단', amount:200000000, report:'N'},
+  {no:6, year:2027, name:'□□센터 에너지 진단 용역',           activity:'에너지진단', amount:200000000, report:'N'},
+];
+
+const EQUIPS = ['압축식냉동기','흡수식냉동기','Heat source','HVAC','Pump','Plumbing','piping'];
+
+// 장비별 진단결과 (1차 등급 / 2차 성능 / 종합 진단 / 성능측정)
+const diagResults = [
+  {no:1, year:2026, project:'영락교회 노후 진단 용역',        equip:'압축식냉동기', first:'B', second:'양호', result:'재사용', perf:'COP 4.2 / 정상'},
+  {no:2, year:2025, project:'무역센터 기계설비 정밀진단용역', equip:'압축식냉동기', first:'C', second:'불량', result:'교체',   perf:'COP 2.8 / 저하'},
+  {no:3, year:2026, project:'영락교회 노후 진단 용역',        equip:'흡수식냉동기', first:'A', second:'양호', result:'재사용', perf:'효율 92% / 정상'},
+  {no:4, year:2025, project:'무역센터 기계설비 정밀진단용역', equip:'Pump',        first:'B', second:'양호', result:'재사용', perf:'유량 98% / 정상'},
+  {no:5, year:2025, project:'무역센터 기계설비 정밀진단용역', equip:'HVAC',        first:'C', second:'보통', result:'부분교체', perf:'풍량 85% / 저하'},
+  {no:6, year:2027, project:'△△공장 노후 진단 용역',         equip:'piping',      first:'D', second:'불량', result:'교체',   perf:'부식 심함'},
+];
+
+/* ========================= 유틸 ========================= */
+const won = n => n.toLocaleString('ko-KR');
+const eok = n => (n/100000000);
+function uniq(arr){return [...new Set(arr)];}
+
+/* ===================== 탭 전환 ===================== */
+function switchTab(tab, el){
+  document.querySelectorAll('.tabpane').forEach(p=>p.style.display='none');
+  document.getElementById('tab-'+tab).style.display='block';
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  if(tab==='history') renderHistory();
+  if(tab==='result')  renderResult();
+  if(typeof postH==='function') postH();
+}
+
+/* ===================== TAB1: 초기화 ===================== */
+function initResetFilters(){
+  const y=document.getElementById('f1-year'), a=document.getElementById('f1-act');
+  y.innerHTML='<option value="">수행년도 전체</option>'+uniq(projects.map(p=>p.year)).sort().map(v=>`<option>${v}</option>`).join('');
+  a.innerHTML='<option value="">Activity 전체</option>'+uniq(projects.map(p=>p.activity)).map(v=>`<option>${v}</option>`).join('');
+}
+function renderReset(){
+  const fy=document.getElementById('f1-year').value, fa=document.getElementById('f1-act').value;
+  const rows=projects.filter(p=>(!fy||p.year==fy)&&(!fa||p.activity===fa));
+  let h='<table><thead><tr><th>No</th><th>수행년도</th><th>프로젝트명</th><th>Activity</th><th>계약 금액 (원)</th><th>보고서</th></tr></thead><tbody>';
+  if(!rows.length) h+='<tr><td colspan="6" class="empty">조건에 맞는 데이터가 없습니다.</td></tr>';
+  rows.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td>${p.year}</td><td class="left">${p.name}</td><td>${p.activity}</td><td class="right">${won(p.amount)}</td><td>${p.report==='Y'?'다운로드':'-'}</td></tr>`; });
+  h+='</tbody></table>';
+  document.getElementById('reset-table').innerHTML=h;
+}
+
+/* ===================== TAB2: Project 이력 ===================== */
+function renderHistory(){
+  const acts=uniq(projects.map(p=>p.activity));
+  let h='<table><thead><tr><th>Activity</th><th>No</th><th>수행년도</th><th>프로젝트명</th><th>계약 금액 (원)</th><th>보고서</th></tr></thead><tbody>';
+  acts.forEach(act=>{
+    const rows=projects.filter(p=>p.activity===act);
+    rows.forEach((p,i)=>{
+      h+='<tr>';
+      if(i===0) h+=`<td class="act-cell" rowspan="${rows.length}">${act}</td>`;
+      h+=`<td>${i+1}</td><td>${p.year}</td><td class="left">${p.name}</td><td class="right">${won(p.amount)}</td><td>${p.report==='Y'?'다운로드':'-'}</td></tr>`;
+    });
+    const cnt=rows.length, sum=rows.reduce((a,b)=>a+b.amount,0);
+    h+=`<tr class="subtotal"><td></td><td colspan="2">합계</td><td>${cnt} 건</td><td class="right">${eok(sum).toFixed(1)} 억</td><td></td></tr>`;
+  });
+  h+='</tbody></table>';
+  document.getElementById('history-table').innerHTML=h;
+
+  // 차트 데이터 집계
+  const years=uniq(projects.map(p=>p.year)).sort();
+  const cntData=years.map(y=>({label:y,vals:[
+      projects.filter(p=>p.year==y&&p.activity==='에너지진단').length,
+      projects.filter(p=>p.year==y&&p.activity==='노후진단').length ]}));
+  const amtData=years.map(y=>({label:y,vals:[
+      eok(projects.filter(p=>p.year==y&&p.activity==='에너지진단').reduce((a,b)=>a+b.amount,0)),
+      eok(projects.filter(p=>p.year==y&&p.activity==='노후진단').reduce((a,b)=>a+b.amount,0)) ]}));
+  const series=[{name:'에너지진단',color:'#e08a3c'},{name:'노후진단',color:'#1f5f6b'}];
+  document.getElementById('chart-count').innerHTML  = stackedBar(cntData,series,'건');
+  document.getElementById('chart-amount').innerHTML = stackedBar(amtData,series,'억');
+}
+
+/* 인라인 SVG 누적 막대차트 (외부 라이브러리 불필요) */
+function stackedBar(data,series,unit){
+  const W=400,H=240,pad={t:14,r:12,b:54,l:34};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+  let max=Math.max(1,...data.map(d=>d.vals.reduce((a,b)=>a+b,0)));
+  const nice=Math.ceil(max/5)*5||5||max; const yMax=nice<max?max:nice;
+  const bw=cw/data.length*0.5;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let i=0;i<=5;i++){const v=yMax/5*i, y=pad.t+ch-(v/yMax*ch);
+    s+=`<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="#e5e5e5"/>`;
+    s+=`<text x="${pad.l-6}" y="${y+4}" font-size="10" fill="#999" text-anchor="end">${Math.round(v)}</text>`;}
+  data.forEach((d,i)=>{
+    const cx=pad.l+cw/data.length*(i+0.5); let acc=0;
+    d.vals.forEach((v,k)=>{const hgt=v/yMax*ch, y=pad.t+ch-acc-hgt;
+      s+=`<rect x="${cx-bw/2}" y="${y}" width="${bw}" height="${Math.max(0,hgt)}" fill="${series[k].color}"/>`; acc+=hgt;});
+    s+=`<text x="${cx}" y="${pad.t+ch+16}" font-size="11" fill="#555" text-anchor="middle">${d.label}</text>`;
+  });
+  // legend
+  let lx=pad.l;
+  series.forEach(se=>{s+=`<rect x="${lx}" y="${H-18}" width="11" height="11" fill="${se.color}"/>`;
+    s+=`<text x="${lx+15}" y="${H-8}" font-size="10.5" fill="#444">${se.name} ${unit}</text>`; lx+=se.name.length*11+58;});
+  s+='</svg>'; return s;
+}
+
+/* ===================== TAB3: 진단 결과 (핵심 기능) ===================== */
+const RESULT_TYPES=[
+  {key:'all',   label:'진단 결과 (1,2차 포함)', cols:['first','second','result']},
+  {key:'first', label:'1차 진단 결과',          cols:['first']},
+  {key:'second',label:'2차 진단 결과',          cols:['second']},
+  {key:'perf',  label:'성능 측정 결과',         cols:['perf']},
+];
+const COLDEF={
+  first :{th:'장비 1차 진단 결과', get:r=>r.first},
+  second:{th:'장비 2차 성능 진단 결과', get:r=>r.second},
+  result:{th:'진단 결과', get:r=>r.result},
+  perf  :{th:'성능 측정 결과 (Analysis)', get:r=>r.perf},
+};
+function initResultFilters(){
+  const e=document.getElementById('f3-equip'), t=document.getElementById('f3-type');
+  e.innerHTML='<option value="">장비 전체</option>'+EQUIPS.map(v=>`<option>${v}</option>`).join('');
+  t.innerHTML=RESULT_TYPES.map(rt=>`<option value="${rt.key}">${rt.label}</option>`).join('');
+}
+function renderResult(){
+  const eq=document.getElementById('f3-equip').value;
+  const typeKey=document.getElementById('f3-type').value||'all';
+  const type=RESULT_TYPES.find(t=>t.key===typeKey);
+  const rows=diagResults.filter(r=>!eq||r.equip===eq);
+  let h='<table><thead><tr><th>No</th><th>수행년도</th><th>프로젝트명</th><th>장비</th>';
+  type.cols.forEach(c=>h+=`<th>${COLDEF[c].th}</th>`);
+  h+='<th>상세</th></tr></thead><tbody>';
+  if(!rows.length) h+=`<tr><td colspan="${4+type.cols.length+1}" class="empty">조건에 맞는 데이터가 없습니다.</td></tr>`;
+  rows.forEach((r,i)=>{
+    h+=`<tr><td>${i+1}</td><td>${r.year}</td><td class="left">${r.project}</td><td>${r.equip}</td>`;
+    type.cols.forEach(c=>h+=`<td>${COLDEF[c].get(r)}</td>`);
+    h+='<td>보기</td></tr>';
+  });
+  h+='</tbody></table>';
+  document.getElementById('result-table').innerHTML=h;
+}
+
+/* ===================== 공통 버튼 ===================== */
+function saveData(){ try{localStorage.setItem('himec_metrics',JSON.stringify({projects,diagResults}));}catch(e){} alert('저장되었습니다.'); }
+function exportFile(){ alert('파일 변환 기능 (구현 예정)'); }
+// ===== Main 화면 이동 =====
+function GoMain(){ if(window.STD){ STD.goMain((typeof hddSaveData==='function')?hddSaveData:null); } else { window.location.href='../index.html'; } }
+
+window.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveData();} });
+
+/* ===================== 초기화 ===================== */
+window.addEventListener('DOMContentLoaded',()=>{
+  initResetFilters(); renderReset();
+  initResultFilters();
+  if(typeof postH==='function') postH();
+});
+
+</script>
+</body>
+</html>

@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/himec-supabase-sync.js"></script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIMEC - Cooling Tower Performance Analysis Tool</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    font-family: 'Noto Sans KR',sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Page container with side margins */
+  .page-container {
+    padding: 0 100px; background: #fff;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    background: #fff;
+  }
+
+  /* Header */
+  .header {
+    background: #fff;
+    padding: 8px 20px;
+    border-bottom: 1px solid #ddd;
+    flex-shrink: 0;
+    margin-left: -100px;
+    margin-right: -100px;
+    padding-left: 120px;
+    padding-right: 120px;
+  }
+  .header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #222;
+  }
+  .header .sub {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+  }
+  .header h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    margin-top: 4px;
+  }
+  .header-right {
+    position: absolute;
+    bottom: 8px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+  }
+  .header-right button {
+    padding: 8px 0;
+    width: 90px;
+    border: none;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+  .btn-save { background: #e85d24; color: #fff; }
+  .btn-file { background: #e85d24; color: #fff; }
+  .btn-main { background: #555f; color: #fff; }
+  .btn-save:hover, .btn-file:hover { opacity: 0.85; }
+  .btn-main:hover { opacity: 0.85; }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    padding: 4px 20px 0;
+    background: #fff;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .tab {
+    padding: 5px 20px;
+    border-radius: 6px 6px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: #bbb;
+    color: #fff;
+  }
+  .tab.active {
+    background: #00838f;
+    color: #fff;
+  }
+  .tab.add {
+    background: #999;
+    color: #fff;
+    font-size: 14px;
+    padding: 5px 16px;
+  }
+
+  /* Main 3-column layout */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr 0.9fr;
+    gap: 0;
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .panel {
+    background: #fff;
+    border: 1px solid transparent;
+    padding: 10px;
+   display: flex;
+   flex-direction: column;
+   overflow: hidden;
+   min-height: 0;
+  }
+
+  /* Left Panel */
+  .section-title {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #222;
+    flex-shrink: 0;
+  }
+  .info-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    margin-bottom: 6px;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  .info-table th, .info-table td {
+    border: 1px solid #ffffff;
+    padding: 6px 5px;
+	border-bottom: 1.5px solid #ccc;
+    text-align: center;
+  }
+  .info-table th {
+    background: #ccc;
+    color: #555;
+    font-weight: 600;
+    font-size: 11px;
+  }
+  /* 상단 모서리 둥글게 */
+  .info-table tr:first-child th:first-child {
+    border-top-left-radius: 8px;
+  }
+  .info-table tr:first-child th:last-child {
+    border-top-right-radius: 8px;
+  }
+
+  .info-table td {
+    background: #fff;
+  }
+  
+    .value-unit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      position: relative;
+    }
+    .value-unit input {
+      text-align: center;
+      padding-right: 2px;
+      flex: 1;
+      min-width: 0;
+    }
+    .value-unit .unit {
+      font-size: 11px;
+      color: #333;
+      white-space: nowrap;
+      position: absolute;
+      right: 0px;
+      pointer-events: none;
+    }
+    .info-table td {
+      padding: 6px 4px;
+    }
+
+    .info-table input {
+    width: 100%;
+    border: none;
+    text-align: center;
+    font-size: 12px;
+    background: transparent;
+    outline: none;
+    padding: 4px 2px;
+  }
+  .info-table .highlight-cell {
+    background: #555f;
+    color: #fff;
+    font-weight: 600;
+  }
+  .note {
+    font-size: 9px;
+    color: #888;
+    margin: 4px 0 6px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* Bar Chart (left panel) */
+  .bar-chart-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .bar-chart-area {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 0;
+    padding: 1px 1px 1px 1px;
+    border-left: 1px solid #999;
+    border-bottom: 1px solid #999;
+    margin: 6px 2px 0 2px;
+    min-height: 0;
+  }
+  .bar-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    max-width: none;
+    height: 100%;
+    padding: 0 10px;
+  }
+  .bar-pair {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    width: 100%;
+    justify-content: center;
+    flex: 1;
+    height: 100%;
+  }
+  .bar {
+    width: 60px;
+    min-width: 45px;
+    border-radius: 3px 3px 0 0;
+    position: relative;
+    transition: height 0.5s ease;
+  }
+  .bar-design { background: #ccc; }
+  .bar-measure { background: #00838f; }
+  .bar-value {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .bar-label {
+    font-size: 9px;
+    color: #666;
+    margin-top: 3px;
+    text-align: center;
+  }
+  .bar-category-label {
+    font-size: 10px;
+    color: #333;
+    font-weight: 600;
+    margin-top: 1px;
+  }
+  .y-axis-labels {
+    position: absolute;
+    left: -32px;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: space-between;
+    font-size: 9px;
+    color: #666;
+  }
+  .bar-legend {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 4px;
+    font-size: 9px;
+    color: #555;
+    flex-shrink: 0;
+  }
+  .bar-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .bar-legend-color {
+    width: 10px;
+    height: 8px;
+    border-radius: 2px;
+  }
+
+  /* Center Panel - Chart */
+  .center-panel {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .chart-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .chart-canvas-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+  .chart-canvas-container canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .chart-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .chart-point {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #ff0000;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 6px rgba(255,0,0,0.5);
+    pointer-events: auto;
+    cursor: pointer;
+    z-index: 10;
+  }
+  .chart-point-label {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    background: rgba(0,0,0,0.8);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 11;
+  }
+  .chart-point-label::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid rgba(0,0,0,0.8);
+  }
+  .chart-dashed-line {
+    position: absolute;
+    border-left: 1.4px dashed #ff0000;
+    top: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .chart-h-line {
+    position: absolute;
+    border-top: 1px dashed #0066ff;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .chart-connect-line {
+    position: absolute;
+    pointer-events: none;
+    z-index: 4;
+  }
+
+  /* Right Panel */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+  }
+  .metrics-area {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .metric-card {
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid #ccc;
+    border-radius: 5px;
+    padding: 17px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .metric-label {
+    font-size: 11px;
+    color: #00838f;
+    flex: 1;
+    line-height: 1.2;
+	font-weight: bold;
+  }
+  .metric-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #ff8c00;
+    min-width: 45px;
+    text-align: right;
+  }
+  .metric-unit {
+    font-size: 12px;
+    color: #888;
+    margin-left: 2px;
+    vertical-align: super;
+  }
+
+  /* Donut Chart */
+  .donut-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0px;
+    min-height: 10px;
+    overflow: hidden;
+  }
+  .donut-wrapper {
+    position: relative;
+    width: 81%;
+    height: 81%;
+    max-width: 81%;
+    max-height: 81%;
+    aspect-ratio: 1;
+  }
+  .donut-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .donut-center-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .donut-percent {
+    font-size: 47px;
+    font-weight: 800;
+  }
+  .donut-percent-unit {
+    font-size: 25px;
+    font-weight: 600;
+  }
+  .donut-status {
+    font-size: 20px;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+/* ---- Footer Copyright ---- */
+.footer-copyright {
+    flex-shrink: 0;
+    background: #f8fafc;
+    border-top: none;
+    padding: 8px 100px;
+    text-align: center;
+}
+
+.footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 10px;
+    color: #e0e0e0;
+    letter-spacing: 0.01em;
+}
+
+.footer-divider {
+    color: var(--border);
+}
+
+  /* Responsive */
+  @media (max-width: 1600px) {
+    .page-container { padding: 0 60px; }
+    .header { margin-left: -60px; margin-right: -60px; padding-left: 80px; padding-right: 80px; }
+    .footer-copyright { padding: 6px 80px; margin-left: -60px; margin-right: -60px; }
+  }
+  @media (max-width: 1300px) {
+    .page-container { padding: 0 30px; }
+    .header { margin-left: -30px; margin-right: -30px; padding-left: 50px; padding-right: 50px; }
+    .footer-copyright { padding: 6px 50px; margin-left: -30px; margin-right: -30px; }
+  }
+  @media (max-width: 1100px) {
+    .page-container { padding: 0 15px; }
+    .header { margin-left: -15px; margin-right: -15px; padding-left: 35px; padding-right: 35px; }
+    .footer-copyright { padding: 6px 35px; margin-left: -15px; margin-right: -15px; }
+    .main {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+    .center-panel {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
+  }
+  @media (max-width: 700px) {
+    .page-container { padding: 0 10px; }
+    .header { margin-left: -10px; margin-right: -10px; padding-left: 30px; padding-right: 30px; }
+    .footer-copyright { padding: 6px 30px; margin-left: -10px; margin-right: -10px; }
+    .main { grid-template-columns: 1fr; }
+    .center-panel { grid-column: 1; }
+  }
+  @media (orientation: landscape) and (min-width: 1100px) {
+    .main { grid-template-columns: 1fr 1.1fr 0.9fr; }
+  }
+
+  /* Tab close button */
+  .tab { position: relative; padding-right: 28px !important; }
+  .tab .tab-close {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+    line-height: 16px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .tab .tab-close:hover {
+    background: rgba(255,0,0,0.6);
+    color: #fff;
+  }
+  .tab.add { padding-right: 16px !important; }
+
+  /* Placeholder style for new equipment */
+
+  /* ── 스피너(숫자 증감 화살표) 위치 제어 ── */
+  /* 기본: 스피너 숨김 */
+  .value-unit input[type="number"]::-webkit-inner-spin-button,
+  .value-unit input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: inner-spin-button;
+    opacity: 0;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 75%;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  /* 마우스 올리면 스피너 표시 */
+  .value-unit input[type="number"]:hover::-webkit-inner-spin-button,
+  .value-unit input[type="number"]:hover::-webkit-outer-spin-button,
+  .value-unit input[type="number"]:focus::-webkit-inner-spin-button,
+  .value-unit input[type="number"]:focus::-webkit-outer-spin-button {
+    opacity: 1;
+  }
+
+  .info-table input::placeholder {
+    color: #aaa;
+    font-style: italic;
+    font-size: 10px;
+  }
+
+  /* 장비 개요 & 측정 Data 테이블 좌우 끝 테두리 투명 */
+  #left-panel .info-table th:first-child,
+  #left-panel .info-table td:first-child {
+    border-left-color: transparent;
+  }
+  #left-panel .info-table th:last-child,
+  #left-panel .info-table td:last-child {
+    border-right-color: transparent;
+  }
+
+/* ── readonly 입력칸 스피너 제거 (자동계산 필드) ── */
+.value-unit input[type="number"][readonly]::-webkit-inner-spin-button,
+.value-unit input[type="number"][readonly]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+.value-unit input[type="number"][readonly] {
+  -moz-appearance: textfield;
+}
+</style>
+</head>
+<body>
+
+<div class="page-container">
+<!-- Header -->
+<div class="header" style="position:relative;">
+  <h1>HIMEC − Mechanical Facility Aging Diagnosis System</h1>
+  <div class="sub">(주)하이멕 − 기계설비 노후화 진단</div>
+  <h2><span id="projectLabel" style="font-size:15px; color:#333; font-weight:600;"></span>Cooling Tower Performance Analysis Tool</h2>
+  <div class="header-right">
+    <button class="btn-save" id="btnSave" onclick="saveData()">Save</button>
+    <button class="btn-file" onclick="exportFile()">File Trans</button>
+    <button class="btn-main" onclick="GoMain()">Main</button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+  <button class="tab active" id="tab-1" onclick="switchTab(1)">P-8 #01<span class="tab-close" onclick="event.stopPropagation();removeTab(1)">✕</span></button>
+  <button class="tab add" onclick="addTab()">+</button>
+</div>
+
+<!-- Main Layout -->
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <div class="panel" id="left-panel">
+    <div class="section-title">■ 장비 개요</div>
+    <table class="info-table">
+      <tr><th>장비명</th><th>장비번호</th><th>용도</th></tr>
+      <tr>
+        <td><input id="inp-name" value="P-8" oninput="updateTabName()"></td>
+        <td><input id="inp-no" value="#1" oninput="updateTabName()"></td>
+        <td><input id="inp-use" value="신설 O용" onchange="recalc()"></td>
+      </tr>
+    </table>
+    <table class="info-table">
+      <tr><th>설계습구온도tIC</th><th>설계 입구 온도</th><th>설계 출구 온도</th></tr>
+      <tr>
+        <td><span class="value-unit"><input id="inp-design-wb" type="number" value="27" step="0.1" onchange="recalc()"><span class="unit">℃<br></span></span></td>
+        <td><span class="value-unit"><input id="inp-design-in" type="number" value="37" step="0.1" onchange="recalc()"><span class="unit">℃ </span></span></td>
+        <td><span class="value-unit"><input id="inp-design-out" type="number" value="32" step="0.1" onchange="recalc()"><span class="unit">℃ </span></span></td>
+      </tr>
+    </table>
+
+    <div class="section-title" style="margin-top:4px;">■ 측정 Data</div>
+    <table class="info-table">
+      <tr><th>외기온도</th><th>상대습도</th><th class="highlight-cell">습구온도</th></tr>
+      <tr>
+        <td><span class="value-unit"><input id="inp-out-temp" type="number" value="27.8" step="0.1" onchange="recalc()"><span class="unit">℃ </span></span></td>
+        <td><span class="value-unit"><input id="inp-rh" type="number" value="59" step="1" onchange="recalc()"><span class="unit">% </span></span></td>
+        <td style="background:#e0f7fa;"><span class="value-unit"><input id="inp-wb" type="number" value="22.5" step="0.1" readonly style="font-weight:700; color:#00838f; background:#e0f7fa; cursor:default;"><span class="unit">℃ </span></span></td>
+      </tr>
+    </table>
+    <table class="info-table">
+      <tr><th>냉각수 입구 온도</th><th>냉각수 출구 온도</th><th class="highlight-cell">환산수온레인지 tlC</th></tr>
+      <tr>
+        <td><span class="value-unit"><input id="inp-cw-in" type="number" value="32.2" step="0.1" onchange="recalc()"><span class="unit">℃ </span></span></td>
+        <td><span class="value-unit"><input id="inp-cw-out" type="number" value="28.3" step="0.1" onchange="recalc()"><span class="unit">℃ </span></span></td>
+        <td style="background:#e0f7fa;"><span class="value-unit"><input id="inp-tlc" type="number" value="4.5" step="0.1" readonly style="font-weight:700; color:#00838f; background:#e0f7fa; cursor:default;"><span class="unit">℃ </span></span></td>
+      </tr>
+    </table>
+    <div class="note">※ 환산수온 레인지(TLC)는  자동 계산됩니다</div>
+    <div class="note">※ 습구온도는 외기온도·상대습도로부터 Carrier 근사공식에 의해 자동 계산됩니다</div>
+
+    <!-- Bar Chart -->
+    <div class="bar-chart-container">
+      <div class="bar-chart-area" id="barChartArea">
+        <div class="y-axis-labels" id="yAxisLabels"></div>
+        <div class="bar-group">
+          <div class="bar-pair">
+            <div class="bar bar-design" id="bar-design-in"><div class="bar-value" id="bv-din"></div></div>
+            <div class="bar bar-measure" id="bar-measure-in"><div class="bar-value" id="bv-min"></div></div>
+          </div>
+          <div class="bar-label">설계 &nbsp;&nbsp; 측정</div>
+          <div class="bar-category-label">입구온도</div>
+        </div>
+        <div class="bar-group">
+          <div class="bar-pair">
+            <div class="bar bar-design" id="bar-design-out"><div class="bar-value" id="bv-dout"></div></div>
+            <div class="bar bar-measure" id="bar-measure-out"><div class="bar-value" id="bv-mout"></div></div>
+          </div>
+          <div class="bar-label">설계 &nbsp;&nbsp; 측정</div>
+          <div class="bar-category-label">출구온도</div>
+        </div>
+      </div>
+      <div class="bar-legend">
+        <div class="bar-legend-item"><div class="bar-legend-color" style="background:#888;"></div>설계</div>
+        <div class="bar-legend-item"><div class="bar-legend-color" style="background:#00838f;"></div>측정</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER PANEL - Chart -->
+  <div class="panel center-panel" id="center-panel">
+    <div class="section-title">■ 표준 설계 입구 온도 37°C 환산 차트</div>
+
+    <div class="chart-wrapper" id="chartWrapper">
+      <div class="chart-canvas-container">
+        <canvas id="chartCanvas"></canvas>
+      </div>
+      <!-- Overlay for points and lines -->
+      <div class="chart-overlay" id="chartOverlay"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel right-panel" id="right-panel">
+    <div class="section-title">■ 분석 결과</div>
+
+    <div class="metrics-area">
+      <div class="metric-card">
+        <div class="metric-label"> ✔ 측정수온 레인지 ΔtlA (℃)</div>
+        <div><span class="metric-value" id="val-dtla">3.9</span><span class="metric-unit">℃</span></div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label"> ✔ 표준설계 입구수온(37℃)일때, 수온레인지 ΔtlB (℃)</div>
+        <div><span class="metric-value" id="val-dtlb">6.1</span><span class="metric-unit">℃</span></div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label"> ✔ 환산수온레인지 tlC (℃)</div>
+        <div><span class="metric-value" id="val-tlc">4.5</span><span class="metric-unit">℃</span></div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">✔ 설계표준냉각능력에 대한 표준냉각능력 (%)</div>
+        <div><span class="metric-value" id="val-perf">90</span><span class="metric-unit">%</span></div>
+      </div>
+    </div>
+
+    <!-- Donut Chart -->
+    <div class="donut-container">
+      <div class="donut-wrapper">
+        <svg class="donut-svg" viewBox="0 0 200 200" id="donutSvg">
+          <circle cx="100" cy="100" r="80" fill="none" stroke="#e8e8e8" stroke-width="24"/>
+          <circle cx="100" cy="100" r="80" fill="none" stroke="#00838f" stroke-width="24"
+            id="donutArc"
+            stroke-dasharray="452.4"
+            stroke-dashoffset="45.24"
+            stroke-linecap="round"
+            style="transition: stroke-dashoffset 0.8s ease, stroke 0.5s ease;"/>
+        </svg>
+        <div class="donut-center-text">
+          <div class="donut-percent" id="donutPercent" style="color:#00838f;">90<span class="donut-percent-unit">%</span></div>
+          <div class="donut-status" id="donutStatus" style="color:#00838f;">양호</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- Copyright -->
+<footer class="footer-copyright">
+    <div class="footer-inner">
+        <span>© 2026 HIMEC (주)하이멕. All rights reserved. Made by 성재호, 최승연, 신동민</span>
+    </div>
+</footer>
+
+<!-- ctper_curveData.js -->
+<script>
+// ========== Chart Curve Data from Excel ==========
+const CURVE_DATA = {"x": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30], "curves": {"C1": [4.85, 4.76, 4.67, 4.57, 4.46, 4.34, 4.22, 4.1, 3.96, 3.82, 3.68, 3.52, 3.36, 3.2, 3.03, 2.85, 2.66, 2.47, 2.28, 2.07, 1.86], "C2": [5.37, 5.27, 5.16, 5.05, 4.93, 4.8, 4.67, 4.53, 4.38, 4.22, 4.06, 3.89, 3.72, 3.54, 3.35, 3.15, 2.95, 2.74, 2.52, 2.3, 2.07], "C3": [5.87, 5.76, 5.64, 5.51, 5.37, 5.23, 5.08, 4.93, 4.76, 4.59, 4.42, 4.23, 4.04, 3.84, 3.63, 3.42, 3.2, 2.97, 2.73, 2.49, 2.24], "C4": [6.36, 6.24, 6.12, 5.98, 5.84, 5.69, 5.53, 5.36, 5.18, 5.0, 4.81, 4.61, 4.4, 4.19, 3.96, 3.73, 3.49, 3.25, 2.99, 2.73, 2.46], "C5": [6.91, 6.78, 6.64, 6.49, 6.33, 6.17, 5.99, 5.81, 5.62, 5.42, 5.21, 4.99, 4.76, 4.52, 4.28, 4.03, 3.76, 3.49, 3.21, 2.92, 2.62], "C6": [7.38, 7.25, 7.1, 6.95, 6.78, 6.61, 6.43, 6.23, 6.03, 5.81, 5.59, 5.36, 5.11, 4.86, 4.6, 4.33, 4.04, 3.75, 3.45, 3.14, 2.82], "C7": [7.91, 7.76, 7.6, 7.43, 7.25, 7.06, 6.85, 6.64, 6.42, 6.19, 5.94, 5.69, 5.43, 5.15, 4.87, 4.57, 4.27, 3.95, 3.62, 3.29, 2.94], "C8": [8.36, 8.21, 8.04, 7.87, 7.68, 7.48, 7.27, 7.05, 6.81, 6.57, 6.31, 6.04, 5.76, 5.47, 5.17, 4.85, 4.52, 4.19, 3.84, 3.48, 3.1], "C9": [8.9, 8.72, 8.54, 8.34, 8.14, 7.92, 7.69, 7.45, 7.2, 6.93, 6.66, 6.38, 6.08, 5.77, 5.46, 5.13, 4.79, 4.44, 4.08, 3.7, 3.32], "C10": [9.37, 9.19, 9.01, 8.81, 8.59, 8.37, 8.13, 7.88, 7.61, 7.34, 7.05, 6.75, 6.43, 6.11, 5.77, 5.42, 5.05, 4.67, 4.29, 3.88, 3.47], "C11": [9.96, 9.76, 9.55, 9.32, 9.09, 8.84, 8.58, 8.31, 8.02, 7.73, 7.42, 7.1, 6.77, 6.43, 6.07, 5.71, 5.33, 4.93, 4.53, 4.12, 3.69], "C12": [10.4, 10.2, 9.99, 9.77, 9.53, 9.28, 9.02, 8.74, 8.45, 8.14, 7.82, 7.49, 7.14, 6.78, 6.4, 6.02, 5.61, 5.2, 4.77, 4.32, 3.86], "C13": [10.85, 10.65, 10.44, 10.22, 9.98, 9.73, 9.46, 9.17, 8.87, 8.56, 8.22, 7.88, 7.52, 7.14, 6.74, 6.34, 5.91, 5.47, 5.02, 4.55, 4.06], "C14": [11.27, 11.09, 10.88, 10.66, 10.42, 10.16, 9.89, 9.6, 9.29, 8.96, 8.62, 8.26, 7.89, 7.49, 7.09, 6.66, 6.21, 5.75, 5.28, 4.78, 4.27], "C15": [11.78, 11.58, 11.37, 11.13, 10.88, 10.61, 10.32, 10.02, 9.7, 9.35, 8.99, 8.62, 8.22, 7.81, 7.38, 6.93, 6.46, 5.97, 5.47, 4.95, 4.41], "C16": [12.45, 12.2, 11.95, 11.67, 11.38, 11.08, 10.76, 10.42, 10.07, 9.7, 9.31, 8.91, 8.49, 8.06, 7.61, 7.15, 6.66, 6.17, 5.65, 5.12, 4.58], "C17": [13.01, 12.76, 12.49, 12.21, 11.91, 11.6, 11.27, 10.92, 10.55, 10.16, 9.76, 9.34, 8.91, 8.45, 7.98, 7.49, 6.99, 6.47, 5.93, 5.37, 4.8]}};
+</script>
+<!-- ctper_chart.js -->
+<script>
+// ========== Chart drawing config ==========
+const CHART = {
+  xMin: 10, xMax: 30,
+  yMin: 1, yMax: 14,
+  padLeft: 50, padRight: 20, padTop: 20, padBottom: 45
+};
+
+// Convert data coordinates to canvas pixel coordinates
+function dataToCanvas(canvas, xVal, yVal) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const plotW = w - CHART.padLeft - CHART.padRight;
+  const plotH = h - CHART.padTop - CHART.padBottom;
+  const px = CHART.padLeft + (xVal - CHART.xMin) / (CHART.xMax - CHART.xMin) * plotW;
+  const py = CHART.padTop + (1 - (yVal - CHART.yMin) / (CHART.yMax - CHART.yMin)) * plotH;
+  return { x: px, y: py };
+}
+
+// Convert data coordinates to % position (for overlay)
+function dataToPercent(xVal, yVal) {
+  const canvas = document.getElementById('chartCanvas');
+  const p = dataToCanvas(canvas, xVal, yVal);
+  return { x: (p.x / canvas.width) * 100, y: (p.y / canvas.height) * 100 };
+}
+
+function drawChart() {
+  const canvas = document.getElementById('chartCanvas');
+  const wrapper = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = wrapper.clientWidth * dpr;
+  canvas.height = wrapper.clientHeight * dpr;
+  canvas.style.width = wrapper.clientWidth + 'px';
+  canvas.style.height = wrapper.clientHeight + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const w = wrapper.clientWidth;
+  const h = wrapper.clientHeight;
+
+  CHART.padLeft = Math.max(40, w * 0.07);
+  CHART.padRight = Math.max(15, w * 0.03);
+  CHART.padTop = Math.max(15, h * 0.04);
+  CHART.padBottom = Math.max(30, h * 0.06);
+
+  const plotW = w - CHART.padLeft - CHART.padRight;
+  const plotH = h - CHART.padTop - CHART.padBottom;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid lines
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 0.5;
+
+  const yTicks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+  ctx.font = '10px Pretendard, sans-serif';
+  ctx.fillStyle = '#666';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  yTicks.forEach(yv => {
+    const py = CHART.padTop + (1 - (yv - CHART.yMin) / (CHART.yMax - CHART.yMin)) * plotH;
+    ctx.beginPath();
+    ctx.moveTo(CHART.padLeft, py);
+    ctx.lineTo(CHART.padLeft + plotW, py);
+    ctx.stroke();
+    ctx.fillText(yv.toString(), CHART.padLeft - 6, py);
+  });
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let xv = 10; xv <= 30; xv += 2) {
+    const px = CHART.padLeft + (xv - CHART.xMin) / (CHART.xMax - CHART.xMin) * plotW;
+    ctx.beginPath();
+    ctx.moveTo(px, CHART.padTop);
+    ctx.lineTo(px, CHART.padTop + plotH);
+    ctx.stroke();
+    ctx.fillText(xv.toString(), px, CHART.padTop + plotH + 6);
+  }
+
+  // Axes
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 1.0;
+  ctx.beginPath();
+  ctx.moveTo(CHART.padLeft, CHART.padTop);
+  ctx.lineTo(CHART.padLeft, CHART.padTop + plotH);
+  ctx.lineTo(CHART.padLeft + plotW, CHART.padTop + plotH);
+  ctx.stroke();
+
+  // Axis titles
+  ctx.fillStyle = '#444';
+  ctx.font = '10px Pretendard, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('습구온도 (℃)', CHART.padLeft + plotW / 2, h - 12);
+
+  ctx.save();
+  ctx.translate(12, CHART.padTop + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillText('수온레인지 ΔtlB (℃)', 0, 0);
+  ctx.restore();
+
+  // Draw curves
+  const curveColor = '#555555';
+  const curveWidth = 0.5;
+  const xArr = CURVE_DATA.x;
+  const curveNames = Object.keys(CURVE_DATA.curves);
+
+  curveNames.forEach((name) => {
+    const yArr = CURVE_DATA.curves[name];
+    ctx.strokeStyle = curveColor;
+    ctx.lineWidth = curveWidth;
+    ctx.beginPath();
+
+    for (let i = 0; i < xArr.length; i++) {
+      const p = dataToCanvas(canvas, xArr[i], yArr[i]);
+      const cx = p.x / (window.devicePixelRatio || 1);
+      const cy = p.y / (window.devicePixelRatio || 1);
+      if (i === 0) {
+        ctx.moveTo(cx, cy);
+      } else {
+        ctx.lineTo(cx, cy);
+      }
+    }
+    ctx.stroke();
+  });
+}
+
+function updateChartOverlay(wbTemp, dtlB, designWb, tlc) {
+  const overlay = document.getElementById('chartOverlay');
+  overlay.innerHTML = '';
+
+  const p1 = dataToPercent(wbTemp, dtlB);
+  const p2 = dataToPercent(designWb, tlc);
+
+  const canvas = document.getElementById('chartCanvas');
+  const dpr = window.devicePixelRatio || 1;
+  const topPct = (CHART.padTop / (canvas.height / dpr)) * 100;
+  const bottomPct = ((canvas.height / dpr - CHART.padBottom) / (canvas.height / dpr)) * 100;
+  const leftPct = (CHART.padLeft / (canvas.width / dpr)) * 100;
+
+  // Red dashed vertical line at design wet-bulb temp
+  const redLine = document.createElement('div');
+  redLine.className = 'chart-dashed-line';
+  redLine.style.left = p2.x + '%';
+  redLine.style.top = topPct + '%';
+  redLine.style.bottom = (100 - bottomPct) + '%';
+  overlay.appendChild(redLine);
+
+  // Guide dashed lines
+  const g1h = document.createElement('div');
+  g1h.style.cssText = 'position:absolute;border-top:0.7px dashed rgba(255,0,0,0.3);pointer-events:none;z-index:3;';
+  g1h.style.top = p1.y + '%';
+  g1h.style.left = leftPct + '%';
+  g1h.style.width = (p1.x - leftPct) + '%';
+  overlay.appendChild(g1h);
+
+  const g1v = document.createElement('div');
+  g1v.style.cssText = 'position:absolute;border-left:0.7px dashed rgba(255,0,0,0.3);pointer-events:none;z-index:3;';
+  g1v.style.left = p1.x + '%';
+  g1v.style.top = p1.y + '%';
+  g1v.style.height = (bottomPct - p1.y) + '%';
+  overlay.appendChild(g1v);
+
+  const g2h = document.createElement('div');
+  g2h.style.cssText = 'position:absolute;border-top:0.7px dashed rgba(0,102,255,0.3);pointer-events:none;z-index:3;';
+  g2h.style.top = p2.y + '%';
+  g2h.style.left = leftPct + '%';
+  g2h.style.width = (p2.x - leftPct) + '%';
+  overlay.appendChild(g2h);
+
+  // Curve-following dashed line from TLB to TLC
+  {
+    const xArr = CURVE_DATA.x;
+    const curveNames = Object.keys(CURVE_DATA.curves);
+
+    function getYatX_overlay(curveName, xVal) {
+      const yArr = CURVE_DATA.curves[curveName];
+      if (xVal <= xArr[0]) return yArr[0];
+      if (xVal >= xArr[xArr.length - 1]) return yArr[yArr.length - 1];
+      for (let i = 0; i < xArr.length - 1; i++) {
+        if (xVal >= xArr[i] && xVal <= xArr[i + 1]) {
+          const t = (xVal - xArr[i]) / (xArr[i + 1] - xArr[i]);
+          return yArr[i] + t * (yArr[i + 1] - yArr[i]);
+        }
+      }
+      return yArr[yArr.length - 1];
+    }
+
+    const yAtWb = curveNames.map(name => getYatX_overlay(name, wbTemp));
+    let lowerIdx = -1, upperIdx = -1;
+
+    if (dtlB <= yAtWb[0]) {
+      lowerIdx = 0; upperIdx = 1;
+    } else if (dtlB >= yAtWb[yAtWb.length - 1]) {
+      lowerIdx = yAtWb.length - 2; upperIdx = yAtWb.length - 1;
+    } else {
+      for (let i = 0; i < yAtWb.length - 1; i++) {
+        if (dtlB >= yAtWb[i] && dtlB <= yAtWb[i + 1]) {
+          lowerIdx = i; upperIdx = i + 1; break;
+        }
+      }
+    }
+
+    if (lowerIdx >= 0 && upperIdx >= 0) {
+      const range = yAtWb[upperIdx] - yAtWb[lowerIdx];
+      const fraction = range !== 0 ? (dtlB - yAtWb[lowerIdx]) / range : 0;
+
+      const numSteps = 40;
+      const xStart = wbTemp;
+      const xEnd = designWb;
+      const pathPoints = [];
+
+      for (let s = 0; s <= numSteps; s++) {
+        const xVal = xStart + (xEnd - xStart) * (s / numSteps);
+        const yLower = getYatX_overlay(curveNames[lowerIdx], xVal);
+        const yUpper = getYatX_overlay(curveNames[upperIdx], xVal);
+        const yVal = yLower + fraction * (yUpper - yLower);
+        const pct = dataToPercent(xVal, yVal);
+        pathPoints.push(pct);
+      }
+
+      const svgNS = 'http://www.w3.org/2000/svg';
+      const svgLine = document.createElementNS(svgNS, 'svg');
+      svgLine.setAttribute('style', 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:6;overflow:visible;');
+      svgLine.setAttribute('viewBox', '0 0 100 100');
+      svgLine.setAttribute('preserveAspectRatio', 'none');
+
+      const defs = document.createElementNS(svgNS, 'defs');
+      const marker = document.createElementNS(svgNS, 'marker');
+      marker.setAttribute('id', 'arrowhead-tlc');
+      marker.setAttribute('markerWidth', '16');
+      marker.setAttribute('markerHeight', '8');
+      marker.setAttribute('refX', '10');
+      marker.setAttribute('refY', '3.5');
+      marker.setAttribute('orient', 'auto');
+      marker.setAttribute('markerUnits', 'strokeWidth');
+      const arrowPath = document.createElementNS(svgNS, 'polygon');
+      arrowPath.setAttribute('points', '0 0, 10 3.5, 0 7');
+      arrowPath.setAttribute('fill', '#00838f');
+      marker.appendChild(arrowPath);
+      defs.appendChild(marker);
+      svgLine.appendChild(defs);
+
+      const pointsStr = pathPoints.map(p => p.x + ',' + p.y).join(' ');
+      const polyline = document.createElementNS(svgNS, 'polyline');
+      polyline.setAttribute('points', pointsStr);
+      polyline.setAttribute('fill', 'none');
+      polyline.setAttribute('stroke', '#00838f');
+      polyline.setAttribute('stroke-width', '1.1');
+      polyline.setAttribute('stroke-dasharray', '5,3');
+      polyline.setAttribute('vector-effect', 'non-scaling-stroke');
+      polyline.setAttribute('marker-end', 'url(#arrowhead-tlc)');
+      svgLine.appendChild(polyline);
+      overlay.appendChild(svgLine);
+    }
+  }
+
+  // Point markers
+  addPoint(overlay, p1.x, p1.y, '#ff0000',
+    '측정: 습구 ' + wbTemp.toFixed(1) + '℃, ΔtlB ' + dtlB.toFixed(1) + '℃');
+  addPoint(overlay, p2.x, p2.y, '#00838f',
+    '환산: 설계습구 ' + designWb.toFixed(0) + '℃, tlC ' + tlc.toFixed(1) + '℃');
+}
+
+function addPoint(overlay, xPct, yPct, color, labelText) {
+  const point = document.createElement('div');
+  point.className = 'chart-point';
+  point.style.left = xPct + '%';
+  point.style.top = yPct + '%';
+  point.style.background = color;
+  point.style.boxShadow = '0 0 8px ' + color + '88';
+
+  const label = document.createElement('div');
+  label.className = 'chart-point-label';
+  label.style.left = xPct + '%';
+  label.style.top = (yPct - 2) + '%';
+  label.textContent = labelText;
+  label.style.display = 'none';
+
+  point.addEventListener('mouseenter', function() { label.style.display = 'block'; });
+  point.addEventListener('mouseleave', function() { label.style.display = 'none'; });
+  point.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    label.style.display = label.style.display === 'none' ? 'block' : 'none';
+  });
+
+  const miniLabel = document.createElement('div');
+  miniLabel.style.cssText = 'position:absolute;left:' + (xPct + 1.5) + '%;top:' + (yPct - 0.5) + '%;font-size:11px;font-weight:700;color:' + color + ';pointer-events:none;white-space:nowrap;z-index:12;text-shadow:1px 1px 2px #fff,-1px -1px 2px #fff,1px -1px 2px #fff,-1px 1px 2px #fff;';
+  const parts = labelText.split(',');
+  miniLabel.textContent = parts[parts.length - 1].trim();
+
+  overlay.appendChild(point);
+  overlay.appendChild(label);
+  overlay.appendChild(miniLabel);
+}
+</script>
+<!-- ctper_calc.js -->
+<script>
+// ========== 습구온도 자동 계산 (Carrier 근사공식) ==========
+function calcWetBulbCarrier(Tdb, RH) {
+  function satVaporPressure(T) {
+    return 0.6105 * Math.exp((17.27 * T) / (T + 237.3));
+  }
+  function humidityRatio(Ps, P) {
+    return 0.62198 * Ps / (P - Ps);
+  }
+  var P = 101.325;
+  var Ps_db = satVaporPressure(Tdb);
+  var Pw = (RH / 100.0) * Ps_db;
+  var W = 0.62198 * Pw / (P - Pw);
+
+  var Tw = Tdb * Math.atan(0.151977 * Math.sqrt(RH + 8.313659))
+         + Math.atan(Tdb + RH) - Math.atan(RH - 1.676331)
+         + 0.00391838 * Math.pow(RH, 1.5) * Math.atan(0.023101 * RH)
+         - 4.686035;
+
+  for (var iter = 0; iter < 50; iter++) {
+    var Ps_w = satVaporPressure(Tw);
+    var Ws_w = humidityRatio(Ps_w, P);
+    var W_calc = ((2501 - 2.326 * Tw) * Ws_w - 1.006 * (Tdb - Tw)) / (2501 + 1.86 * Tdb - 4.186 * Tw);
+    var err = W_calc - W;
+    if (Math.abs(err) < 1e-6) break;
+    var dTw = 0.01;
+    var Ps_w2 = satVaporPressure(Tw + dTw);
+    var Ws_w2 = humidityRatio(Ps_w2, P);
+    var W_calc2 = ((2501 - 2.326 * (Tw + dTw)) * Ws_w2 - 1.006 * (Tdb - (Tw + dTw))) / (2501 + 1.86 * Tdb - 4.186 * (Tw + dTw));
+    var dErr = (W_calc2 - W - err) / dTw;
+    if (Math.abs(dErr) < 1e-12) break;
+    Tw = Tw - err / dErr;
+  }
+  return Math.round(Tw * 10) / 10;
+}
+
+// ========== TLC Auto Calculation ==========
+function calcTLC(wb, dtlB, designWb) {
+  const xArr = CURVE_DATA.x;
+  const curveNames = Object.keys(CURVE_DATA.curves);
+
+  function getYatX(curveName, xVal) {
+    const yArr = CURVE_DATA.curves[curveName];
+    if (xVal <= xArr[0]) return yArr[0];
+    if (xVal >= xArr[xArr.length - 1]) return yArr[yArr.length - 1];
+    for (let i = 0; i < xArr.length - 1; i++) {
+      if (xVal >= xArr[i] && xVal <= xArr[i + 1]) {
+        const t = (xVal - xArr[i]) / (xArr[i + 1] - xArr[i]);
+        return yArr[i] + t * (yArr[i + 1] - yArr[i]);
+      }
+    }
+    return yArr[yArr.length - 1];
+  }
+
+  const yAtWb = curveNames.map(name => getYatX(name, wb));
+  let lowerIdx = -1;
+  let upperIdx = -1;
+
+  if (dtlB <= yAtWb[0]) {
+    lowerIdx = 0; upperIdx = 1;
+  } else if (dtlB >= yAtWb[yAtWb.length - 1]) {
+    lowerIdx = yAtWb.length - 2; upperIdx = yAtWb.length - 1;
+  } else {
+    for (let i = 0; i < yAtWb.length - 1; i++) {
+      if (dtlB >= yAtWb[i] && dtlB <= yAtWb[i + 1]) {
+        lowerIdx = i; upperIdx = i + 1; break;
+      }
+    }
+  }
+
+  if (lowerIdx < 0 || upperIdx < 0) return dtlB;
+
+  const range = yAtWb[upperIdx] - yAtWb[lowerIdx];
+  const fraction = range !== 0 ? (dtlB - yAtWb[lowerIdx]) / range : 0;
+
+  const yLowerAtDesign = getYatX(curveNames[lowerIdx], designWb);
+  const yUpperAtDesign = getYatX(curveNames[upperIdx], designWb);
+
+  const tlc = yLowerAtDesign + fraction * (yUpperAtDesign - yLowerAtDesign);
+  return Math.round(tlc * 100) / 100;
+}
+
+// ========== Main recalc ==========
+function recalc() {
+  const designWb = parseFloat(document.getElementById('inp-design-wb').value) || 27;
+  const designIn = parseFloat(document.getElementById('inp-design-in').value) || 37;
+  const designOut = parseFloat(document.getElementById('inp-design-out').value) || 32;
+  const outTemp = parseFloat(document.getElementById('inp-out-temp').value) || 27.8;
+  const rh = parseFloat(document.getElementById('inp-rh').value) || 59;
+  const wb = calcWetBulbCarrier(outTemp, rh);
+  document.getElementById('inp-wb').value = wb.toFixed(1);
+  const cwIn = parseFloat(document.getElementById('inp-cw-in').value) || 32.2;
+  const cwOut = parseFloat(document.getElementById('inp-cw-out').value) || 28.3;
+
+  const dtlA = cwIn - cwOut;
+  const N = wb;
+  const O = cwIn;
+  const M = dtlA;
+  const dtlB = M * (1 + ((O - N + 45 - M) / (45 * (O - N) - (M * M) / 3)) * (37 - O));
+
+  const tlc = calcTLC(wb, dtlB, designWb);
+  document.getElementById('inp-tlc').value = tlc.toFixed(1);
+
+  const designRange = designIn - designOut;
+  const perf = designRange > 0 ? (tlc / designRange) * 100 : 0;
+
+  document.getElementById('val-dtla').textContent = dtlA.toFixed(1);
+  document.getElementById('val-dtlb').textContent = dtlB.toFixed(1);
+  document.getElementById('val-tlc').textContent = tlc.toFixed(1);
+  document.getElementById('val-perf').textContent = Math.round(perf);
+
+  updateDonut(perf);
+  updateBarChart(designIn, cwIn, designOut, cwOut);
+
+  drawChart();
+  updateChartOverlay(wb, dtlB, designWb, tlc);
+}
+
+function updateDonut(perf) {
+  const circumference = 2 * Math.PI * 80;
+  const offset = circumference * (1 - perf / 100);
+  const arc = document.getElementById('donutArc');
+  arc.setAttribute('stroke-dasharray', circumference.toFixed(1));
+  arc.setAttribute('stroke-dashoffset', offset.toFixed(1));
+
+  let color, status;
+  if (perf >= 80) { color = '#00838f'; status = '양호'; }
+  else if (perf >= 60) { color = '#ff8c00'; status = '보통'; }
+  else { color = '#ff3333'; status = '불량'; }
+
+  arc.setAttribute('stroke', color);
+  document.getElementById('donutPercent').style.color = color;
+  document.getElementById('donutPercent').innerHTML = Math.round(perf) + '<span class="donut-percent-unit">%</span>';
+  document.getElementById('donutStatus').style.color = color;
+  document.getElementById('donutStatus').textContent = status;
+}
+
+function updateBarChart(dIn, mIn, dOut, mOut) {
+  const maxVal = 45;
+  const scale = (v) => (v / maxVal) * 100;
+
+  document.getElementById('bar-design-in').style.height = scale(dIn) + '%';
+  document.getElementById('bar-measure-in').style.height = scale(mIn) + '%';
+  document.getElementById('bar-design-out').style.height = scale(dOut) + '%';
+  document.getElementById('bar-measure-out').style.height = scale(mOut) + '%';
+
+  document.getElementById('bv-din').textContent = dIn + '℃';
+  document.getElementById('bv-min').textContent = mIn + '℃';
+  document.getElementById('bv-dout').textContent = dOut + '℃';
+  document.getElementById('bv-mout').textContent = mOut + '℃';
+}
+</script>
+<!-- ctper_tabs.js -->
+<script>
+// ========== Equipment Data Store ==========
+let tabCount = 1;
+let activeTab = 1;
+let nextTabId = 2;
+
+const FIELD_IDS = [
+  'inp-name', 'inp-no', 'inp-use',
+  'inp-design-wb', 'inp-design-in', 'inp-design-out',
+  'inp-out-temp', 'inp-rh',
+  'inp-cw-in', 'inp-cw-out'
+];
+
+const DEFAULT_VALUES = {
+  'inp-name': 'P-8', 'inp-no': '#1', 'inp-use': '신설 O용',
+  'inp-design-wb': '27', 'inp-design-in': '37', 'inp-design-out': '32',
+  'inp-out-temp': '27.8', 'inp-rh': '59',
+  'inp-cw-in': '32.2', 'inp-cw-out': '28.3'
+};
+
+const EMPTY_VALUES = {};
+FIELD_IDS.forEach(id => { EMPTY_VALUES[id] = ''; });
+
+const equipStore = {};
+
+function initStore() {
+  equipStore[1] = {};
+  FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    equipStore[1][id] = el ? el.value : (DEFAULT_VALUES[id] || '');
+  });
+}
+
+function saveCurrentTab() {
+  if (!equipStore[activeTab]) equipStore[activeTab] = {};
+  FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) equipStore[activeTab][id] = el.value;
+  });
+}
+
+function loadTab(tabId) {
+  const data = equipStore[tabId] || EMPTY_VALUES;
+  FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.value = data[id] || '';
+      if (!data[id] || data[id] === '') {
+        el.placeholder = '입력하세요';
+      } else {
+        el.placeholder = '';
+      }
+    }
+  });
+}
+
+function updateTabName() {
+  const name = document.getElementById('inp-name').value || '장비';
+  const no = document.getElementById('inp-no').value || '#' + activeTab;
+  const tabBtn = document.getElementById('tab-' + activeTab);
+  if (tabBtn) {
+    const closeBtn = tabBtn.querySelector('.tab-close');
+    tabBtn.textContent = name + ' ' + no;
+    if (closeBtn) tabBtn.appendChild(closeBtn);
+  }
+}
+
+function switchTab(tabId) {
+  if (tabId === activeTab) return;
+  saveCurrentTab();
+  updateTabName();
+
+  document.querySelectorAll('.tab:not(.add)').forEach(t => t.classList.remove('active'));
+  const targetBtn = document.getElementById('tab-' + tabId);
+  if (targetBtn) targetBtn.classList.add('active');
+
+  activeTab = tabId;
+  loadTab(tabId);
+  recalc();
+}
+
+function addTab() {
+  saveCurrentTab();
+  updateTabName();
+
+  const newId = nextTabId++;
+  tabCount++;
+
+  equipStore[newId] = {};
+  FIELD_IDS.forEach(id => { equipStore[newId][id] = ''; });
+
+  const btn = document.createElement('button');
+  btn.className = 'tab';
+  btn.id = 'tab-' + newId;
+  btn.textContent = '장비 #' + tabCount;
+  btn.onclick = function() { switchTab(newId); };
+
+  const closeSpan = document.createElement('span');
+  closeSpan.className = 'tab-close';
+  closeSpan.textContent = '✕';
+  closeSpan.onclick = function(e) { e.stopPropagation(); removeTab(newId); };
+  btn.appendChild(closeSpan);
+
+  const tabBar = document.querySelector('.tab-bar');
+  tabBar.insertBefore(btn, tabBar.lastElementChild);
+
+  document.querySelectorAll('.tab:not(.add)').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+
+  activeTab = newId;
+  loadTab(newId);
+  recalc();
+}
+
+function removeTab(tabId) {
+  const tabs = document.querySelectorAll('.tab:not(.add)');
+  if (tabs.length <= 1) {
+    alert('최소 1개의 장비는 유지해야 합니다.');
+    return;
+  }
+
+  const tabBtn = document.getElementById('tab-' + tabId);
+  const tabName = tabBtn ? tabBtn.textContent.replace('✕', '').trim() : '장비';
+  if (!confirm('"' + tabName + '" 장비를 삭제하시겠습니까?')) return;
+
+  if (tabBtn) tabBtn.remove();
+  delete equipStore[tabId];
+
+  if (activeTab === tabId) {
+    const remaining = document.querySelectorAll('.tab:not(.add)');
+    if (remaining.length > 0) {
+      const firstTab = remaining[0];
+      const firstId = parseInt(firstTab.id.replace('tab-', ''));
+      firstTab.classList.add('active');
+      activeTab = firstId;
+      loadTab(firstId);
+      recalc();
+    }
+  }
+}
+</script>
+<!-- ctper_storage.js -->
+<script>
+// ========== URL Parameters ==========
+const _urlParams = new URLSearchParams(window.location.search);
+const _projectId = _urlParams.get('projectId') || '';
+const _projectName = _urlParams.get('projectName') || '';
+
+// localStorage 키
+function _getStorageKey() {
+  return _projectId ? 'ctper_' + _projectId : '';
+}
+
+// 프로젝트명 헤더에 표시
+function _showProjectLabel() {
+  const el = document.getElementById('projectLabel');
+  if (el && _projectName) {
+    el.textContent = '[' + decodeURIComponent(_projectName) + '] ';
+  }
+}
+
+// ===== 토스트 알림 =====
+function _showToast(message, type) {
+  let toast = document.getElementById('saveToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'saveToast';
+    toast.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);padding:10px 28px;border-radius:8px;color:#fff;font-size:14px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.style.background = type === 'success' ? '#27ae60' :
+                            type === 'warn' ? '#f39c12' : '#e74c3c';
+  toast.style.opacity = '1';
+  setTimeout(function() { toast.style.opacity = '0'; }, 2500);
+}
+
+// ===== Save 버튼 플래시 =====
+function _flashSaveButton() {
+  const btn = document.getElementById('btnSave');
+  if (!btn) return;
+  btn.textContent = 'Saved!';
+  btn.classList.add('saved');
+  setTimeout(function() {
+    btn.classList.remove('saved');
+    btn.textContent = 'Save';
+  }, 1200);
+}
+
+// ===== 프로젝트별 데이터 저장 (localStorage) =====
+function saveData() {
+  saveCurrentTab();
+  updateTabName();
+
+  if (!_projectId) {
+    _showToast('프로젝트 정보가 없습니다. 대시보드에서 프로젝트를 선택해주세요.', 'warn');
+    return;
+  }
+
+  var tabMeta = [];
+  document.querySelectorAll('.tab:not(.add)').forEach(function(btn) {
+    var tid = parseInt(btn.id.replace('tab-', ''));
+    tabMeta.push({
+      id: tid,
+      label: btn.textContent.replace('✕', '').trim()
+    });
+  });
+
+  var payload = {
+    projectId: _projectId,
+    projectName: decodeURIComponent(_projectName),
+    savedAt: new Date().toISOString(),
+    equipStore: equipStore,
+    tabMeta: tabMeta,
+    activeTab: activeTab,
+    nextTabId: nextTabId,
+    tabCount: tabCount
+  };
+
+  try {
+    localStorage.setItem(_getStorageKey(), JSON.stringify(payload));
+    _showToast('저장되었습니다.', 'success');
+    _flashSaveButton();
+  } catch (e) {
+    _showToast('저장 실패: ' + e.message, 'error');
+  }
+}
+
+// ===== 프로젝트별 데이터 로드 (localStorage) =====
+function _loadProjectData() {
+  var key = _getStorageKey();
+  if (!key) return false;
+
+  try {
+    var raw = localStorage.getItem(key);
+    if (!raw) return false;
+
+    var payload = JSON.parse(raw);
+    if (!payload || !payload.equipStore) return false;
+
+    // equipStore 복원
+    Object.keys(payload.equipStore).forEach(function(tid) {
+      equipStore[tid] = payload.equipStore[tid];
+    });
+
+    nextTabId = payload.nextTabId || 2;
+    tabCount = payload.tabCount || 1;
+
+    // 기존 탭 버튼 제거 & 재생성
+    var tabBar = document.querySelector('.tab-bar');
+    document.querySelectorAll('.tab:not(.add)').forEach(function(btn) { btn.remove(); });
+
+    var addBtn = tabBar.querySelector('.tab.add');
+    payload.tabMeta.forEach(function(meta) {
+      var btn = document.createElement('button');
+      btn.className = 'tab';
+      btn.id = 'tab-' + meta.id;
+      btn.textContent = meta.label;
+      btn.onclick = function() { switchTab(meta.id); };
+
+      var closeSpan = document.createElement('span');
+      closeSpan.className = 'tab-close';
+      closeSpan.textContent = '✕';
+      closeSpan.onclick = function(e) { e.stopPropagation(); removeTab(meta.id); };
+      btn.appendChild(closeSpan);
+
+      tabBar.insertBefore(btn, addBtn);
+    });
+
+    activeTab = payload.activeTab || (payload.tabMeta.length > 0 ? payload.tabMeta[0].id : 1);
+    var activeBtn = document.getElementById('tab-' + activeTab);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    loadTab(activeTab);
+    return true;
+  } catch (e) {
+    console.warn('프로젝트 데이터 로드 실패:', e);
+    return false;
+  }
+}
+
+// ===== File Trans =====
+function exportFile() {
+  alert('파일 변환 기능');
+}
+
+// ===== Main 화면 이동 =====
+function GoMain(){ if(window.STD){ STD.goMain((typeof saveData==='function')?saveData:null); } else { window.location.href='../dashboard.html'; } }
+
+// ===== Ctrl+S / Cmd+S 단축키 저장 =====
+window.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveData();
+  }
+});
+
+// ===== 초기화 =====
+window.addEventListener('DOMContentLoaded', function() {
+  _showProjectLabel();
+  initStore();
+
+  if (_projectId) {
+    _loadProjectData();
+  }
+
+  recalc();
+});
+
+// 창 크기 변경 시 차트 다시 그리기
+window.addEventListener('resize', function() {
+  recalc();
+});
+</script>
+<script>window.__STD_TOOL='203';</script>
+<script>
+/* ============================================================
+   STD Storage  —  표준 저장 모듈 v1 (전 도구 공통)
+   방식: localStorage 우선 + GitHub 동기화(가능 시)
+        + beforeunload 백업 + 저장 후 이동(GoMain)
+   ============================================================ */
+(function(){
+  if (window.STD) return;                         // 중복 주입 방지
+  var TOOL = window.__STD_TOOL || 'tool';
+  function qp(k){ return new URLSearchParams(location.search).get(k) || ''; }
+  function pid(){ return qp('projectId') || qp('project') || qp('id') || ''; }
+  function pname(){ return qp('projectName') || qp('name') || ''; }
+  function lsKey(){ var id=pid(); return 'std_'+TOOL+'_'+(id||'standalone'); }
+  function ghPath(){ var id=pid(); return id ? ('data/'+TOOL+'/'+id+'.json') : null; }
+
+  function genericData(){
+    var o={__std:true, t:Date.now(), fields:{}};
+    document.querySelectorAll('input[id],select[id],textarea[id]').forEach(function(el){
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='button'||ty==='submit'||ty==='reset'||ty==='file') return;
+      o.fields[el.id]=(ty==='checkbox'||ty==='radio') ? el.checked : el.value;
+    });
+    return o;
+  }
+  function genericRestore(o){
+    if(!o||!o.fields) return;
+    Object.keys(o.fields).forEach(function(id){
+      var el=document.getElementById(id); if(!el) return;
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='checkbox'||ty==='radio') el.checked=!!o.fields[id];
+      else el.value=o.fields[id];
+      try{ el.dispatchEvent(new Event('input',{bubbles:true}));
+           el.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){}
+    });
+  }
+  function lsSave(){
+    try{ localStorage.setItem(lsKey(), JSON.stringify(genericData())); return true; }
+    catch(e){ console.warn('[STD] LS save fail', e); return false; }
+  }
+  function lsLoad(){
+    try{ var r=localStorage.getItem(lsKey()); return r? JSON.parse(r):null; }catch(e){ return null; }
+  }
+  function ghSync(){
+    var p=ghPath();
+    if(p && typeof window.ghSaveFile==='function'){
+      return Promise.resolve(window.ghSaveFile(p, genericData(), 'STD save '+TOOL+' '+pid()))
+        .then(function(){ return true; })
+        .catch(function(e){ console.warn('[STD] GH save fail', e); return false; });
+    }
+    return Promise.resolve(null);                 // GitHub 미사용 페이지
+  }
+  function toast(msg, type){
+    if(typeof window._showToast==='function'){ try{ window._showToast(msg, type||'success'); return; }catch(e){} }
+    if(typeof window.showToast==='function'){ try{ window.showToast(msg, type||'success'); return; }catch(e){} }
+    var el=document.getElementById('__stdToast');
+    if(!el){ el=document.createElement('div'); el.id='__stdToast';
+      el.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;opacity:0;transition:opacity .2s';
+      document.body.appendChild(el); }
+    el.textContent=msg; el.style.opacity='1';
+    clearTimeout(el.__t); el.__t=setTimeout(function(){ el.style.opacity='0'; }, 1800);
+  }
+
+  var dirty=false;
+  document.addEventListener('input', function(){ dirty=true; }, true);
+  document.addEventListener('change', function(){ dirty=true; }, true);
+
+  function save(pageSaver, opts){
+    opts=opts||{};
+    lsSave();                                     // 1) 항상 localStorage 백업
+    var hasPage=(typeof pageSaver==='function');
+    if(hasPage){                                  // 2a) 리치 저장(페이지 고유 LS+GitHub)
+      return Promise.resolve().then(pageSaver).then(function(){ dirty=false; return {page:true}; })
+        .catch(function(e){ console.warn('[STD] pageSaver fail', e); dirty=false; return {page:false}; });
+    }
+    return ghSync().then(function(gh){             // 2b) 제네릭 GitHub 동기화(가능 시)
+      dirty=false;
+      if(!opts.silent) toast(gh===false?'로컬에 저장되었습니다 (클라우드 동기화 실패)':'저장되었습니다.', gh===false?'warn':'success');
+      return {gh:gh};
+    });
+  }
+  function load(pageLoader){
+    if(typeof pageLoader==='function'){ try{ return pageLoader(); }catch(e){ console.warn('[STD] pageLoader fail', e); } }
+    var o=lsLoad(); if(o) genericRestore(o); dirty=false; return o;
+  }
+  function goMain(pageSaver){
+    var url=(typeof window.dashboardUrl!=='undefined' && window.dashboardUrl) ? window.dashboardUrl : '../dashboard.html';
+    Promise.resolve(save(pageSaver, {silent:true})).then(function(){ location.href=url; }, function(){ location.href=url; });
+  }
+  window.addEventListener('beforeunload', function(){ try{ lsSave(); }catch(e){} });
+
+  window.STD={ save:save, load:load, goMain:goMain, lsSave:lsSave, lsLoad:lsLoad,
+               genericData:genericData, genericRestore:genericRestore,
+               projectId:pid, projectName:pname, key:lsKey, ghPath:ghPath, isDirty:function(){return dirty;} };
+})();
+</script>
+</body>
+</html>

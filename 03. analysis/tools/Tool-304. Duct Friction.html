@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/himec-supabase-sync.js"></script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIMEC - Duct Friction Loss Analysis Tool</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    font-family: 'Noto Sans KR', Pretendard, sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+  body { display: flex; flex-direction: column; }
+
+  .page-container {
+    padding: 0 100px; background: #fff;
+    flex: 1; display: flex; flex-direction: column;
+    overflow: hidden; min-height: 0;
+  }
+
+  /* Header */
+  .header {
+    background: #fff; padding: 8px 20px; border-bottom: 1px solid #ddd;
+    flex-shrink: 0; margin-left: -100px; margin-right: -100px;
+    padding-left: 120px; padding-right: 120px;
+  }
+  .header h1 { font-size: 20px; font-weight: 700; color: #222; }
+  .header .sub { font-size: 11px; color: #888; margin-top: 2px; }
+  .header h2 { font-size: 15px; font-weight: 600; color: #333; margin-top: 4px; }
+  .header-right { position: absolute; bottom: 8px; right: 20px; display: flex; gap: 8px; }
+  .header-right button {
+    padding: 8px 0; width: 90px; border: none; border-radius: 4px;
+    font-size: 10px; font-weight: 600; cursor: pointer; text-align: center;
+  }
+  .btn-save { background: #e85d24; color: #fff; }
+  .btn-file { background: #e85d24; color: #fff; }
+  .btn-main { background: #555; color: #fff; }
+  .btn-save:hover, .btn-file:hover, .btn-main:hover { opacity: 0.85; }
+
+  /* Tabs */
+  .tab-bar { display: flex; padding: 4px 20px 0; background: #fff; gap: 4px; flex-shrink: 0; }
+  .tab {
+    padding: 5px 20px; border-radius: 6px 6px 0 0; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: none; background: #bbb; color: #fff;
+  }
+  .tab.active { background: #00838f; color: #fff; }
+  .tab.add { background: #999; color: #fff; font-size: 14px; padding: 5px 16px; }
+
+  /* Main 3-column layout */
+  .main {
+    display: grid; grid-template-columns: 1fr 1.1fr 0.9fr; gap: 0; padding: 0;
+    flex: 1; min-height: 0; overflow: hidden;
+  }
+  .panel {
+    background: #fff; border: 1px solid transparent; padding: 10px;
+    display: flex; flex-direction: column; overflow: hidden; min-height: 0;
+  }
+
+  .section-title { font-size: 12px; font-weight: 700; margin-bottom: 4px; color: #222; flex-shrink: 0; }
+
+  .info-table {
+    width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed;
+    margin-bottom: 6px; font-size: 10px; flex-shrink: 0;
+  }
+  .info-table th, .info-table td {
+    border: 1px solid #ffffff; padding: 6px 5px; border-bottom: 1.5px solid #ccc; text-align: center;
+  }
+  .info-table th { background: #ccc; color: #555; font-weight: 600; font-size: 11px; }
+  .info-table tr:first-child th:first-child { border-top-left-radius: 8px; }
+  .info-table tr:first-child th:last-child { border-top-right-radius: 8px; }
+  .info-table td { background: #fff; padding: 6px 4px; }
+
+  .value-unit { display: inline-flex; align-items: center; justify-content: center; gap: 2px; }
+  .value-unit input { text-align: right; padding-right: 2px; }
+  .value-unit .unit { font-size: 11px; color: #333; white-space: nowrap; }
+
+  .info-table input {
+    width: 100%; border: none; text-align: center; font-size: 12px;
+    background: transparent; outline: none; padding: 4px 2px;
+  }
+  .info-table input::placeholder { color: #aaa; font-style: italic; font-size: 10px; }
+  .info-table select {
+    width: 100%; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;
+    padding: 5px 4px; background: #fff; outline: none; cursor: pointer; color: #00838f; font-weight: 600;
+  }
+
+  /* Display layers */
+  .layer-box { margin-top: 6px; flex-shrink: 0; }
+  .layer-item {
+    display: flex; align-items: center; gap: 7px; font-size: 11px; color: #333;
+    padding: 4px 2px; cursor: pointer;
+  }
+  .layer-item input { width: 15px; height: 15px; accent-color: #00838f; cursor: pointer; }
+
+  /* Source box */
+  .source-box {
+    margin-top: auto; flex-shrink: 0; border-top: 1px solid #e5e5e5; padding-top: 8px;
+    font-size: 9.5px; color: #777; line-height: 1.55;
+  }
+  .source-box .src-title { font-size: 11px; font-weight: 700; color: #444; margin-bottom: 4px; }
+  .source-box .src-sub { font-weight: 700; color: #555; margin-top: 4px; }
+
+  /* Center Panel - Chart */
+  .center-panel { position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .chart-wrapper { flex: 1; position: relative; overflow: hidden; min-height: 0; }
+  #cvwrap {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  #cv { display: block; }
+
+  /* Right Panel */
+  .right-panel { display: flex; flex-direction: column; gap: 0; }
+  .metrics-area { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+  .metric-card {
+    background: transparent; border: none; border-bottom: 1.5px solid #ccc; border-radius: 5px;
+    padding: 16px 10px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+  }
+  .metric-label { font-size: 11px; color: #00838f; flex: 1; line-height: 1.25; font-weight: bold; }
+  .metric-label sup { font-size: 8px; color: #ff8c00; }
+  .metric-value { font-size: 26px; font-weight: 700; color: #ff8c00; min-width: 45px; text-align: right; }
+  .metric-unit { font-size: 12px; color: #888; margin-left: 2px; vertical-align: super; }
+  .metric-note { font-size: 9px; color: #999; margin: 2px 2px 0; line-height: 1.45; flex-shrink: 0; }
+
+  /* Bottom shape area */
+  .shape-container {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 6px; min-height: 60px; overflow: hidden;
+  }
+  .shape-stage {
+    flex: 1; width: 100%; display: flex; align-items: center; justify-content: center;
+    position: relative; min-height: 0;
+  }
+  .dim-tag { font-size: 13px; font-weight: 700; color: #00838f; }
+  .dim-sub { font-size: 10px; color: #888; font-weight: 600; }
+  .vel-tag { margin-top: 6px; font-size: 13px; font-weight: 700; color: #ff8c00; }
+  .empty-hint { font-size: 11px; color: #bbb; }
+
+  /* Copyright footer */
+  .copyright {
+    background: #fff; border-top: 1px solid #ddd; padding: 6px 20px;
+    margin-left: -100px; margin-right: -100px; padding-left: 120px; padding-right: 120px;
+    text-align: center; font-size: 10px; color: #888; flex-shrink: 0;
+  }
+
+  /* Responsive */
+  @media (max-width: 1600px) {
+    .page-container { padding: 0 60px; }
+    .header { margin-left: -60px; margin-right: -60px; padding-left: 80px; padding-right: 80px; }
+    .copyright { padding: 6px 80px; margin-left: -60px; margin-right: -60px; }
+  }
+  @media (max-width: 1300px) {
+    .page-container { padding: 0 30px; }
+    .header { margin-left: -30px; margin-right: -30px; padding-left: 50px; padding-right: 50px; }
+    .copyright { padding: 6px 50px; margin-left: -30px; margin-right: -30px; }
+  }
+  @media (max-width: 1100px) {
+    .page-container { padding: 0 15px; }
+    .header { margin-left: -15px; margin-right: -15px; padding-left: 35px; padding-right: 35px; }
+    .copyright { padding: 6px 35px; margin-left: -15px; margin-right: -15px; }
+    .main { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+    .center-panel { grid-column: 1 / -1; grid-row: 1; }
+  }
+  @media (max-width: 700px) {
+    .page-container { padding: 0 10px; }
+    .header { margin-left: -10px; margin-right: -10px; padding-left: 30px; padding-right: 30px; }
+    .copyright { padding: 6px 30px; margin-left: -10px; margin-right: -10px; }
+    .main { grid-template-columns: 1fr; }
+    .center-panel { grid-column: 1; }
+  }
+  @media (orientation: landscape) and (min-width: 1100px) {
+    .main { grid-template-columns: 1fr 1.1fr 0.9fr; }
+  }
+
+  /* Tab close button */
+  .tab { position: relative; padding-right: 28px !important; }
+  .tab .tab-close {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px; border-radius: 50%; border: none; background: transparent;
+    color: rgba(255,255,255,0.7); font-size: 13px; line-height: 16px; text-align: center; cursor: pointer; padding: 0;
+  }
+  .tab .tab-close:hover { background: rgba(255,0,0,0.6); color: #fff; }
+  .tab.add { padding-right: 16px !important; }
+
+  #left-panel .info-table th:first-child,
+  #left-panel .info-table td:first-child { border-left-color: transparent; }
+  #left-panel .info-table th:last-child,
+  #left-panel .info-table td:last-child { border-right-color: transparent; }
+</style>
+</head>
+<body>
+
+<div class="page-container">
+<!-- Header -->
+<div class="header" style="position:relative;">
+  <h1>HIMEC &minus; Mechanical Facility Aging Diagnosis System</h1>
+  <div class="sub">(주)하이멕 &minus; 기계설비 노후화 진단</div>
+  <h2>Duct Friction Loss Analysis Tool</h2>
+  <div class="header-right">
+    <button class="btn-save" onclick="saveData()">Save</button>
+    <button class="btn-file" onclick="exportFile()">File Trans</button>
+    <button class="btn-main" onclick="GoMain()">Main</button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+  <button class="tab active" id="tab-1" onclick="switchTab(1)">P-8 #1<span class="tab-close" onclick="event.stopPropagation();removeTab(1)">&#10005;</span></button>
+  <button class="tab add" onclick="addTab()">+</button>
+</div>
+
+<!-- Main Layout -->
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <div class="panel" id="left-panel">
+    <div class="section-title">&#9632; 장비 개요</div>
+    <table class="info-table">
+      <tr><th>장비명</th><th>풍량</th><th>마찰손실</th></tr>
+      <tr>
+        <td><input id="inp-name" value="P-8" onchange="recalc()"></td>
+        <td><span class="value-unit"><input id="inp-q" type="number" step="any" value="3000" placeholder="예: 3000" oninput="recalc()"><span class="unit">CMH</span></span></td>
+        <td><span class="value-unit"><input id="inp-r" type="number" step="any" value="1.0" placeholder="예: 1.0" oninput="recalc()"><span class="unit">Pa/m</span></span></td>
+      </tr>
+    </table>
+
+    <table class="info-table">
+      <tr><th style="width:38%;">덕트 형상</th><th colspan="2">형상 선택</th></tr>
+      <tr>
+        <td style="color:#555;font-weight:600;font-size:11px;">덕트 형상</td>
+        <td colspan="2">
+          <select id="inp-shape" onchange="onShapeChange()">
+            <option value="circle">원형 덕트</option>
+            <option value="rect">사각 덕트</option>
+          </select>
+        </td>
+      </tr>
+    </table>
+
+    <table class="info-table" id="aspect-row" style="display:none;">
+      <tr><th>형상비 (단변 : 장변)</th><th>단변</th><th>장변</th></tr>
+      <tr>
+        <td style="color:#555;font-weight:600;font-size:11px;">1 : <span id="aspect-disp">2</span></td>
+        <td style="font-weight:700;color:#00838f;">1</td>
+        <td><span class="value-unit"><input id="inp-aspect" type="number" step="0.1" min="1" value="2" oninput="recalc()"></span></td>
+      </tr>
+    </table>
+
+    <!-- Display layers -->
+    <div class="layer-box">
+      <div class="section-title" style="margin-top:6px;">표시 레이어</div>
+      <label class="layer-item"><input type="checkbox" id="layer-dia" checked onchange="draw()"> 등직경선 &Oslash;100~2000mm</label>
+      <label class="layer-item"><input type="checkbox" id="layer-vel" checked onchange="draw()"> 등풍속선 1~20 m/s</label>
+      <label class="layer-item"><input type="checkbox" id="layer-band" checked onchange="draw()"> 권장 설계대역 0.8~1.2 Pa/m</label>
+    </div>
+
+    <!-- Calculation basis & source -->
+    <div class="source-box">
+      <div class="src-title">계산 기준 &amp; 출처</div>
+      &#8226; Darcy&ndash;Weisbach: &Delta;P=&lambda;&middot;(L/d)&middot;(&rho;V&sup2;/2)<br>
+      &#8226; 마찰계수 &lambda;: Colebrook&ndash;White 반복식<br>
+      &#8226; 상당직경(De): Huebscher 1.30&middot;(ab)^0.625/(a+b)^0.25<br>
+      &#8226; 물성: &rho;=1.204 kg/m&sup3;, &nu;=1.51&times;10&#8315;&#8309; m&sup2;/s, &epsilon;=0.09mm (아연도금)
+      <div class="src-sub">출처</div>
+      &ndash; ASHRAE Handbook&ndash;Fundamentals, Ch.21 Duct Design<br>
+      &ndash; 日本 SHASE-S / 空気調和&middot;衛生工学便覧 (등마찰법)<br>
+      &ndash; EN 16798-3 / EN 13779
+    </div>
+  </div>
+
+  <!-- CENTER PANEL - Chart -->
+  <div class="panel center-panel" id="center-panel">
+    <div class="section-title">&#9632; 덕트 마찰 손실 차트</div>
+    <div class="chart-wrapper" id="chartWrapper">
+      <div id="cvwrap"><canvas id="cv"></canvas></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel right-panel" id="right-panel">
+    <div class="section-title">&#9632; 분석 결과</div>
+
+    <!-- 원형 metrics -->
+    <div class="metrics-area" id="metrics-circle">
+      <div class="metric-card">
+        <div class="metric-label">&#10004; 원형 덕트 지름</div>
+        <div><span class="metric-value" id="val-cdia">&ndash;</span><span class="metric-unit">mm</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">&#10004; 풍속</div>
+        <div><span class="metric-value" id="val-cvel">&ndash;</span><span class="metric-unit">m/s</span></div>
+      </div>
+    </div>
+
+    <!-- 사각 metrics -->
+    <div class="metrics-area" id="metrics-rect" style="display:none;">
+      <div class="metric-card">
+        <div class="metric-label">&#10004; 단변 길이 <sup>1)</sup></div>
+        <div><span class="metric-value" id="val-rshort">&ndash;</span><span class="metric-unit">mm</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">&#10004; 장변 길이 <sup>1)</sup> (등마찰 환산)</div>
+        <div><span class="metric-value" id="val-rlong1">&ndash;</span><span class="metric-unit">mm</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">&#10004; 장변 길이 <sup>2)</sup> (등단면적 환산)</div>
+        <div><span class="metric-value" id="val-rlong2">&ndash;</span><span class="metric-unit">mm</span></div>
+      </div>
+      <div class="metric-note">
+        1) ASHRAE Huebscher 상당직경 De=1.30(ab)^0.625/(a+b)^0.25 기준 (등마찰 환산), 형상비 적용<br>
+        2) 원형과 동일 단면적 기준(등단면적/등속 환산), 단변 길이 고정
+      </div>
+    </div>
+
+    <!-- Bottom shape: circle -->
+    <div class="shape-container" id="shape-circle">
+      <div class="shape-stage">
+        <svg id="circleSvg" viewBox="0 0 200 200" style="width:auto;height:100%;max-width:100%;max-height:100%;">
+          <circle cx="100" cy="100" r="60.2" fill="#e0f7fa" stroke="#00838f" stroke-width="3"/>
+          <line x1="39.8" y1="100" x2="160.2" y2="100" stroke="#00838f" stroke-width="1.2" stroke-dasharray="5,4"/>
+          <text id="circleDiaTxt" x="100" y="92" text-anchor="middle" font-size="12" font-weight="500" fill="#00838f">&ndash; mm</text>
+          <text x="100" y="118" text-anchor="middle" font-size="9" fill="#888">&Oslash; 원형 덕트 지름</text>
+        </svg>
+      </div>
+      <div class="vel-tag" id="circleVelTxt">풍속 &ndash; m/s</div>
+    </div>
+
+    <!-- Bottom shape: rectangle -->
+    <div class="shape-container" id="shape-rect" style="display:none;">
+      <div class="shape-stage">
+        <svg id="rectSvg" viewBox="0 0 240 200" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;">
+          <rect id="rectShape" x="40" y="60" width="160" height="80" fill="#e0f7fa" stroke="#00838f" stroke-width="2.5"/>
+          <text id="rectLongTxt" x="120" y="46" text-anchor="middle" font-size="12" font-weight="500" fill="#00838f">장변 &ndash; mm</text>
+          <text id="rectShortTxt" x="120" y="100" text-anchor="middle" font-size="12" font-weight="500" fill="#00838f">단변 &ndash; mm</text>
+        </svg>
+      </div>
+      <div class="vel-tag" id="rectVelTxt">풍속 &ndash; m/s</div>
+    </div>
+
+  </div>
+
+</div>
+</div>
+
+<!-- Copyright -->
+<div class="copyright">
+  &copy;HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
+</div>
+
+<script>
+/* ===================== ASHRAE Friction Chart Core ===================== */
+const Rmin=0.1,Rmax=10,Qmin=100,Qmax=200000;
+const lRmin=Math.log10(Rmin),lRmax=Math.log10(Rmax),lQmin=Math.log10(Qmin),lQmax=Math.log10(Qmax);
+const baseR=317,baseQ=278,ML=70,MT=24,MR=70,MB=46;
+const decR=(lRmax-lRmin),decQ=(lQmax-lQmin);
+const PWPH=(decR*baseR)/(decQ*baseQ);
+
+const eps=0.09e-3, rho=1.204, nu=1.51e-5;
+function fricColebrook(D,V){
+  const Re=V*D/nu; if(Re<1) return 0.04;
+  if(Re<2300) return 64/Re;
+  let f=0.02;
+  for(let i=0;i<40;i++){
+    const rhs=-2*Math.log10(eps/(3.7*D)+2.51/(Re*Math.sqrt(f)));
+    const fn=1/(rhs*rhs);
+    if(Math.abs(fn-f)<1e-7){f=fn;break;} f=fn;
+  }
+  return f;
+}
+function fromDV(Dcm,V){
+  const D=Dcm/100, A=Math.PI*D*D/4;
+  const f=fricColebrook(D,V);
+  const R=f*(1/D)*(rho*V*V/2);
+  const Q=V*A*3600;
+  return [R,Q];
+}
+// 풍량 Q[m3/h], 마찰손실 R[Pa/m] -> {D[cm], V[m/s]} (기하 이분법)
+function solveDV(Q,R){
+  function Rof(Dm){
+    const A=Math.PI*Dm*Dm/4;
+    const V=(Q/3600)/A;
+    const f=fricColebrook(Dm,V);
+    return f*(1/Dm)*(rho*V*V/2);
+  }
+  let lo=0.01, hi=5.0;
+  for(let i=0;i<100;i++){
+    const mid=Math.sqrt(lo*hi);
+    if(Rof(mid)>R) lo=mid; else hi=mid;
+  }
+  const Dm=Math.sqrt(lo*hi);
+  const A=Math.PI*Dm*Dm/4;
+  const V=(Q/3600)/A;
+  return {D:Dm*100, V:V};
+}
+// 원형 등가지름 De[cm] + 형상비 m(장변/단변) -> 장방형 환산
+function rectFromDe(Dcm,m){
+  const a=Dcm*Math.pow(1+m,0.25)/(1.30*Math.pow(m,0.625)); // 단변(등마찰)
+  const b1=m*a;                                            // 장변(등마찰)
+  const area=Math.PI*Dcm*Dcm/4;
+  const b2=area/a;                                         // 장변(등단면적, 단변 고정)
+  return {short:a, long1:b1, long2:b2};
+}
+
+const DIAS=[8,9,10,12,14,16,18,20,25,30,35,40,45,50,60,70,80,90,100,120,140,160,180,200,220,240];
+const VELS=[1.2,1.4,1.6,1.8,2,3,4,5,6,7,8,9,10,12,14,16,18,20,22,24,26,30];
+
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+let W,H,PL,PR,PT,PB,PW,PH;
+function X(lr){return PL+(lr-lRmin)/decR*PW;}
+function Y(lq){return PT+(lQmax-lq)/decQ*PH;}
+function XR(R){return X(Math.log10(R));}
+function YQ(Q){return Y(Math.log10(Q));}
+function inPlot(x,y){return x>=PL-0.5&&x<=PR+0.5&&y>=PT-0.5&&y<=PB+0.5;}
+
+function layout(){
+  const wrap=document.getElementById('cvwrap');
+  const availW=Math.max(280,wrap.clientWidth);
+  const availH=Math.max(180,wrap.clientHeight);
+  let pw=availW-ML-MR;
+  let ph=pw/PWPH;
+  if(MT+ph+MB>availH){ ph=availH-MT-MB; pw=ph*PWPH; }
+  if(pw<60){ pw=60; ph=pw/PWPH; }
+  PW=pw; PH=ph;
+  W=ML+PW+MR; H=MT+PH+MB;
+  PL=ML;PR=ML+PW;PT=MT;PB=MT+PH;
+  const dpr=Math.max(1,window.devicePixelRatio||1);
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  cv.style.width=W+'px'; cv.style.height=H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+function clipSeg(p0,p1){
+  let [x0,y0]=p0,[x1,y1]=p1;
+  let t0=0,t1=1, dx=x1-x0, dy=y1-y0;
+  const p=[-dx,dx,-dy,dy], q=[x0-PL,PR-x0,y0-PT,PB-y0];
+  for(let i=0;i<4;i++){
+    if(p[i]===0){ if(q[i]<0) return null; }
+    else{ const r=q[i]/p[i];
+      if(p[i]<0){ if(r>t1)return null; if(r>t0)t0=r; }
+      else{ if(r<t0)return null; if(r<t1)t1=r; } }
+  }
+  return [[x0+t0*dx,y0+t0*dy],[x0+t1*dx,y0+t1*dy]];
+}
+function poly(pts,col,wd){
+  ctx.strokeStyle=col;ctx.lineWidth=wd;
+  for(let i=0;i<pts.length-1;i++){
+    const c=clipSeg(pts[i],pts[i+1]); if(!c)continue;
+    ctx.beginPath();ctx.moveTo(c[0][0],c[0][1]);ctx.lineTo(c[1][0],c[1][1]);ctx.stroke();
+  }
+}
+function diaLabelAnchor(Dcm){ const Vref=4.0; return fromDV(Dcm,Vref); }
+function velLabelAnchor(V){ const Dref=20; return fromDV(Dref,V); }
+function lblAt(R,Q,txt,col,slopePts){
+  const x=XR(R),y=YQ(Q); if(!inPlot(x,y))return;
+  let ang=0;
+  if(slopePts){const [a,b]=slopePts; ang=Math.atan2(b[1]-a[1],b[0]-a[0]);}
+  ctx.save();ctx.translate(x,y);ctx.rotate(ang);
+  ctx.font='11px Pretendard';ctx.textAlign='center';ctx.textBaseline='middle';
+  const w=ctx.measureText(txt).width;
+  ctx.fillStyle='#fff';ctx.fillRect(-w/2-2,-7,w+4,14);
+  ctx.fillStyle=col;ctx.fillText(txt,0,0);
+  ctx.restore();
+}
+function build(){
+  const DIApoly=DIAS.map(D=>{
+    const a=[];
+    for(let i=0;i<=30;i++){const V=1.0*Math.pow(40/1.0,i/30); const [R,Q]=fromDV(D,V); a.push([XR(R),YQ(Q)]);}
+    return {d:D,poly:a};
+  });
+  const VELpoly=VELS.map(V=>{
+    const a=[];
+    for(let i=0;i<=30;i++){const D=6*Math.pow(300/6,i/30); const [R,Q]=fromDV(D,V); a.push([XR(R),YQ(Q)]);}
+    return {v:V,poly:a};
+  });
+  return {DIApoly,VELpoly};
+}
+
+let pin=null; // {Q,R}
+
+function draw(){
+  layout();
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
+
+  // 권장 설계대역 0.8~1.2 Pa/m
+  const showBand=document.getElementById('layer-band') ? document.getElementById('layer-band').checked : true;
+  if(showBand){
+    const xb0=XR(0.8), xb1=XR(1.2);
+    ctx.fillStyle='rgba(0,131,143,0.10)';
+    ctx.fillRect(xb0,PT,xb1-xb0,PH);
+    ctx.save();
+    ctx.fillStyle='#00838f';ctx.font='10px Pretendard';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText('권장 0.8~1.2', (xb0+xb1)/2, PT+4);
+    ctx.restore();
+  }
+
+  // 보조 격자
+  ctx.lineWidth=0.3;ctx.strokeStyle='#999';ctx.setLineDash([3,3]);
+  for(let d=-1;d<=1;d++)for(let m=1;m<10;m++){let R=m*Math.pow(10,d);if(R>10.0001)break;let x=XR(R);if(x<PL-.5||x>PR+.5)continue;ctx.beginPath();ctx.moveTo(x,PT);ctx.lineTo(x,PB);ctx.stroke();}
+  for(let d=2;d<=5;d++)for(let m=1;m<10;m++){let Q=m*Math.pow(10,d);if(Q>200000.001)break;let y=YQ(Q);if(y<PT-.5||y>PB+.5)continue;ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(PR,y);ctx.stroke();}
+  ctx.setLineDash([]);
+
+  // 외곽
+  ctx.strokeStyle='#333';ctx.lineWidth=1;ctx.strokeRect(PL,PT,PW,PH);
+
+  // 선
+  const showDia=document.getElementById('layer-dia') ? document.getElementById('layer-dia').checked : true;
+  const showVel=document.getElementById('layer-vel') ? document.getElementById('layer-vel').checked : true;
+  const {DIApoly,VELpoly}=build();
+  ctx.save();ctx.beginPath();ctx.rect(PL,PT,PW,PH);ctx.clip();
+  if(showDia) DIApoly.forEach(L=>poly(L.poly,'#2b2b2b',0.5));
+  if(showVel) VELpoly.forEach(L=>poly(L.poly,'#2b2b2b',0.5));
+  ctx.restore();
+
+  if(showDia) DIApoly.forEach(L=>{const [R,Q]=diaLabelAnchor(L.d);
+    const [R2,Q2]=fromDV(L.d,4.4);
+    lblAt(R,Q,String(L.d),'#000',[[XR(R),YQ(Q)],[XR(R2),YQ(Q2)]]);});
+  if(showVel) VELpoly.forEach(L=>{const [R,Q]=velLabelAnchor(L.v);
+    const [R2,Q2]=fromDV(22,L.v);
+    lblAt(R,Q,String(L.v),'#000',[[XR(R),YQ(Q)],[XR(R2),YQ(Q2)]]);});
+
+  // 축 라벨
+  ctx.font='12px Pretendard';ctx.fillStyle='#333';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('지름 [cm]',PL+8,PT+6);
+  ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText('풍속 [m/s]',PR-8,PB-6);
+  ctx.fillStyle='#333';ctx.font='12px Pretendard';
+  ctx.textAlign='center';ctx.textBaseline='top';
+  [0.1,0.2,0.4,0.6,0.8,1.0,2.0,4.0,6.0,8.0,10.0].forEach(R=>{ctx.fillText(String(R),XR(R),PB+6);});
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  [100,200,300,400,600,800,1000,2000,3000,4000,6000,8000,10000,20000,30000,40000,60000,80000,100000,200000].forEach(Q=>{
+    const s=Q>=1000?(Q.toLocaleString('en-US')):String(Q);ctx.fillText(s,PL-6,YQ(Q));});
+  ctx.save();ctx.translate(16,(PT+PB)/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='13px Pretendard';ctx.fillText('풍량 Q [m\u00B3/h]',0,0);ctx.restore();
+  ctx.textAlign='center';ctx.textBaseline='top';ctx.font='13px Pretendard';ctx.fillText('마찰손실 R [Pa/m]',(PL+PR)/2,PB+24);
+
+  // 입력 점 + 풍속/지름 명기
+  if(pin){
+    const x=XR(pin.R),y=YQ(pin.Q);
+    if(inPlot(x,y)){
+      ctx.setLineDash([5,4]);ctx.strokeStyle='#dc2626';ctx.lineWidth=1.2;
+      ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(x,y);ctx.lineTo(x,PB);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#dc2626';ctx.beginPath();ctx.arc(x,y,4.5,0,7);ctx.fill();
+      ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
+      // 점 주석: 지름/풍속
+      const dv=solveDV(pin.Q,pin.R);
+      const txt='\u00D8'+Math.round(dv.D*10)+'mm / '+dv.V.toFixed(2)+' m/s';
+      ctx.font='11px Pretendard';
+      const tw=ctx.measureText(txt).width;
+      let lx=x+8, ly=y-10;
+      if(lx+tw+6>PR) lx=x-tw-12;
+      if(ly-12<PT) ly=y+18;
+      ctx.fillStyle='rgba(255,255,255,0.92)';
+      ctx.fillRect(lx-3,ly-12,tw+6,16);
+      ctx.strokeStyle='#dc2626';ctx.lineWidth=0.8;ctx.strokeRect(lx-3,ly-12,tw+6,16);
+      ctx.fillStyle='#dc2626';ctx.textAlign='left';ctx.textBaseline='middle';
+      ctx.fillText(txt,lx,ly-4);
+    }
+  }
+}
+
+/* ===================== Right Panel / Shapes ===================== */
+function fmt(v){ return Math.round(v).toLocaleString('en-US'); }
+
+function updateResults(){
+  const shape=document.getElementById('inp-shape').value;
+  const valid = pin!==null;
+  let dv=null;
+  if(valid) dv=solveDV(pin.Q,pin.R);
+
+  if(shape==='circle'){
+    if(valid){
+      document.getElementById('val-cdia').textContent=fmt(dv.D*10);
+      document.getElementById('val-cvel').textContent=dv.V.toFixed(2);
+      document.getElementById('circleDiaTxt').textContent='\u00D8 '+fmt(dv.D*10)+' mm';
+      document.getElementById('circleVelTxt').textContent='풍속 '+dv.V.toFixed(2)+' m/s';
+    }else{
+      document.getElementById('val-cdia').textContent='\u2013';
+      document.getElementById('val-cvel').textContent='\u2013';
+      document.getElementById('circleDiaTxt').textContent='\u2013 mm';
+      document.getElementById('circleVelTxt').textContent='풍속 \u2013 m/s';
+    }
+  }else{
+    const m=Math.max(1, parseFloat(document.getElementById('inp-aspect').value)||2);
+    if(valid){
+      const r=rectFromDe(dv.D,m); // cm
+      document.getElementById('val-rshort').textContent=fmt(r.short*10);
+      document.getElementById('val-rlong1').textContent=fmt(r.long1*10);
+      document.getElementById('val-rlong2').textContent=fmt(r.long2*10);
+      // 사각 도형 비율 (단변:장변1) 갱신)
+      drawRectShape(r.short, r.long1, dv.V);
+      document.getElementById('rectVelTxt').textContent='풍속 '+dv.V.toFixed(2)+' m/s';
+    }else{
+      document.getElementById('val-rshort').textContent='\u2013';
+      document.getElementById('val-rlong1').textContent='\u2013';
+      document.getElementById('val-rlong2').textContent='\u2013';
+      drawRectShape(0,0,null);
+      document.getElementById('rectVelTxt').textContent='풍속 \u2013 m/s';
+    }
+  }
+}
+
+function drawRectShape(shortCm, longCm, V){
+  const svgW=240, svgH=200, pad=44;
+  const rectEl=document.getElementById('rectShape');
+  const longTxt=document.getElementById('rectLongTxt');
+  const shortTxt=document.getElementById('rectShortTxt');
+  if(!shortCm||!longCm){
+    rectEl.setAttribute('x',40);rectEl.setAttribute('y',60);
+    rectEl.setAttribute('width',160);rectEl.setAttribute('height',80);
+    longTxt.textContent='장변 \u2013 mm';
+    shortTxt.textContent='단변 \u2013 mm';
+    return;
+  }
+  // 장변 가로, 단변 세로. 비율 유지하며 영역에 맞춤
+  const ratio=shortCm/longCm; // height/width
+  let w=svgW-2*pad;
+  let h=w*ratio;
+  const maxH=svgH-2*pad-14;
+  if(h>maxH){ h=maxH; w=h/ratio; }
+  const x=(svgW-w)/2, y=(svgH-h)/2+4;
+  rectEl.setAttribute('x',x);rectEl.setAttribute('y',y);
+  rectEl.setAttribute('width',w);rectEl.setAttribute('height',h);
+  longTxt.setAttribute('x',svgW/2); longTxt.setAttribute('y',y-8);
+  longTxt.textContent='장변 '+fmt(longCm*10)+' mm';
+  shortTxt.setAttribute('x',svgW/2); shortTxt.setAttribute('y',y+h/2+5);
+  shortTxt.textContent='단변 '+fmt(shortCm*10)+' mm';
+}
+
+function syncShapeUI(){
+  const shape=document.getElementById('inp-shape').value;
+  const isRect = shape==='rect';
+  document.getElementById('aspect-row').style.display = isRect ? '' : 'none';
+  document.getElementById('metrics-circle').style.display = isRect ? 'none' : '';
+  document.getElementById('metrics-rect').style.display = isRect ? '' : 'none';
+  document.getElementById('shape-circle').style.display = isRect ? 'none' : '';
+  document.getElementById('shape-rect').style.display = isRect ? '' : 'none';
+  document.getElementById('aspect-disp').textContent =
+    (parseFloat(document.getElementById('inp-aspect').value)||2);
+}
+function onShapeChange(){ syncShapeUI(); recalc(); }
+
+/* ===================== Main recalc ===================== */
+function recalc(){
+  syncShapeUI();
+  const Q=parseFloat(document.getElementById('inp-q').value);
+  const R=parseFloat(document.getElementById('inp-r').value);
+  if(isFinite(Q)&&isFinite(R)&&Q>=Qmin&&Q<=Qmax&&R>=Rmin&&R<=Rmax){
+    pin={Q:Q,R:R};
+  }else{
+    pin=null;
+  }
+  draw();
+  updateResults();
+}
+
+/* ===================== Tabs / Store ===================== */
+let tabCount=1, activeTab=1, nextTabId=2;
+const FIELD_IDS=['inp-name','inp-q','inp-r','inp-shape','inp-aspect'];
+const DEFAULT_VALUES={'inp-name':'P-8','inp-q':'3000','inp-r':'1.0','inp-shape':'circle','inp-aspect':'2'};
+const EMPTY_VALUES={}; FIELD_IDS.forEach(id=>{EMPTY_VALUES[id]=(id==='inp-shape')?'circle':(id==='inp-aspect')?'2':'';});
+const equipStore={};
+
+function initStore(){
+  equipStore[1]={};
+  FIELD_IDS.forEach(id=>{const el=document.getElementById(id);equipStore[1][id]=el?el.value:(DEFAULT_VALUES[id]||'');});
+}
+function saveCurrentTab(){
+  if(!equipStore[activeTab])equipStore[activeTab]={};
+  FIELD_IDS.forEach(id=>{const el=document.getElementById(id);if(el)equipStore[activeTab][id]=el.value;});
+}
+function loadTab(tabId){
+  const data=equipStore[tabId]||EMPTY_VALUES;
+  FIELD_IDS.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){
+      let v=(data[id]!==undefined&&data[id]!=='')?data[id]:(EMPTY_VALUES[id]||'');
+      el.value=v;
+      if(el.placeholder!==undefined && (id==='inp-q'||id==='inp-r')){
+        el.placeholder = (!data[id]||data[id]==='') ? '입력하세요' : '';
+      }
+    }
+  });
+}
+function updateTabName(){
+  const name=document.getElementById('inp-name').value||'장비';
+  const tabBtn=document.getElementById('tab-'+activeTab);
+  if(tabBtn){
+    const closeBtn=tabBtn.querySelector('.tab-close');
+    tabBtn.textContent=name;
+    if(closeBtn)tabBtn.appendChild(closeBtn);
+  }
+}
+function switchTab(tabId){
+  if(tabId===activeTab)return;
+  saveCurrentTab();updateTabName();
+  document.querySelectorAll('.tab:not(.add)').forEach(t=>t.classList.remove('active'));
+  const targetBtn=document.getElementById('tab-'+tabId);
+  if(targetBtn)targetBtn.classList.add('active');
+  activeTab=tabId;
+  loadTab(tabId);recalc();
+}
+function addTab(){
+  saveCurrentTab();updateTabName();
+  const newId=nextTabId++;tabCount++;
+  equipStore[newId]={};
+  FIELD_IDS.forEach(id=>{equipStore[newId][id]=(id==='inp-shape')?'circle':(id==='inp-aspect')?'2':(id==='inp-name')?('장비 #'+tabCount):'';});
+  const btn=document.createElement('button');
+  btn.className='tab';btn.id='tab-'+newId;btn.textContent='장비 #'+tabCount;
+  btn.onclick=function(){switchTab(newId);};
+  const closeSpan=document.createElement('span');
+  closeSpan.className='tab-close';closeSpan.textContent='\u2715';
+  closeSpan.onclick=function(e){e.stopPropagation();removeTab(newId);};
+  btn.appendChild(closeSpan);
+  const tabBar=document.querySelector('.tab-bar');
+  tabBar.insertBefore(btn,tabBar.lastElementChild);
+  document.querySelectorAll('.tab:not(.add)').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  activeTab=newId;
+  loadTab(newId);recalc();
+}
+function removeTab(tabId){
+  const tabs=document.querySelectorAll('.tab:not(.add)');
+  if(tabs.length<=1){alert('최소 1개의 장비는 유지해야 합니다.');return;}
+  const tabBtn=document.getElementById('tab-'+tabId);
+  const tabName=tabBtn?tabBtn.textContent.replace('\u2715','').trim():'장비';
+  if(!confirm('"'+tabName+'" 장비를 삭제하시겠습니까?'))return;
+  if(tabBtn)tabBtn.remove();
+  delete equipStore[tabId];
+  if(activeTab===tabId){
+    const remaining=document.querySelectorAll('.tab:not(.add)');
+    if(remaining.length>0){
+      const firstTab=remaining[0];
+      const firstId=parseInt(firstTab.id.replace('tab-',''));
+      firstTab.classList.add('active');
+      activeTab=firstId;loadTab(firstId);recalc();
+    }
+  }
+}
+function saveData(){saveCurrentTab();updateTabName();alert('데이터가 저장되었습니다.');}
+function exportFile(){alert('파일 변환 기능');}
+function GoMain(){ if(window.STD){ STD.goMain(null); } else { window.location.href='../dashboard.html'; } }
+
+/* ===================== Init ===================== */
+window.addEventListener('DOMContentLoaded',function(){
+  initStore();
+  ['inp-name'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',updateTabName);});
+  const asp=document.getElementById('inp-aspect');
+  if(asp)asp.addEventListener('input',function(){document.getElementById('aspect-disp').textContent=(parseFloat(asp.value)||2);});
+  recalc();
+});
+let rafId=null;
+function onResize(){ if(rafId)cancelAnimationFrame(rafId); rafId=requestAnimationFrame(function(){draw();updateResults();}); }
+window.addEventListener('resize',onResize);
+if(window.ResizeObserver){ new ResizeObserver(onResize).observe(document.getElementById('cvwrap')); }
+</script>
+<script>window.__STD_TOOL='304';</script>
+<script>
+/* ============================================================
+   STD Storage  —  표준 저장 모듈 v1 (전 도구 공통)
+   방식: localStorage 우선 + GitHub 동기화(가능 시)
+        + beforeunload 백업 + 저장 후 이동(GoMain)
+   ============================================================ */
+(function(){
+  if (window.STD) return;                         // 중복 주입 방지
+  var TOOL = window.__STD_TOOL || 'tool';
+  function qp(k){ return new URLSearchParams(location.search).get(k) || ''; }
+  function pid(){ return qp('projectId') || qp('project') || qp('id') || ''; }
+  function pname(){ return qp('projectName') || qp('name') || ''; }
+  function lsKey(){ var id=pid(); return 'std_'+TOOL+'_'+(id||'standalone'); }
+  function ghPath(){ var id=pid(); return id ? ('data/'+TOOL+'/'+id+'.json') : null; }
+
+  function genericData(){
+    var o={__std:true, t:Date.now(), fields:{}};
+    document.querySelectorAll('input[id],select[id],textarea[id]').forEach(function(el){
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='button'||ty==='submit'||ty==='reset'||ty==='file') return;
+      o.fields[el.id]=(ty==='checkbox'||ty==='radio') ? el.checked : el.value;
+    });
+    return o;
+  }
+  function genericRestore(o){
+    if(!o||!o.fields) return;
+    Object.keys(o.fields).forEach(function(id){
+      var el=document.getElementById(id); if(!el) return;
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='checkbox'||ty==='radio') el.checked=!!o.fields[id];
+      else el.value=o.fields[id];
+      try{ el.dispatchEvent(new Event('input',{bubbles:true}));
+           el.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){}
+    });
+  }
+  function lsSave(){
+    try{ localStorage.setItem(lsKey(), JSON.stringify(genericData())); return true; }
+    catch(e){ console.warn('[STD] LS save fail', e); return false; }
+  }
+  function lsLoad(){
+    try{ var r=localStorage.getItem(lsKey()); return r? JSON.parse(r):null; }catch(e){ return null; }
+  }
+  function ghSync(){
+    var p=ghPath();
+    if(p && typeof window.ghSaveFile==='function'){
+      return Promise.resolve(window.ghSaveFile(p, genericData(), 'STD save '+TOOL+' '+pid()))
+        .then(function(){ return true; })
+        .catch(function(e){ console.warn('[STD] GH save fail', e); return false; });
+    }
+    return Promise.resolve(null);                 // GitHub 미사용 페이지
+  }
+  function toast(msg, type){
+    if(typeof window._showToast==='function'){ try{ window._showToast(msg, type||'success'); return; }catch(e){} }
+    if(typeof window.showToast==='function'){ try{ window.showToast(msg, type||'success'); return; }catch(e){} }
+    var el=document.getElementById('__stdToast');
+    if(!el){ el=document.createElement('div'); el.id='__stdToast';
+      el.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;opacity:0;transition:opacity .2s';
+      document.body.appendChild(el); }
+    el.textContent=msg; el.style.opacity='1';
+    clearTimeout(el.__t); el.__t=setTimeout(function(){ el.style.opacity='0'; }, 1800);
+  }
+
+  var dirty=false;
+  document.addEventListener('input', function(){ dirty=true; }, true);
+  document.addEventListener('change', function(){ dirty=true; }, true);
+
+  function save(pageSaver, opts){
+    opts=opts||{};
+    lsSave();                                     // 1) 항상 localStorage 백업
+    var hasPage=(typeof pageSaver==='function');
+    if(hasPage){                                  // 2a) 리치 저장(페이지 고유 LS+GitHub)
+      return Promise.resolve().then(pageSaver).then(function(){ dirty=false; return {page:true}; })
+        .catch(function(e){ console.warn('[STD] pageSaver fail', e); dirty=false; return {page:false}; });
+    }
+    return ghSync().then(function(gh){             // 2b) 제네릭 GitHub 동기화(가능 시)
+      dirty=false;
+      if(!opts.silent) toast(gh===false?'로컬에 저장되었습니다 (클라우드 동기화 실패)':'저장되었습니다.', gh===false?'warn':'success');
+      return {gh:gh};
+    });
+  }
+  function load(pageLoader){
+    if(typeof pageLoader==='function'){ try{ return pageLoader(); }catch(e){ console.warn('[STD] pageLoader fail', e); } }
+    var o=lsLoad(); if(o) genericRestore(o); dirty=false; return o;
+  }
+  function goMain(pageSaver){
+    var url=(typeof window.dashboardUrl!=='undefined' && window.dashboardUrl) ? window.dashboardUrl : '../dashboard.html';
+    Promise.resolve(save(pageSaver, {silent:true})).then(function(){ location.href=url; }, function(){ location.href=url; });
+  }
+  window.addEventListener('beforeunload', function(){ try{ lsSave(); }catch(e){} });
+
+  window.STD={ save:save, load:load, goMain:goMain, lsSave:lsSave, lsLoad:lsLoad,
+               genericData:genericData, genericRestore:genericRestore,
+               projectId:pid, projectName:pname, key:lsKey, ghPath:ghPath, isDirty:function(){return dirty;} };
+})();
+</script>
+<script>(function(){function r(f){document.readyState!=='loading'?f():document.addEventListener('DOMContentLoaded',f);}r(function(){try{if(window.STD)STD.load();}catch(e){}});})();</script>
+</body>
+</html>

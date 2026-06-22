@@ -1,0 +1,2642 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/himec-supabase-sync.js"></script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>습공기선도 - Psychrometric Chart</title>
+    <style>
+/* psychart.css — 습공기선도 Web Edition */
+
+:root {
+    --primary: #1e3a5f;
+    --primary-light: #2980b9;
+    --accent: #e74c3c;
+    --bg: #ffffff;
+    --card-bg: #ffffff;
+    --text: #2c3e50;
+    --text-light: #7f8c8d;
+    --border: #dce1e8;
+    --radius: 8px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    height: 100vh;
+    overflow: hidden;
+}
+
+body {
+    font-family: 'Pretendard', 'Segoe UI', sans-serif;
+    background: #f5f5f5;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== HEADER (hcdload 스타일) ===== */
+.header {
+    background: #fff;
+    padding: 8px 20px;
+    border-bottom: 1px solid #ddd;
+    flex-shrink: 0;
+    padding-left: 120px;
+    padding-right: 120px;
+}
+.header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #222;
+}
+.header .sub {
+    font-size: 11px;
+    color: #333;
+    margin-top: 2px;
+}
+.header h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    margin-top: 4px;
+}
+/* ===== Project Label (프로젝트명) ===== */
+#projectLabel {
+    color: #333;
+    margin-right: 6px;
+    font-weight: 600;
+}
+
+.header-right {
+    position: absolute;
+    bottom: 8px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+}
+.header-right button {
+    padding: 8px 0;
+    width: 90px;
+    border: none;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+}
+.btn-save { background: #e85d24; color: #fff; }
+.btn-file { background: #e85d24; color: #fff; }
+.btn-main { background: #555f; color: #fff; }
+.btn-save:hover, .btn-file:hover { opacity: 0.85; }
+.btn-main:hover { opacity: 0.85; }
+.btn-save.saved {
+    background: #27ae60;
+    border: none;
+    animation: save-flash 0.6s ease;
+}
+@keyframes save-flash {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+.btn-save:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ===== COPYRIGHT (hcdload 스타일) ===== */
+.footer-copyright {
+    flex-shrink: 0;
+    background: #f8fafc;
+    border-top: none;
+    padding: 8px 100px;
+    text-align: center;
+}
+
+.footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 10px;
+    color: #e0e0e0;
+    letter-spacing: 0.01em;
+}
+
+.footer-divider {
+    color: var(--border);
+}
+
+/* ===== Responsive - 헤더/푸터 ===== */
+@media (max-width: 1600px) {
+    .header { padding-left: 80px; padding-right: 80px; }
+    .footer-copyright { padding: 6px 80px; }
+    .page-wrapper { padding: 0 80px; }
+}
+@media (max-width: 1300px) {
+    .header { padding-left: 50px; padding-right: 50px; }
+    .footer-copyright { padding: 6px 50px; }
+    .page-wrapper { padding: 0 50px; }
+}
+@media (max-width: 1100px) {
+    .header { padding-left: 35px; padding-right: 35px; }
+    .footer-copyright { padding: 6px 35px; }
+    .page-wrapper { padding: 0 35px; }
+}
+@media (max-width: 700px) {
+    .header { padding-left: 30px; padding-right: 30px; }
+    .footer-copyright { padding: 6px 30px; }
+    .page-wrapper { padding: 0 30px; }
+}
+
+/* ===== Chart Top Bar: 대기압 ===== */
+.chart-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 16px 8px 4px 8px;
+    flex-shrink: 0;
+}
+.atm-input {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text);
+}
+.atm-input label {
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 11px;
+}
+.atm-input input {
+    width: 80px;
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--text);
+    font-size: 12px;
+    text-align: center;
+}
+.atm-input input:focus {
+    outline: none;
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 2px rgba(41,128,185,0.15);
+}
+
+/* ===== Page Wrapper ===== */
+.page-wrapper {
+    flex: 1;
+    width: 100%;
+    padding: 0 120px;
+    overflow: hidden;
+}
+
+/* ===== Layout ===== */
+.app-layout {
+    display: flex;
+    height: 100%;
+    gap: 0;
+}
+
+/* ===== 좌측 패널 ===== */
+.side-panel {
+    width: 300px;
+    min-width: 300px;
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    border-radius: 0;
+    padding-top: 8px;
+    gap: 6px;
+}
+
+.panel-section {
+    padding: 10px 12px;
+    border-bottom: none;
+    background: var(--bg);
+}
+.panel-section:last-child {
+    border-bottom: none;
+}
+
+/* ===== 공기상태 입력 카드 스타일 ===== */
+.panel-section.input-card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    margin: 0 8px;
+    padding: 10px 12px;
+}
+
+.side-panel .panel-section:not(.input-card) {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    margin: 0 8px;
+    padding: 10px 12px;
+}
+
+.section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.section-title .icon {
+    font-size: 11px;
+}
+
+/* ===== 입력 폼 ===== */
+.input-group {
+    margin-bottom: 5px;
+}
+.input-group label {
+    display: block;
+    font-size: 10px;
+    color: var(--text-light);
+    margin-bottom: 2px;
+    font-weight: 500;
+}
+.input-group select,
+.input-group input {
+    width: 100%;
+    padding: 5px 7px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 12px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+.input-group select:focus,
+.input-group input:focus {
+    outline: none;
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 2px rgba(41,128,185,0.15);
+}
+.input-group input.auto-filled {
+    background: #eef6ff;
+    border-color: #b8d4f0;
+}
+
+.input-row {
+    display: flex;
+    gap: 6px;
+}
+.input-row .input-group {
+    flex: 1;
+}
+
+.input-hint {
+    font-size: 9px;
+    color: var(--primary-light);
+    text-align: center;
+    margin: 4px 0 2px;
+}
+
+.btn-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+.btn {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-primary {
+    background: var(--primary);
+    color: #fff;
+    flex: 1;
+}
+.btn-primary:hover {
+    background: #244b6e;
+}
+.btn-cancel {
+    background: #eee;
+    color: var(--text);
+    padding: 6px 14px;
+}
+.btn-cancel:hover {
+    background: #ddd;
+}
+.btn-danger {
+    background: #fee;
+    color: var(--accent);
+    border: 1px solid #fdd;
+}
+.btn-danger:hover {
+    background: #fdd;
+}
+.btn-accent {
+    background: var(--primary-light);
+    color: #fff;
+    padding: 5px 10px;
+    font-size: 10px;
+}
+.btn-accent:hover {
+    background: #2471a3;
+}
+.btn-outline {
+    background: #fff;
+    color: var(--primary);
+    border: 1px solid var(--border);
+    padding: 4px 7px;
+    font-size: 10px;
+}
+.btn-outline:hover {
+    background: #f0f4f8;
+    border-color: var(--primary-light);
+}
+.btn-sm {
+    padding: 4px 6px;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+/* ===== 연결선·보조선 ===== */
+.sub-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-light);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.connect-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+.connect-select {
+    flex: 1;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: inherit;
+    min-width: 0;
+}
+.connect-arrow {
+    font-size: 11px;
+    color: var(--text-light);
+    flex-shrink: 0;
+}
+.aux-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.aux-row .connect-select {
+    flex: 1;
+    width: auto;
+}
+.shr-input {
+    width: 50px !important;
+    padding: 4px 4px !important;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: inherit;
+    text-align: center;
+}
+
+/* ===== 보조선 목록 ===== */
+.list-placeholder-sm {
+    font-size: 10px;
+    color: var(--text-light);
+    text-align: center;
+    padding: 4px 0;
+}
+.aux-line-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 5px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 2px;
+    font-size: 10px;
+}
+.aux-line-color {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+.aux-line-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.aux-line-item .btn-delete {
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+}
+
+/* ===== 상태점 목록 ===== */
+.result-placeholder, .list-placeholder, .hover-placeholder {
+    font-size: 10px;
+    color: var(--text-light);
+    text-align: center;
+    padding: 8px 0;
+}
+
+.point-item {
+    background: #f8fafc;
+    border-radius: 4px;
+    padding: 5px 7px;
+    margin-bottom: 3px;
+    border: 1px solid var(--border);
+    transition: all 0.15s;
+}
+.point-item:hover {
+    background: #f0f4f8;
+}
+.point-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.point-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.point-name {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text);
+    flex-shrink: 0;
+}
+.point-summary {
+    flex: 1;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-light);
+}
+.btn-edit, .btn-delete {
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    color: #bbb;
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+.btn-edit:hover {
+    background: #e8f4ff;
+    color: var(--primary-light);
+}
+.btn-delete:hover {
+    background: #fee;
+    color: var(--accent);
+}
+
+/* ===== 차트 영역 ===== */
+.chart-area {
+    flex: 1;
+    position: relative;
+    padding: 4px 8px 6px 8px;
+    display: flex;
+    flex-direction: column;
+}
+.canvas-wrap {
+    flex: 1;
+    position: relative;
+    background: #ffffff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+.canvas-wrap canvas {
+    display: block;
+    cursor: crosshair;
+}
+
+/* ===== 하단 호버 정보 ===== */
+.hover-bar {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-top: 6px;
+    padding: 6px 12px;
+    min-height: 32px;
+}
+.hover-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 11px;
+}
+.hover-info div {
+    display: flex;
+    gap: 4px;
+}
+.hover-info span {
+    font-weight: 700;
+    color: var(--primary);
+    min-width: 24px;
+}
+
+/* ===== 반응형 - 본문 ===== */
+@media (max-width: 1000px) {
+    .page-wrapper {
+        padding: 0 8px;
+    }
+    .app-layout {
+        flex-direction: column;
+        height: auto;
+    }
+    .side-panel {
+        width: 100%;
+        min-width: 100%;
+        max-height: 45vh;
+    }
+    .chart-area {
+        min-height: 50vh;
+    }
+}
+
+/* ===== Save Toast ===== */
+.save-toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #27ae60;
+    color: #fff;
+    padding: 10px 28px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+.save-toast.show {
+    opacity: 1;
+}
+
+    </style>
+</head>
+<body>
+
+<!-- ===== HEADER (hcdload 스타일) ===== -->
+<div class="header" style="position:relative;">
+  <h1>HIMEC − Mechanical Facility Aging Diagnosis System</h1>
+  <div class="sub">(주)하이멕 − 기계설비 노후화 진단</div>
+  <h2 id="pageTitle"><span id="projectLabel"></span>습공기선도, Psychrometric Chart</h2>
+  <div class="header-right">
+    <button class="btn-save" id="btnSave" onclick="psychSaveData()">Save</button>
+    <button class="btn-file" onclick="psychExportFile()">File Trans</button>
+    <button class="btn-main" onclick="GoMain()">Main</button>
+  </div>
+</div>
+
+<div class="page-wrapper">
+<div class="app-layout">
+
+    <!-- 좌측 패널 -->
+    <aside class="side-panel">
+
+        <!-- 공기상태 입력 -->
+        <div class="panel-section input-card">
+            <div class="section-title">■ 공기상태 입력</div>
+            <div class="input-row">
+                <div class="input-group" style="flex:1;">
+                    <label>상태점 명칭</label>
+                    <input type="text" id="inputPointName" maxlength="20" placeholder="예: OA, SA, RA...">
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label>건구온도 (°C)</label>
+                    <input type="number" id="inputTdb" step="0.1" placeholder="예: 26">
+                </div>
+                <div class="input-group">
+                    <label>습구온도 (°C)</label>
+                    <input type="number" id="inputTwb" step="0.1" placeholder="예: 18.7">
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label>노점온도 (°C)</label>
+                    <input type="number" id="inputTdp" step="0.1" placeholder="예: 14.8">
+                </div>
+                <div class="input-group">
+                    <label>상대습도 (%)</label>
+                    <input type="number" id="inputRH" step="0.1" placeholder="예: 50">
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label>절대습도 (g/kg')</label>
+                    <input type="number" id="inputW" step="0.01" placeholder="예: 10.50">
+                </div>
+                <div class="input-group">
+                    <label>엔탈피 (kJ/kg')</label>
+                    <input type="number" id="inputH" step="0.01" placeholder="예: 52.92">
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-group" style="flex:0 0 calc(50% - 4px);">
+                    <label>비체적 (m³/kg')</label>
+                    <input type="number" id="inputV" step="0.0001" placeholder="예: 0.8619">
+                </div>
+            </div>
+            <div class="input-hint">임의의 2개 값을 입력하면 나머지가 자동 계산됩니다</div>
+            <div class="btn-row" id="btnRowMain">
+                <button class="btn btn-primary" id="btnAddPoint">📌 상태점 추가</button>
+            </div>
+            <div class="btn-row" id="btnRowEdit" style="display:none;">
+                <button class="btn btn-primary" id="btnEditConfirm">✏️ 상태점 수정</button>
+                <button class="btn btn-cancel" id="btnEditCancel">취소</button>
+            </div>
+        </div>
+
+        <!-- 상태점 목록 -->
+        <div class="panel-section">
+            <div class="section-title" style="justify-content: space-between;">
+                <span>■ 상태점 목록</span>
+                <button class="btn btn-danger" id="btnClearAll" style="padding:4px 8px;font-size:10px;">전체 삭제</button>
+            </div>
+            <div id="pointList">
+                <div class="list-placeholder">상태점이 없습니다<br><small>차트 클릭 또는 값 입력 후 추가</small></div>
+            </div>
+        </div>
+
+        <!-- 연결선 · 보조선 -->
+        <div class="panel-section">
+            <div class="section-title"><span class="icon">■ 연결선 및 보조선</div>
+
+            <!-- 연결선 -->
+            <div class="sub-label">연결선</div>
+            <div class="connect-row">
+                <select id="connectFrom" class="connect-select"><option value="">시작점</option></select>
+                <span class="connect-arrow">→</span>
+                <select id="connectTo" class="connect-select"><option value="">끝점</option></select>
+                <button class="btn btn-accent" id="btnConnect">연결</button>
+            </div>
+
+            <!-- 보조선 작도 -->
+            <div class="sub-label" style="margin-top:10px;">보조선 작도</div>
+            <div class="aux-row">
+                <select id="auxPoint" class="connect-select"><option value="">상태점</option></select>
+            </div>
+            <div class="aux-row" style="margin-top:4px;">
+                <button class="btn btn-outline btn-sm" id="btnAuxTdb">건구온도선</button>
+                <button class="btn btn-outline btn-sm" id="btnAuxH">엔탈피선</button>
+                <button class="btn btn-outline btn-sm" id="btnAuxSHR">현열비선</button>
+                <input type="number" id="inputSHR" class="shr-input" step="0.01" value="0.8" placeholder="SHR">
+            </div>
+
+            <!-- 교차점 추가 -->
+            <div class="sub-label" style="margin-top:10px;">교차점 추가</div>
+            <div class="connect-row">
+                <select id="crossLine1" class="connect-select"><option value="">선 1</option></select>
+                <span class="connect-arrow">✕</span>
+                <select id="crossLine2" class="connect-select"><option value="">선 2</option></select>
+                <button class="btn btn-accent" id="btnCrossPoint">교차점</button>
+            </div>
+
+            <!-- 보조선 위 점 생성 -->
+            <div class="sub-label" style="margin-top:10px;">보조선 위 점 생성</div>
+            <div class="connect-row">
+                <select id="auxLineSelect" class="connect-select"><option value="">보조선/연결선</option></select>
+            </div>
+            <div class="connect-row" style="margin-top:4px;">
+                <select id="auxPropType" class="connect-select" style="flex:0 0 auto; width:90px;">
+                    <option value="">물성치</option>
+                    <option value="Tdb">건구온도</option>
+                    <option value="W">절대습도</option>
+                    <option value="RH">상대습도</option>
+                    <option value="h">엔탈피</option>
+                    <option value="Twb">습구온도</option>
+                    <option value="Tdp">노점온도</option>
+                    <option value="v">비체적</option>
+                </select>
+                <input type="number" id="auxPropValue" class="shr-input" style="flex:1; width:auto;" step="0.01" placeholder="값">
+                <button class="btn btn-accent" id="btnAuxPointGen">생성</button>
+            </div>
+
+            <!-- 보조선 목록 -->
+            <div class="sub-label" style="margin-top:10px;">보조선 목록</div>
+            <div id="auxLineList">
+                <div class="list-placeholder-sm">보조선이 없습니다</div>
+            </div>
+        </div>
+
+    </aside>
+
+    <!-- 차트 영역 -->
+    <main class="chart-area">
+        <!-- 차트 상단: 대기압 입력 -->
+        <div class="chart-top-bar">
+            <div class="atm-input">
+                <label>대기압</label>
+                <input type="number" id="atmPressure" value="101.325" step="0.001" min="50" max="200">
+                <span>kPa</span>
+            </div>
+        </div>
+        <div class="canvas-wrap">
+            <canvas id="psychCanvas"></canvas>
+        </div>
+        <div class="hover-bar" id="hoverPanel">
+            <div class="hover-placeholder">차트 위에 마우스를 올리면 실시간 공기상태값이 표시됩니다</div>
+        </div>
+    </main>
+
+</div>
+</div>
+
+<!-- ===== COPYRIGHT (hcdload 스타일) ===== -->
+<footer class="footer-copyright">
+    <div class="footer-inner">
+        <span>© 2026 HIMEC (주)하이멕. All rights reserved. Made by 성재호, 최승연, 신동민</span>
+    </div>
+</footer>
+
+
+
+<!-- JS 모듈 (순서 중요 — 인라인 병합) -->
+<script>
+// ===== psychro-calc.js =====
+/**
+ * psychro-calc.js
+ * 습공기 열역학 계산 모듈 (ASHRAE Fundamentals 기반)
+ */
+const PsychroCalc = (() => {
+    let P_atm = 101.325;
+
+    function setAtmPressure(p) { P_atm = p; }
+    function getAtmPressure() { return P_atm; }
+
+    /** 포화수증기압 (kPa) */
+    function saturationPressure(t) {
+        const T = t + 273.15;
+        let lnPws;
+        if (t >= 0) {
+            const C8=-5.8002206e3, C9=1.3914993, C10=-4.8640239e-2,
+                  C11=4.1764768e-5, C12=-1.4452093e-8, C13=6.5459673;
+            lnPws = C8/T + C9 + C10*T + C11*T*T + C12*T*T*T + C13*Math.log(T);
+        } else {
+            const C1=-5.6745359e3, C2=6.3925247, C3=-9.677843e-3,
+                  C4=6.2215701e-7, C5=2.0747825e-9, C6=-9.484024e-13, C7=4.1635019;
+            lnPws = C1/T + C2 + C3*T + C4*T*T + C5*T*T*T + C6*T*T*T*T + C7*Math.log(T);
+        }
+        return Math.exp(lnPws) / 1000;
+    }
+
+    function humidityRatio(Pw) {
+        if (Pw >= P_atm) return 0.5;
+        return 0.62198 * Pw / (P_atm - Pw);
+    }
+
+    function vaporPressure(W) {
+        return P_atm * W / (0.62198 + W);
+    }
+
+    function W_from_TdbRH(Tdb, RH) {
+        const Pws = saturationPressure(Tdb);
+        const Pw = RH / 100 * Pws;
+        return humidityRatio(Pw);
+    }
+
+    function RH_from_TdbW(Tdb, W) {
+        const Pws = saturationPressure(Tdb);
+        const Pw = vaporPressure(W);
+        return Math.min(100, Math.max(0, (Pw / Pws) * 100));
+    }
+
+    function dewPoint(W) {
+        const Pw = vaporPressure(W);
+        if (Pw <= 0) return -60;
+        let Td = (Pw > 0.6112) ?
+            (Math.log(Pw / 0.6112) * 243.12 / (17.67 - Math.log(Pw / 0.6112))) : -20;
+        for (let i = 0; i < 50; i++) {
+            const Ps = saturationPressure(Td);
+            const dPs = saturationPressure(Td + 0.01);
+            const deriv = (dPs - Ps) / 0.01;
+            const diff = Ps - Pw;
+            if (Math.abs(diff) < 1e-7) break;
+            Td -= diff / deriv;
+        }
+        return Td;
+    }
+
+    function wetBulb(Tdb, W) {
+        let lo = -10, hi = Tdb, Twb;
+        for (let i = 0; i < 80; i++) {
+            Twb = (lo + hi) / 2;
+            const Ws = humidityRatio(saturationPressure(Twb));
+            const Wcalc = ((2501 - 2.326 * Twb) * Ws - 1.006 * (Tdb - Twb)) /
+                          (2501 + 1.86 * Tdb - 4.186 * Twb);
+            if (Wcalc < W) lo = Twb; else hi = Twb;
+        }
+        return Twb;
+    }
+
+    function W_from_TdbTwb(Tdb, Twb) {
+        const Ws = humidityRatio(saturationPressure(Twb));
+        return ((2501 - 2.326 * Twb) * Ws - 1.006 * (Tdb - Twb)) /
+               (2501 + 1.86 * Tdb - 4.186 * Twb);
+    }
+
+    function enthalpy(Tdb, W) {
+        return 1.006 * Tdb + W * (2501 + 1.86 * Tdb);
+    }
+
+    function specificVolume(Tdb, W) {
+        return 0.2871 * (Tdb + 273.15) * (1 + 1.6078 * W) / P_atm;
+    }
+
+    /** Tdb from enthalpy and W: h = 1.006*T + W*(2501+1.86*T) → T = (h - 2501*W)/(1.006 + 1.86*W) */
+    function Tdb_from_hW(h, W) {
+        return (h - 2501 * W) / (1.006 + 1.86 * W);
+    }
+
+    /** W from Tdb and enthalpy */
+    function W_from_TdbH(Tdb, h) {
+        return (h - 1.006 * Tdb) / (2501 + 1.86 * Tdb);
+    }
+
+    /** W from Tdb and specific volume */
+    function W_from_TdbV(Tdb, v) {
+        return (v * P_atm / (0.2871 * (Tdb + 273.15)) - 1) / 1.6078;
+    }
+
+    /** Tdb from W and specific volume */
+    function Tdb_from_vW(v, W) {
+        return v * P_atm / (0.2871 * (1 + 1.6078 * W)) - 273.15;
+    }
+
+    function fullState(Tdb, W) {
+        if (W < 0) W = 0;
+        const Ws = humidityRatio(saturationPressure(Tdb));
+        if (W > Ws) W = Ws;
+        const RH = RH_from_TdbW(Tdb, W);
+        const Twb_v = wetBulb(Tdb, W);
+        const Tdp = dewPoint(W);
+        const h = enthalpy(Tdb, W);
+        const v = specificVolume(Tdb, W);
+        const Pw = vaporPressure(W);
+        return { Tdb, Twb: Twb_v, Tdp, RH, W: W * 1000, h, v, Pw };
+    }
+
+    /**
+     * 임의의 2개 입력으로 전체 상태 계산
+     * keys: 'Tdb','Twb','Tdp','RH','W','h','v'
+     * vals: { Tdb: number, ... } (2개 이상)
+     */
+    function solveFromTwo(vals) {
+        const keys = Object.keys(vals).filter(k => vals[k] !== null && vals[k] !== undefined && !isNaN(vals[k]));
+        if (keys.length < 2) return null;
+        const k1 = keys[0], k2 = keys[1];
+        let Tdb, W;
+
+        // 가장 일반적인 조합들을 처리
+        if (keys.includes('Tdb')) {
+            Tdb = vals.Tdb;
+            if (keys.includes('RH')) {
+                W = W_from_TdbRH(Tdb, vals.RH);
+            } else if (keys.includes('Twb')) {
+                W = W_from_TdbTwb(Tdb, vals.Twb);
+            } else if (keys.includes('Tdp')) {
+                W = humidityRatio(saturationPressure(vals.Tdp));
+            } else if (keys.includes('W')) {
+                W = vals.W / 1000;
+            } else if (keys.includes('h')) {
+                W = W_from_TdbH(Tdb, vals.h);
+            } else if (keys.includes('v')) {
+                W = W_from_TdbV(Tdb, vals.v);
+            } else return null;
+        } else if (keys.includes('Twb') && keys.includes('RH')) {
+            // Twb + RH → iterate Tdb
+            Tdb = vals.Twb + 5;
+            for (let i = 0; i < 100; i++) {
+                W = W_from_TdbTwb(Tdb, vals.Twb);
+                if (W < 0) W = 0;
+                const rhCalc = RH_from_TdbW(Tdb, W);
+                const err = rhCalc - vals.RH;
+                if (Math.abs(err) < 0.01) break;
+                Tdb += err * 0.1;
+            }
+            W = W_from_TdbTwb(Tdb, vals.Twb);
+        } else if (keys.includes('Tdp') && keys.includes('RH')) {
+            W = humidityRatio(saturationPressure(vals.Tdp));
+            // RH = Pw/Pws(Tdb) → Pws(Tdb) = Pw/RH*100
+            const Pw = vaporPressure(W);
+            const PwsTarget = Pw / (vals.RH / 100);
+            // find Tdb such that saturationPressure(Tdb) = PwsTarget
+            Tdb = vals.Tdp + 5;
+            for (let i = 0; i < 100; i++) {
+                const ps = saturationPressure(Tdb);
+                const dps = saturationPressure(Tdb + 0.01);
+                const deriv = (dps - ps) / 0.01;
+                const diff = ps - PwsTarget;
+                if (Math.abs(diff) < 1e-7) break;
+                Tdb -= diff / deriv;
+            }
+        } else if (keys.includes('W')) {
+            W = vals.W / 1000;
+            if (keys.includes('RH')) {
+                const Pw = vaporPressure(W);
+                const PwsTarget = Pw / (vals.RH / 100);
+                Tdb = 25;
+                for (let i = 0; i < 100; i++) {
+                    const ps = saturationPressure(Tdb);
+                    const dps = saturationPressure(Tdb + 0.01);
+                    const deriv = (dps - ps) / 0.01;
+                    Tdb -= (ps - PwsTarget) / deriv;
+                }
+            } else if (keys.includes('Twb')) {
+                // iterate Tdb: W_from_TdbTwb(Tdb, Twb) = W
+                Tdb = vals.Twb + 5;
+                for (let i = 0; i < 100; i++) {
+                    const Wcalc = W_from_TdbTwb(Tdb, vals.Twb);
+                    const Wcalc2 = W_from_TdbTwb(Tdb + 0.01, vals.Twb);
+                    const deriv = (Wcalc2 - Wcalc) / 0.01;
+                    if (Math.abs(deriv) < 1e-12) break;
+                    Tdb -= (Wcalc - W) / deriv;
+                }
+            } else if (keys.includes('Tdp')) {
+                // W already known from Tdp input; if W also given, use W and find Tdb from Tdp
+                // Actually just use W, need another variable for Tdb
+                // Tdp defines W too, so overdetermined. Use given W.
+                const Tdp = dewPoint(W);
+                Tdb = Tdp + 10; // need more info, approximate
+                return fullState(Tdb, W);
+            } else if (keys.includes('h')) {
+                Tdb = Tdb_from_hW(vals.h, W);
+            } else if (keys.includes('v')) {
+                Tdb = Tdb_from_vW(vals.v, W);
+            } else return null;
+        } else if (keys.includes('h')) {
+            if (keys.includes('Twb')) {
+                // iterate: h = 1.006*Tdb + W*(2501+1.86*Tdb), W = W_from_TdbTwb(Tdb, Twb)
+                Tdb = vals.Twb + 5;
+                for (let i = 0; i < 100; i++) {
+                    W = W_from_TdbTwb(Tdb, vals.Twb);
+                    if (W < 0) W = 0;
+                    const hCalc = enthalpy(Tdb, W);
+                    const W2 = W_from_TdbTwb(Tdb + 0.01, vals.Twb);
+                    const hCalc2 = enthalpy(Tdb + 0.01, W2 < 0 ? 0 : W2);
+                    const deriv = (hCalc2 - hCalc) / 0.01;
+                    if (Math.abs(deriv) < 1e-12) break;
+                    Tdb -= (hCalc - vals.h) / deriv;
+                }
+                W = W_from_TdbTwb(Tdb, vals.Twb);
+            } else if (keys.includes('RH')) {
+                Tdb = 25;
+                for (let i = 0; i < 100; i++) {
+                    W = W_from_TdbRH(Tdb, vals.RH);
+                    const hCalc = enthalpy(Tdb, W);
+                    const W2 = W_from_TdbRH(Tdb + 0.01, vals.RH);
+                    const hCalc2 = enthalpy(Tdb + 0.01, W2);
+                    const deriv = (hCalc2 - hCalc) / 0.01;
+                    if (Math.abs(deriv) < 1e-12) break;
+                    Tdb -= (hCalc - vals.h) / deriv;
+                }
+                W = W_from_TdbRH(Tdb, vals.RH);
+            } else if (keys.includes('Tdp')) {
+                W = humidityRatio(saturationPressure(vals.Tdp));
+                Tdb = Tdb_from_hW(vals.h, W);
+            } else if (keys.includes('v')) {
+                // h and v: iterate
+                Tdb = 25;
+                for (let i = 0; i < 100; i++) {
+                    W = W_from_TdbH(Tdb, vals.h);
+                    if (W < 0) W = 0;
+                    const vCalc = specificVolume(Tdb, W);
+                    const W2 = W_from_TdbH(Tdb + 0.01, vals.h);
+                    const vCalc2 = specificVolume(Tdb + 0.01, W2 < 0 ? 0 : W2);
+                    const deriv = (vCalc2 - vCalc) / 0.01;
+                    if (Math.abs(deriv) < 1e-12) break;
+                    Tdb -= (vCalc - vals.v) / deriv;
+                }
+                W = W_from_TdbH(Tdb, vals.h);
+            } else return null;
+        } else if (keys.includes('v')) {
+            if (keys.includes('Twb')) {
+                Tdb = vals.Twb + 5;
+                for (let i = 0; i < 100; i++) {
+                    W = W_from_TdbTwb(Tdb, vals.Twb);
+                    if (W < 0) W = 0;
+                    const vCalc = specificVolume(Tdb, W);
+                    const W2 = W_from_TdbTwb(Tdb + 0.01, vals.Twb);
+                    const vCalc2 = specificVolume(Tdb + 0.01, W2 < 0 ? 0 : W2);
+                    const deriv = (vCalc2 - vCalc) / 0.01;
+                    if (Math.abs(deriv) < 1e-12) break;
+                    Tdb -= (vCalc - vals.v) / deriv;
+                }
+                W = W_from_TdbTwb(Tdb, vals.Twb);
+            } else if (keys.includes('RH')) {
+                Tdb = 25;
+                for (let i = 0; i < 100; i++) {
+                    W = W_from_TdbRH(Tdb, vals.RH);
+                    const vCalc = specificVolume(Tdb, W);
+                    const W2 = W_from_TdbRH(Tdb + 0.01, vals.RH);
+                    const vCalc2 = specificVolume(Tdb + 0.01, W2);
+                    const deriv = (vCalc2 - vCalc) / 0.01;
+                    if (Math.abs(deriv) < 1e-12) break;
+                    Tdb -= (vCalc - vals.v) / deriv;
+                }
+                W = W_from_TdbRH(Tdb, vals.RH);
+            } else if (keys.includes('Tdp')) {
+                W = humidityRatio(saturationPressure(vals.Tdp));
+                Tdb = Tdb_from_vW(vals.v, W);
+            } else return null;
+        } else if (keys.includes('Twb') && keys.includes('Tdp')) {
+            W = humidityRatio(saturationPressure(vals.Tdp));
+            Tdb = vals.Twb + 5;
+            for (let i = 0; i < 100; i++) {
+                const Wcalc = W_from_TdbTwb(Tdb, vals.Twb);
+                const diff = Wcalc - W;
+                const Wcalc2 = W_from_TdbTwb(Tdb + 0.01, vals.Twb);
+                const deriv = (Wcalc2 - Wcalc) / 0.01;
+                if (Math.abs(deriv) < 1e-12) break;
+                Tdb -= diff / deriv;
+            }
+        } else {
+            return null;
+        }
+
+        if (W < 0) W = 0;
+        if (isNaN(Tdb) || isNaN(W)) return null;
+        return fullState(Tdb, W);
+    }
+
+    /** SHR 기울기 */
+    function SHR_slope(SHR) {
+        if (SHR <= 0 || SHR > 1) return Infinity;
+        return 1.006 * (1 - SHR) / (2501 * SHR);
+    }
+
+    return {
+        setAtmPressure, getAtmPressure,
+        saturationPressure, humidityRatio, vaporPressure,
+        W_from_TdbRH, W_from_TdbTwb, RH_from_TdbW,
+        dewPoint, wetBulb, enthalpy, specificVolume,
+        fullState, solveFromTwo, SHR_slope
+    };
+})();
+
+</script>
+<script>
+// ===== psychro-chart.js =====
+/**
+ * psychro-chart.js
+ * 습공기선도 캔버스 렌더링
+ */
+const PsychroChart = (() => {
+    let canvas, ctx;
+    const margin = { top: 40, right: 70, bottom: 60, left: 70 };
+    let W_max, T_min, T_max, chartW, chartH;
+
+    const config = {
+        T_min: -10, T_max: 55,
+        W_max: 30,
+        showRH: true, showWb: true, showH: true, showV: true
+    };
+
+    let auxLines = [];
+    let connectionLines = [];
+
+    function init(canvasEl) {
+        canvas = canvasEl;
+        ctx = canvas.getContext('2d');
+        resize();
+    }
+
+    function resize() {
+        const container = canvas.parentElement;
+        const dpr = window.devicePixelRatio || 1;
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        chartW = w - margin.left - margin.right;
+        chartH = h - margin.top - margin.bottom;
+        T_min = config.T_min; T_max = config.T_max;
+        W_max = config.W_max;
+    }
+
+    function toPixel(Tdb, W_gkg) {
+        const x = margin.left + (Tdb - T_min) / (T_max - T_min) * chartW;
+        const y = margin.top + (1 - W_gkg / W_max) * chartH;
+        return [x, y];
+    }
+
+    function fromPixel(px, py) {
+        const Tdb = T_min + (px - margin.left) / chartW * (T_max - T_min);
+        const W_gkg = W_max * (1 - (py - margin.top) / chartH);
+        return [Tdb, W_gkg];
+    }
+
+    function isInChart(px, py) {
+        return px >= margin.left && px <= margin.left + chartW &&
+               py >= margin.top && py <= margin.top + chartH;
+    }
+
+    function clipChartArea() {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(margin.left, margin.top, chartW, chartH);
+        ctx.clip();
+    }
+
+    function clipSaturationArea() {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(margin.left, margin.top + chartH);
+        ctx.lineTo(margin.left + chartW, margin.top + chartH);
+        const WsMax = PsychroCalc.humidityRatio(PsychroCalc.saturationPressure(T_max)) * 1000;
+        const wRight = Math.min(WsMax, W_max);
+        const [xr, yr] = toPixel(T_max, wRight);
+        ctx.lineTo(xr, yr);
+        for (let t = T_max; t >= T_min; t -= 0.5) {
+            const Ws = PsychroCalc.humidityRatio(PsychroCalc.saturationPressure(t)) * 1000;
+            if (Ws > W_max) {
+                const [x, y] = toPixel(t, W_max);
+                ctx.lineTo(x, y);
+            } else {
+                const [x, y] = toPixel(t, Ws);
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.lineTo(margin.left, margin.top + chartH);
+        ctx.clip();
+    }
+
+    function draw(statePoints) {
+        const w = canvas.width / (window.devicePixelRatio || 1);
+        const h = canvas.height / (window.devicePixelRatio || 1);
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(margin.left, margin.top, chartW, chartH);
+
+        drawGrid();
+        if (config.showV) drawSpecificVolumeLines();
+        if (config.showH) drawEnthalpyLines();
+        if (config.showWb) drawWetBulbLines();
+        if (config.showRH) drawRHLines();
+        drawSaturationCurve();
+        drawAxes();
+        drawConnectionLines();
+        drawAuxLines();
+        drawStatePoints(statePoints);
+    }
+
+    function drawGrid() {
+        ctx.save();
+        ctx.strokeStyle = '#e8eaed';
+        ctx.lineWidth = 0.5;
+        for (let t = T_min; t <= T_max; t += 5) {
+            const [x, y1] = toPixel(t, 0);
+            const [, y2] = toPixel(t, W_max);
+            ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
+        }
+        for (let w = 0; w <= W_max; w += 2) {
+            const [x1, y] = toPixel(T_min, w);
+            const [x2] = toPixel(T_max, w);
+            ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    function drawAxes() {
+        ctx.save();
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(margin.left, margin.top);
+        ctx.lineTo(margin.left, margin.top + chartH);
+        ctx.lineTo(margin.left + chartW, margin.top + chartH);
+        ctx.lineTo(margin.left + chartW, margin.top);
+        ctx.stroke();
+
+        ctx.font = '11px Pretendard, sans-serif';
+        ctx.fillStyle = '#333';
+        ctx.textAlign = 'center';
+        for (let t = T_min; t <= T_max; t += 5) {
+            const [x, y] = toPixel(t, 0);
+            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 5); ctx.stroke();
+            ctx.fillText(t + '', x, y + 18);
+        }
+        ctx.fillText('건구온도 (°C)', margin.left + chartW / 2, margin.top + chartH + 45);
+
+        ctx.textAlign = 'left';
+        for (let w = 0; w <= W_max; w += 2) {
+            const [, y] = toPixel(T_max, w);
+            const x2 = margin.left + chartW;
+            ctx.beginPath(); ctx.moveTo(x2, y); ctx.lineTo(x2 + 5, y); ctx.stroke();
+            ctx.fillText(w + '', x2 + 8, y + 4);
+        }
+        ctx.save();
+        ctx.translate(margin.left + chartW + 55, margin.top + chartH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.fillText("절대습도 (g/kg')", 0, 0);
+        ctx.restore();
+
+        ctx.restore();
+    }
+
+    function drawSaturationCurve() {
+        ctx.save();
+        ctx.strokeStyle = '#1a5276';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        let first = true;
+        for (let t = T_min; t <= T_max; t += 0.5) {
+            const Ws = PsychroCalc.humidityRatio(PsychroCalc.saturationPressure(t)) * 1000;
+            if (Ws > W_max) continue;
+            const [x, y] = toPixel(t, Ws);
+            if (first) { ctx.moveTo(x, y); first = false; }
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawRHLines() {
+        clipSaturationArea();
+        ctx.lineWidth = 0.8;
+        const rhValues = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+        for (const rh of rhValues) {
+            ctx.strokeStyle = `rgba(41,128,185,${0.4 + rh/200})`;
+            ctx.beginPath();
+            let first = true;
+            for (let t = T_min; t <= T_max; t += 0.5) {
+                const W = PsychroCalc.W_from_TdbRH(t, rh) * 1000;
+                if (W < 0) continue;
+                const clampW = Math.min(W, W_max);
+                const [x, y] = toPixel(t, clampW);
+                if (first) { ctx.moveTo(x, y); first = false; }
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            const tLabel = Math.min(T_max - 2, 45 - rh * 0.3);
+            const WLabel = PsychroCalc.W_from_TdbRH(tLabel, rh) * 1000;
+            if (WLabel > 0 && WLabel < W_max) {
+                const [lx, ly] = toPixel(tLabel, WLabel);
+                ctx.font = '9px Pretendard, sans-serif';
+                ctx.fillStyle = '#2980b9';
+                ctx.textAlign = 'center';
+                ctx.fillText(rh + '%', lx, ly - 3);
+            }
+        }
+        ctx.restore();
+    }
+
+    function drawWetBulbLines() {
+        clipSaturationArea();
+        ctx.lineWidth = 0.6;
+        ctx.strokeStyle = 'rgba(39,174,96,0.5)';
+        for (let twb = -5; twb <= 35; twb += 5) {
+            ctx.beginPath();
+            let first = true;
+            for (let t = twb; t <= T_max + 10; t += 0.5) {
+                const W = PsychroCalc.W_from_TdbTwb(t, twb) * 1000;
+                if (W < -1) continue;
+                const clampW = Math.max(0, W);
+                const [x, y] = toPixel(t, clampW);
+                if (first) { ctx.moveTo(x, y); first = false; }
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            const WsLabel = PsychroCalc.humidityRatio(PsychroCalc.saturationPressure(twb)) * 1000;
+            if (WsLabel >= 0 && WsLabel <= W_max) {
+                const [lx, ly] = toPixel(twb, WsLabel);
+                ctx.font = '8px Pretendard, sans-serif';
+                ctx.fillStyle = '#27ae60';
+                ctx.textAlign = 'right';
+                ctx.fillText(twb + '°', lx - 3, ly - 2);
+            }
+        }
+        ctx.restore();
+    }
+
+    /** 등엔탈피선을 다중 세그먼트 경로로 트레이싱 (곡선 정밀 렌더링) */
+    function traceEnthalpyPath(h) {
+        const tStart = T_min - 15;
+        const tEnd = T_max + 10;
+        ctx.beginPath();
+        let first = true;
+        for (let t = tStart; t <= tEnd; t += 1) {
+            const W_gkg = (h - 1.006 * t) / (2501 + 1.86 * t) * 1000;
+            const [x, y] = toPixel(t, W_gkg);
+            if (first) { ctx.moveTo(x, y); first = false; }
+            else ctx.lineTo(x, y);
+        }
+    }
+
+    function drawEnthalpyLines() {
+        clipChartArea();
+        for (let h = -10; h <= 140; h += 5) {
+            const isMajor = (h % 10 === 0);
+            ctx.strokeStyle = isMajor ? 'rgba(192,57,43,0.45)' : 'rgba(192,57,43,0.2)';
+            ctx.lineWidth = isMajor ? 0.7 : 0.4;
+            ctx.setLineDash([4, 3]);
+
+            traceEnthalpyPath(h);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            if (isMajor && h >= 0) {
+                const Wlabel = (h - 1.006 * T_min) / (2501 + 1.86 * T_min) * 1000;
+                if (Wlabel > 0 && Wlabel <= W_max) {
+                    const [lx, ly] = toPixel(T_min, Wlabel);
+                    ctx.font = '8px Pretendard, sans-serif';
+                    ctx.fillStyle = '#c0392b';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(h + '', lx - 4, ly + 3);
+                } else if (Wlabel > W_max) {
+                    const tLabel = (h - (2501 + 1.86 * 0) * W_max / 1000) / 1.006;
+                    if (tLabel >= T_min && tLabel <= T_max) {
+                        const [lx, ly] = toPixel(tLabel, W_max);
+                        ctx.font = '8px Pretendard, sans-serif';
+                        ctx.fillStyle = '#c0392b';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(h + '', lx, ly - 3);
+                    }
+                }
+            }
+        }
+        ctx.restore();
+    }
+
+    function drawSpecificVolumeLines() {
+        clipChartArea();
+        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = 'rgba(142,68,173,0.35)';
+        ctx.setLineDash([6, 3]);
+        for (let v = 0.75; v <= 0.95; v += 0.02) {
+            ctx.beginPath();
+            let first = true;
+            for (let t = T_min - 10; t <= T_max + 10; t += 1) {
+                const P = PsychroCalc.getAtmPressure();
+                const W = (v * P / (0.2871 * (t + 273.15)) - 1) / 1.6078 * 1000;
+                const [x, y] = toPixel(t, W);
+                if (first) { ctx.moveTo(x, y); first = false; }
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            const P = PsychroCalc.getAtmPressure();
+            const tLabel = T_max - 2;
+            const WLabel = (v * P / (0.2871 * (tLabel + 273.15)) - 1) / 1.6078 * 1000;
+            if (WLabel >= 0 && WLabel < W_max) {
+                const [lx, ly] = toPixel(tLabel, WLabel);
+                ctx.setLineDash([]);
+                ctx.font = '8px Pretendard, sans-serif';
+                ctx.fillStyle = '#8e44ad';
+                ctx.textAlign = 'left';
+                ctx.fillText(v.toFixed(2), lx + 2, ly - 2);
+            }
+        }
+        ctx.setLineDash([]);
+        ctx.restore();
+    }
+
+    function drawStatePoints(points) {
+        ctx.save();
+        const colors = ['#e74c3c','#2ecc71','#3498db','#f39c12','#9b59b6','#1abc9c','#e67e22','#34495e'];
+        points.forEach((pt, i) => {
+            const [x, y] = toPixel(pt.Tdb, pt.W);
+            const color = colors[i % colors.length];
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.font = 'bold 9px Pretendard, sans-serif';
+            ctx.fillStyle = color;
+            ctx.textAlign = 'center';
+            ctx.fillText(pt.label || (i + 1), x, y - 9);
+        });
+        ctx.restore();
+    }
+
+    function drawConnectionLines() {
+        if (!connectionLines || connectionLines.length === 0) return;
+        ctx.save();
+        connectionLines.forEach(cl => {
+            const [x1, y1] = toPixel(cl.from.Tdb, cl.from.W);
+            const [x2, y2] = toPixel(cl.to.Tdb, cl.to.W);
+            ctx.strokeStyle = cl.color || '#e74c3c';
+            ctx.lineWidth = 1.8;
+            ctx.setLineDash([5, 3]);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        });
+        ctx.restore();
+    }
+
+    function drawAuxLines() {
+        if (!auxLines || auxLines.length === 0) return;
+        clipChartArea();
+        auxLines.forEach(al => {
+            ctx.strokeStyle = al.color || '#e67e22';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash(al.dash || []);
+
+            if (al.type === 'tdb') {
+                const [x, y1] = toPixel(al.Tdb, 0);
+                const Ws = PsychroCalc.humidityRatio(PsychroCalc.saturationPressure(al.Tdb)) * 1000;
+                const wTop = Math.min(Ws, W_max);
+                const [, y2] = toPixel(al.Tdb, wTop);
+                ctx.beginPath();
+                ctx.moveTo(x, y1);
+                ctx.lineTo(x, y2);
+            } else if (al.type === 'enthalpy') {
+                // 다중 세그먼트 곡선으로 정확히 렌더링
+                traceEnthalpyPath(al.h);
+            } else if (al.type === 'shr') {
+                const slope = PsychroCalc.SHR_slope(al.shr);
+                const startW = al.W_gkg / 1000;
+                const startT = al.Tdb;
+                const dtStart = -40;
+                const dtEnd = 40;
+                const t1 = startT + dtStart;
+                const t2 = startT + dtEnd;
+                const W1 = (startW + slope * dtStart) * 1000;
+                const W2 = (startW + slope * dtEnd) * 1000;
+                const [x1, y1] = toPixel(t1, W1);
+                const [x2, y2] = toPixel(t2, W2);
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+        });
+        ctx.restore();
+    }
+
+    function setAuxLines(lines) { auxLines = lines; }
+    function setConnectionLines(lines) { connectionLines = lines; }
+    function getConfig() { return config; }
+    function getMargin() { return margin; }
+    function getChartDimensions() { return { chartW, chartH, T_min, T_max, W_max }; }
+
+    return {
+        init, resize, draw, toPixel, fromPixel, isInChart, getConfig,
+        setAuxLines, setConnectionLines, getMargin, getChartDimensions
+    };
+})();
+
+</script>
+<script>
+// ===== psychro-interaction.js =====
+/**
+ * psychro-interaction.js
+ * 캔버스 마우스 이벤트 & 상태점 데이터 관리
+ */
+const PsychroInteraction = (() => {
+    let statePoints = [];
+    let hoveredState = null;
+    let onHoverCallback = null;
+    let onPointsChangeCallback = null;
+
+    function init(canvas) {
+        canvas.addEventListener('mousemove', handleMouseMove);
+        canvas.addEventListener('mouseleave', handleMouseLeave);
+        canvas.addEventListener('click', handleClick);
+    }
+
+    function handleMouseMove(e) {
+        const rect = e.target.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+
+        if (!PsychroChart.isInChart(px, py)) {
+            hoveredState = null;
+            if (onHoverCallback) onHoverCallback(null);
+            return;
+        }
+
+        const [Tdb, W_gkg] = PsychroChart.fromPixel(px, py);
+        const Ws = PsychroCalc.humidityRatio(PsychroCalc.saturationPressure(Tdb)) * 1000;
+        if (W_gkg > Ws || W_gkg < 0) {
+            hoveredState = null;
+            if (onHoverCallback) onHoverCallback(null);
+            return;
+        }
+
+        hoveredState = PsychroCalc.fullState(Tdb, W_gkg / 1000);
+        if (onHoverCallback) onHoverCallback(hoveredState);
+    }
+
+    function handleMouseLeave() {
+        hoveredState = null;
+        if (onHoverCallback) onHoverCallback(null);
+    }
+
+    function handleClick(e) {
+        const rect = e.target.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+
+        if (!PsychroChart.isInChart(px, py)) return;
+
+        const [Tdb, W_gkg] = PsychroChart.fromPixel(px, py);
+        const Ws = PsychroCalc.humidityRatio(PsychroCalc.saturationPressure(Tdb)) * 1000;
+        if (W_gkg > Ws || W_gkg < 0) return;
+
+        const state = PsychroCalc.fullState(Tdb, W_gkg / 1000);
+        addPoint(state);
+    }
+
+    function addPoint(state, label, name) {
+        const pt = {
+            ...state,
+            label: label || String(statePoints.length + 1),
+            name: name || '',
+            id: Date.now() + Math.random()
+        };
+        statePoints.push(pt);
+        notifyChange();
+    }
+
+    function updatePoint(index, state, name) {
+        if (index < 0 || index >= statePoints.length) return;
+        const oldLabel = statePoints[index].label;
+        const oldName = statePoints[index].name;
+        statePoints[index] = {
+            ...state,
+            label: oldLabel,
+            name: (name !== undefined) ? name : oldName,
+            id: statePoints[index].id
+        };
+        notifyChange();
+    }
+
+    function removePoint(index) {
+        statePoints.splice(index, 1);
+        // 번호 재정렬, 명칭 유지
+        statePoints.forEach((pt, i) => { pt.label = String(i + 1); });
+        notifyChange();
+    }
+
+    function clearPoints() {
+        statePoints = [];
+        notifyChange();
+    }
+
+    function getPoints() { return statePoints; }
+    function getHovered() { return hoveredState; }
+
+    function notifyChange() {
+        if (onPointsChangeCallback) onPointsChangeCallback(statePoints);
+    }
+
+    function onHover(cb) { onHoverCallback = cb; }
+    function onPointsChange(cb) { onPointsChangeCallback = cb; }
+
+    return {
+        init, addPoint, updatePoint, removePoint, clearPoints,
+        getPoints, getHovered,
+        onHover, onPointsChange
+    };
+})();
+
+</script>
+<script>
+// ===== psychro-ui.js =====
+/**
+ * psychro-ui.js
+ * UI: 7필드 자유 입력, 상태점 명칭, 수정, 연결선, 보조선, 교차점, 보조선 위 점 생성
+ */
+const PsychroUI = (() => {
+    const fieldIds = ['inputTdb','inputTwb','inputTdp','inputRH','inputW','inputH','inputV'];
+    const fieldKeys = ['Tdb','Twb','Tdp','RH','W','h','v'];
+    let fields = {};
+    let pointListEl, hoverPanel;
+    let editIndex = -1;
+
+    let userInputKeys = new Set();
+    let auxLines = [];
+    let connectionLines = [];
+    let computing = false;
+
+    function init() {
+        fieldIds.forEach((id, i) => {
+            fields[fieldKeys[i]] = document.getElementById(id);
+        });
+        pointListEl = document.getElementById('pointList');
+        hoverPanel = document.getElementById('hoverPanel');
+
+        fieldIds.forEach((id, i) => {
+            const key = fieldKeys[i];
+            fields[key].addEventListener('input', () => {
+                if (computing) return;
+                const val = fields[key].value.trim();
+                if (val === '') { userInputKeys.delete(key); }
+                else { userInputKeys.add(key); }
+                fieldKeys.forEach(k => {
+                    if (!userInputKeys.has(k)) fields[k].classList.remove('auto-filled');
+                });
+                onFieldInput(key);
+            });
+        });
+
+        document.getElementById('btnAddPoint').addEventListener('click', addPointFromInput);
+        document.getElementById('btnEditConfirm').addEventListener('click', confirmEdit);
+        document.getElementById('btnEditCancel').addEventListener('click', cancelEdit);
+        document.getElementById('btnClearAll').addEventListener('click', () => PsychroInteraction.clearPoints());
+        document.getElementById('atmPressure').addEventListener('input', onAtmChange);
+        document.getElementById('btnConnect').addEventListener('click', onConnect);
+        document.getElementById('btnAuxTdb').addEventListener('click', () => addAuxLine('tdb'));
+        document.getElementById('btnAuxH').addEventListener('click', () => addAuxLine('enthalpy'));
+        document.getElementById('btnAuxSHR').addEventListener('click', () => addAuxLine('shr'));
+        document.getElementById('btnCrossPoint').addEventListener('click', onCrossPoint);
+        document.getElementById('btnAuxPointGen').addEventListener('click', onAuxPointGen);
+
+        PsychroInteraction.onHover(updateHoverPanel);
+        PsychroInteraction.onPointsChange(onPointsChanged);
+    }
+
+    // ─── 자유 입력 계산 ───
+    function onFieldInput(changedKey) {
+        if (computing) return;
+        fieldKeys.forEach(k => {
+            if (!userInputKeys.has(k)) {
+                fields[k].value = '';
+                fields[k].classList.remove('auto-filled');
+            }
+        });
+        const userKeys = [], vals = {};
+        fieldKeys.forEach(k => {
+            if (userInputKeys.has(k)) {
+                const v = parseFloat(fields[k].value);
+                if (!isNaN(v)) { vals[k] = v; userKeys.push(k); }
+            }
+        });
+        if (userKeys.length < 2) return;
+        const solveVals = {};
+        solveVals[userKeys[0]] = vals[userKeys[0]];
+        solveVals[userKeys[1]] = vals[userKeys[1]];
+        const state = PsychroCalc.solveFromTwo(solveVals);
+        if (!state || isNaN(state.Tdb)) return;
+        computing = true;
+        const mapping = { Tdb: state.Tdb, Twb: state.Twb, Tdp: state.Tdp, RH: state.RH, W: state.W, h: state.h, v: state.v };
+        const precisions = { Tdb: 1, Twb: 1, Tdp: 1, RH: 1, W: 2, h: 2, v: 4 };
+        fieldKeys.forEach(k => {
+            if (!userInputKeys.has(k)) {
+                fields[k].value = mapping[k].toFixed(precisions[k]);
+                fields[k].classList.add('auto-filled');
+            }
+        });
+        computing = false;
+    }
+
+    function getStateFromFields() {
+        const userKeys = [], vals = {};
+        fieldKeys.forEach(k => {
+            if (userInputKeys.has(k)) {
+                const v = parseFloat(fields[k].value);
+                if (!isNaN(v)) { vals[k] = v; userKeys.push(k); }
+            }
+        });
+        if (userKeys.length < 2) return null;
+        const solveVals = {};
+        solveVals[userKeys[0]] = vals[userKeys[0]];
+        solveVals[userKeys[1]] = vals[userKeys[1]];
+        return PsychroCalc.solveFromTwo(solveVals);
+    }
+
+    function addPointFromInput() {
+        const state = getStateFromFields();
+        if (!state || isNaN(state.Tdb)) return;
+        const nameEl = document.getElementById('inputPointName');
+        const name = nameEl ? nameEl.value.trim() : '';
+        PsychroInteraction.addPoint(state, null, name);
+        clearInputFields();
+    }
+
+    function clearInputFields() {
+        fieldKeys.forEach(k => {
+            fields[k].value = '';
+            fields[k].classList.remove('auto-filled');
+        });
+        const nameEl = document.getElementById('inputPointName');
+        if (nameEl) nameEl.value = '';
+        userInputKeys.clear();
+    }
+
+    // ─── 상태점 수정 ───
+    function startEdit(index) {
+        editIndex = index;
+        const pt = PsychroInteraction.getPoints()[index];
+        if (!pt) return;
+        userInputKeys.clear();
+        userInputKeys.add('Tdb');
+        userInputKeys.add('RH');
+        computing = true;
+        fields.Tdb.value = pt.Tdb.toFixed(1);
+        fields.Twb.value = pt.Twb.toFixed(1);
+        fields.Tdp.value = pt.Tdp.toFixed(1);
+        fields.RH.value = pt.RH.toFixed(1);
+        fields.W.value = pt.W.toFixed(2);
+        fields.h.value = pt.h.toFixed(2);
+        fields.v.value = pt.v.toFixed(4);
+        fieldKeys.forEach(k => {
+            if (userInputKeys.has(k)) fields[k].classList.remove('auto-filled');
+            else fields[k].classList.add('auto-filled');
+        });
+        const nameEl = document.getElementById('inputPointName');
+        if (nameEl) nameEl.value = pt.name || '';
+        computing = false;
+        document.getElementById('btnRowMain').style.display = 'none';
+        document.getElementById('btnRowEdit').style.display = 'flex';
+    }
+
+    function confirmEdit() {
+        if (editIndex < 0) return;
+        const state = getStateFromFields();
+        if (!state || isNaN(state.Tdb)) return;
+        const nameEl = document.getElementById('inputPointName');
+        const name = nameEl ? nameEl.value.trim() : '';
+        PsychroInteraction.updatePoint(editIndex, state, name);
+        cancelEdit();
+    }
+
+    function cancelEdit() {
+        editIndex = -1;
+        clearInputFields();
+        document.getElementById('btnRowMain').style.display = 'flex';
+        document.getElementById('btnRowEdit').style.display = 'none';
+    }
+
+    // ─── 상태점 목록 ───
+    function onPointsChanged(points) {
+        updatePointList(points);
+        updateDropdowns(points);
+        redraw();
+    }
+
+    function getPointDisplayLabel(pt) {
+        if (pt.name) return pt.label + ' ' + pt.name;
+        return pt.label;
+    }
+
+    function updatePointList(points) {
+        if (!points.length) {
+            pointListEl.innerHTML = '<div class="list-placeholder">상태점이 없습니다<br><small>차트 클릭 또는 값 입력 후 추가</small></div>';
+        } else {
+            const colors = ['#e74c3c','#2ecc71','#3498db','#f39c12','#9b59b6','#1abc9c','#e67e22','#34495e'];
+            let html = '';
+            points.forEach((pt, i) => {
+                const c = colors[i % colors.length];
+                const nameStr = pt.name ? `<span class="point-name">${pt.name}</span>` : '';
+                html += `
+                <div class="point-item" style="border-left: 3px solid ${c}">
+                    <div class="point-header">
+                        <span class="point-badge" style="background:${c}">${pt.label}</span>
+                        ${nameStr}
+                        <span class="point-summary">Tdb ${pt.Tdb.toFixed(1)}°C, RH ${pt.RH.toFixed(1)}%, h ${pt.h.toFixed(1)} kJ/kg'</span>
+                        <button class="btn-edit" onclick="PsychroUI.startEdit(${i})" title="수정">✏️</button>
+                        <button class="btn-delete" onclick="PsychroUI.deletePoint(${i})" title="삭제">✕</button>
+                    </div>
+                </div>`;
+            });
+            pointListEl.innerHTML = html;
+        }
+    }
+
+    function updateDropdowns(points) {
+        const selectors = ['connectFrom', 'connectTo', 'auxPoint'];
+        selectors.forEach(id => {
+            const sel = document.getElementById(id);
+            const currentVal = sel.value;
+            const defaultLabel = id === 'auxPoint' ? '상태점' : (id === 'connectFrom' ? '시작점' : '끝점');
+            let html = `<option value="">${defaultLabel}</option>`;
+            points.forEach((pt, i) => {
+                html += `<option value="${i}">${getPointDisplayLabel(pt)}</option>`;
+            });
+            sel.innerHTML = html;
+            if (currentVal && parseInt(currentVal) < points.length) sel.value = currentVal;
+        });
+        updateCrossLineDropdowns();
+        updateAuxLineSelectDropdown();
+    }
+
+    function deletePoint(index) {
+        PsychroInteraction.removePoint(index);
+    }
+
+    // ─── 연결선 ───
+    function onConnect() {
+        const fromIdx = parseInt(document.getElementById('connectFrom').value);
+        const toIdx = parseInt(document.getElementById('connectTo').value);
+        const points = PsychroInteraction.getPoints();
+        if (isNaN(fromIdx) || isNaN(toIdx) || fromIdx === toIdx) return;
+        if (!points[fromIdx] || !points[toIdx]) return;
+        const colors = ['#e74c3c','#8e44ad','#f39c12','#1abc9c','#2c3e50'];
+        connectionLines.push({
+            from: points[fromIdx], to: points[toIdx],
+            fromLabel: getPointDisplayLabel(points[fromIdx]),
+            toLabel: getPointDisplayLabel(points[toIdx]),
+            color: colors[connectionLines.length % colors.length],
+            id: Date.now()
+        });
+        refreshLineUI();
+        redraw();
+    }
+
+    // ─── 보조선 ───
+    function addAuxLine(type) {
+        const ptIdx = parseInt(document.getElementById('auxPoint').value);
+        const points = PsychroInteraction.getPoints();
+        if (isNaN(ptIdx) || !points[ptIdx]) return;
+        const pt = points[ptIdx];
+
+        // 중복 방지
+        const shrVal = parseFloat(document.getElementById('inputSHR').value);
+        const hasDup = auxLines.some(al => al.ptIdx === ptIdx && al.type === type &&
+            (type !== 'shr' || al.shr === shrVal));
+        if (hasDup) {
+            alert('동일한 상태점에 같은 타입의 보조선이 이미 존재합니다.');
+            return;
+        }
+
+        const lineColors = { tdb: '#e67e22', enthalpy: '#c0392b', shr: '#8e44ad' };
+        const lineNames = { tdb: '건구온도선', enthalpy: '엔탈피선', shr: '현열비선' };
+        const displayLabel = getPointDisplayLabel(pt);
+        const line = {
+            type, color: lineColors[type],
+            dash: type === 'enthalpy' ? [6,3] : (type === 'shr' ? [8,4] : []),
+            Tdb: pt.Tdb, W_gkg: pt.W, h: pt.h,
+            label: `${displayLabel} ${lineNames[type]}`,
+            ptIdx, id: Date.now()
+        };
+        if (type === 'shr') {
+            if (isNaN(shrVal) || shrVal <= 0 || shrVal > 1) return;
+            line.shr = shrVal;
+            line.label += ` (${shrVal})`;
+        }
+        auxLines.push(line);
+        refreshLineUI();
+        redraw();
+    }
+
+    function removeAuxLine(id) {
+        auxLines = auxLines.filter(l => l.id !== id);
+        refreshLineUI();
+        redraw();
+    }
+
+    function removeConnectionLine(id) {
+        connectionLines = connectionLines.filter(l => l.id !== id);
+        refreshLineUI();
+        redraw();
+    }
+
+    /** 연결선/보조선 목록 및 관련 드롭다운 일괄 갱신 */
+    function refreshLineUI() {
+        updateAuxLinesList();
+        updateCrossLineDropdowns();
+        updateAuxLineSelectDropdown();
+    }
+
+    function updateAuxLinesList() {
+        const listEl = document.getElementById('auxLineList');
+        if (auxLines.length === 0 && connectionLines.length === 0) {
+            listEl.innerHTML = '<div class="list-placeholder-sm">보조선이 없습니다</div>';
+            return;
+        }
+        let html = '';
+        connectionLines.forEach(cl => {
+            html += `
+            <div class="aux-line-item">
+                <span class="aux-line-color" style="background:${cl.color}"></span>
+                <span class="aux-line-label">연결선 ${cl.fromLabel} → ${cl.toLabel}</span>
+                <button class="btn-delete" onclick="PsychroUI.removeConnectionLine(${cl.id})" title="삭제">✕</button>
+            </div>`;
+        });
+        auxLines.forEach(al => {
+            html += `
+            <div class="aux-line-item">
+                <span class="aux-line-color" style="background:${al.color}"></span>
+                <span class="aux-line-label">${al.label}</span>
+                <button class="btn-delete" onclick="PsychroUI.removeAuxLine(${al.id})" title="삭제">✕</button>
+            </div>`;
+        });
+        listEl.innerHTML = html;
+    }
+
+    // ─── 교차점 드롭다운 ───
+    function getAllLinesForCross() {
+        const lines = [];
+        connectionLines.forEach(cl => {
+            lines.push({ kind: 'connection', data: cl,
+                displayLabel: `연결선 ${cl.fromLabel}→${cl.toLabel}` });
+        });
+        auxLines.forEach(al => {
+            lines.push({ kind: 'aux', data: al, displayLabel: al.label });
+        });
+        return lines;
+    }
+
+    function updateCrossLineDropdowns() {
+        const allLines = getAllLinesForCross();
+        ['crossLine1', 'crossLine2'].forEach(id => {
+            const sel = document.getElementById(id);
+            const curVal = sel.value;
+            let html = '<option value="">선 선택</option>';
+            allLines.forEach((line, i) => {
+                html += `<option value="${i}">${line.displayLabel}</option>`;
+            });
+            sel.innerHTML = html;
+            if (curVal !== '' && parseInt(curVal) < allLines.length) sel.value = curVal;
+        });
+    }
+
+    // ─── 보조선 위 점 생성 드롭다운 ───
+    function updateAuxLineSelectDropdown() {
+        const sel = document.getElementById('auxLineSelect');
+        const curVal = sel.value;
+        let html = '<option value="">보조선/연결선</option>';
+        connectionLines.forEach((cl, i) => {
+            html += `<option value="conn_${i}">연결선 ${cl.fromLabel}→${cl.toLabel}</option>`;
+        });
+        auxLines.forEach((al, i) => {
+            html += `<option value="aux_${i}">${al.label}</option>`;
+        });
+        sel.innerHTML = html;
+        for (const opt of sel.querySelectorAll('option')) {
+            if (opt.value === curVal) { sel.value = curVal; break; }
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    // 교차점 계산 엔진
+    // ═══════════════════════════════════════════════
+
+    /** 선 정보를 (Tdb, W_gkg) 좌표계의 세그먼트 배열로 변환 */
+    function getLineSegments(lineInfo) {
+        // virtual (물성치 등치선)
+        if (lineInfo.kind === 'virtual') return lineInfo.segments;
+
+        const segs = [];
+        const cfg = PsychroChart.getConfig();
+        const tMin = cfg.T_min, tMax = cfg.T_max, wMax = cfg.W_max;
+
+        if (lineInfo.kind === 'connection') {
+            const cl = lineInfo.data;
+            segs.push({ t1: cl.from.Tdb, w1: cl.from.W, t2: cl.to.Tdb, w2: cl.to.W });
+        } else if (lineInfo.kind === 'aux') {
+            const al = lineInfo.data;
+            if (al.type === 'tdb') {
+                const Ws = PsychroCalc.humidityRatio(PsychroCalc.saturationPressure(al.Tdb)) * 1000;
+                segs.push({ t1: al.Tdb, w1: 0, t2: al.Tdb, w2: Math.min(Ws, wMax) });
+            } else if (al.type === 'enthalpy') {
+                const step = 1;
+                for (let t = tMin - 15; t <= tMax + 10 - step; t += step) {
+                    const w1 = (al.h - 1.006 * t) / (2501 + 1.86 * t) * 1000;
+                    const w2 = (al.h - 1.006 * (t+step)) / (2501 + 1.86 * (t+step)) * 1000;
+                    segs.push({ t1: t, w1, t2: t+step, w2 });
+                }
+            } else if (al.type === 'shr') {
+                const slope = PsychroCalc.SHR_slope(al.shr);
+                const startW = al.W_gkg / 1000;
+                const dt = 40;
+                segs.push({
+                    t1: al.Tdb - dt, w1: (startW + slope*(-dt))*1000,
+                    t2: al.Tdb + dt, w2: (startW + slope*dt)*1000
+                });
+            }
+        }
+        return segs;
+    }
+
+    /** 두 세그먼트의 교차점 (매개변수 교차법) */
+    function segmentIntersect(s1, s2) {
+        const dx1 = s1.t2 - s1.t1, dy1 = s1.w2 - s1.w1;
+        const dx2 = s2.t2 - s2.t1, dy2 = s2.w2 - s2.w1;
+        const denom = dx1 * dy2 - dy1 * dx2;
+        if (Math.abs(denom) < 1e-12) return null;
+        const t = ((s2.t1 - s1.t1) * dy2 - (s2.w1 - s1.w1) * dx2) / denom;
+        const u = ((s2.t1 - s1.t1) * dy1 - (s2.w1 - s1.w1) * dx1) / denom;
+        if (t < -0.01 || t > 1.01 || u < -0.01 || u > 1.01) return null;
+        return { Tdb: s1.t1 + t * dx1, W_gkg: s1.w1 + t * dy1 };
+    }
+
+    /** 두 선 사이 교차점 찾기 (차트 범위 & 포화곡선 내 검증) */
+    function findIntersection(lineInfo1, lineInfo2) {
+        const segs1 = getLineSegments(lineInfo1);
+        const segs2 = getLineSegments(lineInfo2);
+        const cfg = PsychroChart.getConfig();
+        for (const s1 of segs1) {
+            for (const s2 of segs2) {
+                const pt = segmentIntersect(s1, s2);
+                if (!pt) continue;
+                if (pt.Tdb < cfg.T_min || pt.Tdb > cfg.T_max) continue;
+                if (pt.W_gkg < 0 || pt.W_gkg > cfg.W_max) continue;
+                const Ws = PsychroCalc.humidityRatio(PsychroCalc.saturationPressure(pt.Tdb)) * 1000;
+                if (pt.W_gkg > Ws * 1.01) continue;
+                return pt;
+            }
+        }
+        return null;
+    }
+
+    function onCrossPoint() {
+        const allLines = getAllLinesForCross();
+        const idx1 = parseInt(document.getElementById('crossLine1').value);
+        const idx2 = parseInt(document.getElementById('crossLine2').value);
+        if (isNaN(idx1) || isNaN(idx2) || idx1 === idx2) {
+            alert('서로 다른 두 개의 선을 선택하세요.');
+            return;
+        }
+        if (!allLines[idx1] || !allLines[idx2]) {
+            alert('선을 선택하세요.');
+            return;
+        }
+        const pt = findIntersection(allLines[idx1], allLines[idx2]);
+        if (!pt) {
+            alert('선택한 두 선의 교차점이 차트 범위 내에 존재하지 않습니다.');
+            return;
+        }
+        const state = PsychroCalc.fullState(pt.Tdb, pt.W_gkg / 1000);
+        PsychroInteraction.addPoint(state, null, '교차점');
+    }
+
+    // ═══════════════════════════════════════════════
+    // 보조선 위 점 생성
+    // ═══════════════════════════════════════════════
+
+    /** 물성치 등치선을 가상 lineInfo로 구성 */
+    function buildPropertyLine(propType, value) {
+        const cfg = PsychroChart.getConfig();
+        const tMin = cfg.T_min, tMax = cfg.T_max, wMax = cfg.W_max;
+        const segs = [];
+        const step = 1, stepF = 0.5;
+
+        if (propType === 'Tdb') {
+            const Ws = PsychroCalc.humidityRatio(PsychroCalc.saturationPressure(value)) * 1000;
+            segs.push({ t1: value, w1: 0, t2: value, w2: Math.min(Ws, wMax) });
+        } else if (propType === 'W') {
+            segs.push({ t1: tMin - 15, w1: value, t2: tMax + 10, w2: value });
+        } else if (propType === 'h') {
+            for (let t = tMin - 15; t <= tMax + 10 - step; t += step) {
+                const w1 = (value - 1.006*t) / (2501 + 1.86*t) * 1000;
+                const w2 = (value - 1.006*(t+step)) / (2501 + 1.86*(t+step)) * 1000;
+                segs.push({ t1: t, w1, t2: t+step, w2 });
+            }
+        } else if (propType === 'RH') {
+            for (let t = tMin; t <= tMax - stepF; t += stepF) {
+                const w1 = PsychroCalc.W_from_TdbRH(t, value) * 1000;
+                const w2 = PsychroCalc.W_from_TdbRH(t+stepF, value) * 1000;
+                if (w1 >= 0 && w2 >= 0) segs.push({ t1: t, w1, t2: t+stepF, w2 });
+            }
+        } else if (propType === 'Twb') {
+            for (let t = value; t <= tMax + 10 - stepF; t += stepF) {
+                const w1 = Math.max(0, PsychroCalc.W_from_TdbTwb(t, value) * 1000);
+                const w2 = Math.max(0, PsychroCalc.W_from_TdbTwb(t+stepF, value) * 1000);
+                segs.push({ t1: t, w1, t2: t+stepF, w2 });
+            }
+        } else if (propType === 'Tdp') {
+            const W = PsychroCalc.humidityRatio(PsychroCalc.saturationPressure(value)) * 1000;
+            segs.push({ t1: tMin - 15, w1: W, t2: tMax + 10, w2: W });
+        } else if (propType === 'v') {
+            const P = PsychroCalc.getAtmPressure();
+            for (let t = tMin - 10; t <= tMax + 10 - step; t += step) {
+                const w1 = (value*P / (0.2871*(t+273.15)) - 1) / 1.6078 * 1000;
+                const w2 = (value*P / (0.2871*(t+step+273.15)) - 1) / 1.6078 * 1000;
+                segs.push({ t1: t, w1, t2: t+step, w2 });
+            }
+        } else {
+            return null;
+        }
+        if (segs.length === 0) return null;
+        return { kind: 'virtual', segments: segs };
+    }
+
+    function onAuxPointGen() {
+        const selVal = document.getElementById('auxLineSelect').value;
+        const propType = document.getElementById('auxPropType').value;
+        const propValue = parseFloat(document.getElementById('auxPropValue').value);
+
+        if (!selVal) { alert('보조선 또는 연결선을 선택하세요.'); return; }
+        if (!propType) { alert('물성치 종류를 선택하세요.'); return; }
+        if (isNaN(propValue)) { alert('물성치 값을 입력하세요.'); return; }
+
+        let lineInfo = null;
+        if (selVal.startsWith('conn_')) {
+            const idx = parseInt(selVal.split('_')[1]);
+            if (connectionLines[idx]) lineInfo = { kind: 'connection', data: connectionLines[idx] };
+        } else if (selVal.startsWith('aux_')) {
+            const idx = parseInt(selVal.split('_')[1]);
+            if (auxLines[idx]) lineInfo = { kind: 'aux', data: auxLines[idx] };
+        }
+        if (!lineInfo) { alert('유효한 선을 선택하세요.'); return; }
+
+        const propLineInfo = buildPropertyLine(propType, propValue);
+        if (!propLineInfo) { alert('물성치 선을 생성할 수 없습니다.'); return; }
+
+        const pt = findIntersection(lineInfo, propLineInfo);
+        if (!pt) {
+            alert('교차점이 차트 범위 내에 존재하지 않습니다.');
+            return;
+        }
+        const state = PsychroCalc.fullState(pt.Tdb, pt.W_gkg / 1000);
+        PsychroInteraction.addPoint(state, null, '');
+    }
+
+    // ─── 호버 ───
+    function updateHoverPanel(state) {
+        if (!state) {
+            hoverPanel.innerHTML = '<div class="hover-placeholder">차트 위에 마우스를 올리면 실시간 공기상태값이 표시됩니다</div>';
+            return;
+        }
+        hoverPanel.innerHTML = `
+        <div class="hover-info">
+            <div><span>Tdb</span> ${state.Tdb.toFixed(1)}°C</div>
+            <div><span>Twb</span> ${state.Twb.toFixed(1)}°C</div>
+            <div><span>Tdp</span> ${state.Tdp.toFixed(1)}°C</div>
+            <div><span>RH</span> ${state.RH.toFixed(1)}%</div>
+            <div><span>W</span> ${state.W.toFixed(2)} g/kg'</div>
+            <div><span>h</span> ${state.h.toFixed(1)} kJ/kg'</div>
+            <div><span>v</span> ${state.v.toFixed(3)} m³/kg'</div>
+            <div><span>Pw</span> ${state.Pw.toFixed(3)} kPa</div>
+        </div>`;
+        redraw();
+    }
+
+    function onAtmChange() {
+        const v = parseFloat(document.getElementById('atmPressure').value);
+        if (!isNaN(v) && v > 50 && v < 200) {
+            PsychroCalc.setAtmPressure(v);
+            redraw();
+        }
+    }
+
+    // ─── 렌더링 ───
+    function redraw() {
+        PsychroChart.setAuxLines(auxLines);
+        PsychroChart.setConnectionLines(connectionLines);
+        PsychroChart.draw(PsychroInteraction.getPoints());
+        const hovered = PsychroInteraction.getHovered();
+        if (hovered) drawCrosshair(hovered);
+    }
+
+    function drawCrosshair(state) {
+        const canvas = document.getElementById('psychCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.save();
+        const [x, y] = PsychroChart.toPixel(state.Tdb, state.W);
+        ctx.strokeStyle = 'rgba(231,76,60,0.5)';
+        ctx.lineWidth = 0.8;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(x, PsychroChart.toPixel(0, 0)[1]);
+        ctx.lineTo(x, PsychroChart.toPixel(0, 30)[1]);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(PsychroChart.toPixel(-10, 0)[0], y);
+        ctx.lineTo(PsychroChart.toPixel(55, 0)[0], y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(231,76,60,0.8)';
+        ctx.fill();
+        ctx.restore();
+    }
+
+
+    // ─── 저장/복원용 데이터 접근 ───
+    function getLineData() {
+        return { auxLines: auxLines, connectionLines: connectionLines };
+    }
+
+    function restoreConnectionLines(lines) {
+        lines.forEach(cl => {
+            connectionLines.push({
+                from: cl.from,
+                to: cl.to,
+                fromLabel: cl.fromLabel,
+                toLabel: cl.toLabel,
+                color: cl.color,
+                id: Date.now() + Math.random()
+            });
+        });
+        refreshLineUI();
+    }
+
+    function restoreAuxLines(lines) {
+        lines.forEach(al => {
+            const line = {
+                type: al.type,
+                color: al.color,
+                dash: al.dash || [],
+                Tdb: al.Tdb,
+                W_gkg: al.W_gkg,
+                h: al.h,
+                label: al.label,
+                ptIdx: al.ptIdx,
+                id: Date.now() + Math.random()
+            };
+            if (al.shr !== null && al.shr !== undefined) {
+                line.shr = al.shr;
+            }
+            auxLines.push(line);
+        });
+        refreshLineUI();
+    }
+
+    return {
+        init, redraw, deletePoint, startEdit,
+        removeAuxLine, removeConnectionLine,
+        getLineData, restoreConnectionLines, restoreAuxLines
+    };
+})();
+
+</script>
+<script>
+// ===== psychro-main.js =====
+/**
+ * psychro-main.js
+ * 앱 초기화, 모듈 연결, 프로젝트 데이터 저장/불러오기
+ */
+(function() {
+    // ─── URL 파라미터에서 프로젝트 정보 추출 ───
+    function getProjectParams() {
+        const params = new URLSearchParams(window.location.search);
+        return {
+            projectId: params.get('projectId') || '',
+            projectName: params.get('projectName') || ''
+        };
+    }
+
+    // ─── localStorage 저장 키 ───
+    function getStorageKey(projectId) {
+        return 'psychro_' + projectId;
+    }
+
+    // ─── 저장 ───
+    function saveProjectData() {
+        const { projectId, projectName } = getProjectParams();
+        if (!projectId) {
+            showToast('⚠️ 프로젝트 정보가 없습니다. 대시보드에서 프로젝트를 선택해주세요.', 'warn');
+            return;
+        }
+
+        const points = PsychroInteraction.getPoints();
+        const { auxLines, connectionLines } = PsychroUI.getLineData();
+        const atmPressure = parseFloat(document.getElementById('atmPressure').value) || 101.325;
+
+        const data = {
+            projectId: projectId,
+            projectName: projectName,
+            savedAt: new Date().toISOString(),
+            atmPressure: atmPressure,
+            points: points.map(pt => ({
+                label: pt.label,
+                name: pt.name || '',
+                Tdb: pt.Tdb,
+                Twb: pt.Twb,
+                Tdp: pt.Tdp,
+                RH: pt.RH,
+                W: pt.W,
+                h: pt.h,
+                v: pt.v,
+                Pw: pt.Pw
+            })),
+            auxLines: auxLines.map(al => ({
+                type: al.type,
+                color: al.color,
+                dash: al.dash,
+                Tdb: al.Tdb,
+                W_gkg: al.W_gkg,
+                h: al.h,
+                label: al.label,
+                ptIdx: al.ptIdx,
+                shr: al.shr || null
+            })),
+            connectionLines: connectionLines.map(cl => ({
+                fromLabel: cl.fromLabel,
+                toLabel: cl.toLabel,
+                color: cl.color,
+                from: { Tdb: cl.from.Tdb, W: cl.from.W },
+                to: { Tdb: cl.to.Tdb, W: cl.to.W }
+            }))
+        };
+
+        try {
+            localStorage.setItem(getStorageKey(projectId), JSON.stringify(data));
+            showToast('저장되었습니다.', 'success');
+            flashSaveButton();
+        } catch(e) {
+            showToast('저장 실패: ' + e.message, 'error');
+        }
+    }
+
+    // ─── 불러오기 ───
+    function loadProjectData() {
+        const { projectId } = getProjectParams();
+        if (!projectId) return null;
+
+        try {
+            const raw = localStorage.getItem(getStorageKey(projectId));
+            return raw ? JSON.parse(raw) : null;
+        } catch(e) {
+            return null;
+        }
+    }
+
+    // ─── 저장된 데이터 복원 ───
+    function restoreData(data) {
+        if (!data) return;
+
+        // 대기압 복원
+        if (data.atmPressure) {
+            document.getElementById('atmPressure').value = data.atmPressure;
+            PsychroCalc.setAtmPressure(data.atmPressure);
+        }
+
+        // 상태점 복원
+        if (data.points && data.points.length > 0) {
+            data.points.forEach(pt => {
+                const state = {
+                    Tdb: pt.Tdb, Twb: pt.Twb, Tdp: pt.Tdp,
+                    RH: pt.RH, W: pt.W, h: pt.h, v: pt.v, Pw: pt.Pw
+                };
+                PsychroInteraction.addPoint(state, pt.label, pt.name);
+            });
+        }
+
+        // 연결선 복원
+        if (data.connectionLines && data.connectionLines.length > 0) {
+            PsychroUI.restoreConnectionLines(data.connectionLines);
+        }
+
+        // 보조선 복원
+        if (data.auxLines && data.auxLines.length > 0) {
+            PsychroUI.restoreAuxLines(data.auxLines);
+        }
+    }
+
+    // ─── 저장 토스트 ───
+    function showToast(message, type) {
+        let toast = document.getElementById('saveToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'saveToast';
+            toast.className = 'save-toast';
+            document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        toast.style.background = type === 'success' ? '#27ae60' : 
+                                  type === 'warn' ? '#f39c12' : '#e74c3c';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    // ─── 저장 버튼 플래시 ───
+    function flashSaveButton() {
+        const btn = document.getElementById('btnSave');
+        if (!btn) return;
+        btn.textContent = 'Saved!';
+        btn.classList.add('saved');
+        setTimeout(() => {
+            btn.classList.remove('saved');
+            btn.textContent = 'Save';
+        }, 1200);
+    }
+
+    // ─── File Trans (JSON 다운로드) ───
+    function exportFile() {
+        const points = PsychroInteraction.getPoints();
+        const { auxLines, connectionLines } = PsychroUI.getLineData();
+        const atmPressure = parseFloat(document.getElementById('atmPressure').value) || 101.325;
+        const { projectName } = getProjectParams();
+
+        const data = {
+            projectName: projectName || 'psychro_data',
+            exportedAt: new Date().toISOString(),
+            atmPressure: atmPressure,
+            points: points,
+            auxLines: auxLines,
+            connectionLines: connectionLines
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (projectName || 'psychro_data') + '_psychro.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // ─── 전역 함수 등록 (HTML onclick 용) ───
+    window.psychSaveData = function() { saveProjectData(); };
+    window.psychExportFile = function() { exportFile(); };
+    window.GoMain = function(){ if(window.STD){ STD.goMain(saveProjectData); } else { window.location.href='../dashboard.html'; } };
+
+    // ─── 프로젝트명 헤더 표시 ───
+    function displayProjectName() {
+        const { projectName } = getProjectParams();
+        const el = document.getElementById('projectLabel');
+        if (el && projectName) {
+            el.textContent = '[ ' + projectName + ' ]  ';
+            el.style.color = '#333';
+        }
+    }
+
+    // ─── 초기화 ───
+    window.addEventListener('DOMContentLoaded', () => {
+        const canvas = document.getElementById('psychCanvas');
+
+        // 프로젝트명 표시
+        displayProjectName();
+
+        PsychroChart.init(canvas);
+        PsychroInteraction.init(canvas);
+        PsychroUI.init();
+
+        // 프로젝트 ID 없으면 저장 버튼 비활성 표시
+        const { projectId } = getProjectParams();
+        const btnSave = document.getElementById('btnSave');
+        if (!projectId && btnSave) {
+            btnSave.title = '프로젝트를 선택하지 않아 저장할 수 없습니다';
+        }
+
+        // 저장된 데이터 복원
+        const savedData = loadProjectData();
+        if (savedData) {
+            restoreData(savedData);
+        }
+
+        PsychroUI.redraw();
+
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                PsychroChart.resize();
+                PsychroUI.redraw();
+            }, 150);
+        });
+
+        // Ctrl+S / Cmd+S 단축키
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveProjectData();
+            }
+        });
+    });
+})();
+
+</script>
+
+<script>window.__STD_TOOL='301';</script>
+<script>
+/* ============================================================
+   STD Storage  —  표준 저장 모듈 v1 (전 도구 공통)
+   방식: localStorage 우선 + GitHub 동기화(가능 시)
+        + beforeunload 백업 + 저장 후 이동(GoMain)
+   ============================================================ */
+(function(){
+  if (window.STD) return;                         // 중복 주입 방지
+  var TOOL = window.__STD_TOOL || 'tool';
+  function qp(k){ return new URLSearchParams(location.search).get(k) || ''; }
+  function pid(){ return qp('projectId') || qp('project') || qp('id') || ''; }
+  function pname(){ return qp('projectName') || qp('name') || ''; }
+  function lsKey(){ var id=pid(); return 'std_'+TOOL+'_'+(id||'standalone'); }
+  function ghPath(){ var id=pid(); return id ? ('data/'+TOOL+'/'+id+'.json') : null; }
+
+  function genericData(){
+    var o={__std:true, t:Date.now(), fields:{}};
+    document.querySelectorAll('input[id],select[id],textarea[id]').forEach(function(el){
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='button'||ty==='submit'||ty==='reset'||ty==='file') return;
+      o.fields[el.id]=(ty==='checkbox'||ty==='radio') ? el.checked : el.value;
+    });
+    return o;
+  }
+  function genericRestore(o){
+    if(!o||!o.fields) return;
+    Object.keys(o.fields).forEach(function(id){
+      var el=document.getElementById(id); if(!el) return;
+      var ty=(el.type||'').toLowerCase();
+      if(ty==='checkbox'||ty==='radio') el.checked=!!o.fields[id];
+      else el.value=o.fields[id];
+      try{ el.dispatchEvent(new Event('input',{bubbles:true}));
+           el.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){}
+    });
+  }
+  function lsSave(){
+    try{ localStorage.setItem(lsKey(), JSON.stringify(genericData())); return true; }
+    catch(e){ console.warn('[STD] LS save fail', e); return false; }
+  }
+  function lsLoad(){
+    try{ var r=localStorage.getItem(lsKey()); return r? JSON.parse(r):null; }catch(e){ return null; }
+  }
+  function ghSync(){
+    var p=ghPath();
+    if(p && typeof window.ghSaveFile==='function'){
+      return Promise.resolve(window.ghSaveFile(p, genericData(), 'STD save '+TOOL+' '+pid()))
+        .then(function(){ return true; })
+        .catch(function(e){ console.warn('[STD] GH save fail', e); return false; });
+    }
+    return Promise.resolve(null);                 // GitHub 미사용 페이지
+  }
+  function toast(msg, type){
+    if(typeof window._showToast==='function'){ try{ window._showToast(msg, type||'success'); return; }catch(e){} }
+    if(typeof window.showToast==='function'){ try{ window.showToast(msg, type||'success'); return; }catch(e){} }
+    var el=document.getElementById('__stdToast');
+    if(!el){ el=document.createElement('div'); el.id='__stdToast';
+      el.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;opacity:0;transition:opacity .2s';
+      document.body.appendChild(el); }
+    el.textContent=msg; el.style.opacity='1';
+    clearTimeout(el.__t); el.__t=setTimeout(function(){ el.style.opacity='0'; }, 1800);
+  }
+
+  var dirty=false;
+  document.addEventListener('input', function(){ dirty=true; }, true);
+  document.addEventListener('change', function(){ dirty=true; }, true);
+
+  function save(pageSaver, opts){
+    opts=opts||{};
+    lsSave();                                     // 1) 항상 localStorage 백업
+    var hasPage=(typeof pageSaver==='function');
+    if(hasPage){                                  // 2a) 리치 저장(페이지 고유 LS+GitHub)
+      return Promise.resolve().then(pageSaver).then(function(){ dirty=false; return {page:true}; })
+        .catch(function(e){ console.warn('[STD] pageSaver fail', e); dirty=false; return {page:false}; });
+    }
+    return ghSync().then(function(gh){             // 2b) 제네릭 GitHub 동기화(가능 시)
+      dirty=false;
+      if(!opts.silent) toast(gh===false?'로컬에 저장되었습니다 (클라우드 동기화 실패)':'저장되었습니다.', gh===false?'warn':'success');
+      return {gh:gh};
+    });
+  }
+  function load(pageLoader){
+    if(typeof pageLoader==='function'){ try{ return pageLoader(); }catch(e){ console.warn('[STD] pageLoader fail', e); } }
+    var o=lsLoad(); if(o) genericRestore(o); dirty=false; return o;
+  }
+  function goMain(pageSaver){
+    var url=(typeof window.dashboardUrl!=='undefined' && window.dashboardUrl) ? window.dashboardUrl : '../dashboard.html';
+    Promise.resolve(save(pageSaver, {silent:true})).then(function(){ location.href=url; }, function(){ location.href=url; });
+  }
+  window.addEventListener('beforeunload', function(){ try{ lsSave(); }catch(e){} });
+
+  window.STD={ save:save, load:load, goMain:goMain, lsSave:lsSave, lsLoad:lsLoad,
+               genericData:genericData, genericRestore:genericRestore,
+               projectId:pid, projectName:pname, key:lsKey, ghPath:ghPath, isDirty:function(){return dirty;} };
+})();
+</script>
+</body>
+</html>
