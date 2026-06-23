@@ -92,6 +92,148 @@
     color: #fff;
     background: #00838f;
     border-bottom-color: #00838f;
+  }/* ===== SIDEBAR LAYOUT (좌측 세로 네비게이션) ===== */
+  body{
+    flex-direction: row;
+  }.body-row{
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }.side-nav{
+    display: flex;
+    flex-direction: column;
+    width: 210px;
+    flex-shrink: 0;
+    background: #f9f9f9;
+    border-right: 1px solid #e5e7eb;
+    transition: width .22s ease;
+    overflow: hidden;
+  }.side-nav.collapsed{
+    width: 54px;
+  }.side-collapse-btn{
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #9ca3af;
+    font-size: 16px;
+    line-height: 1;
+    border-bottom: 1px solid #e5e7eb;
+    transition: color .15s;
+    font-family: inherit;
+  }.side-collapse-btn:hover{
+    color: #00838f;
+  }.side-nav.collapsed .side-collapse-btn{
+    justify-content: center;
+    padding: 10px 0;
+  }.side-nav-list{
+    display: flex;
+    flex-direction: column;
+    padding: 8px 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: transparent;
+    border-bottom: none;
+  }.side-nav .main-tab{
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    padding: 13px 18px;
+    font-size: 13px;
+    border-radius: 0;
+    border-bottom: none;
+    border-left: 3px solid transparent;
+    background: transparent;
+    white-space: nowrap;
+  }.side-nav .main-tab:hover{
+    background: #eef2f3;
+    color: #374151;
+  }.side-nav .main-tab.active{
+    color: #00838f;
+    background: #e6f4f5;
+    border-left-color: #00838f;
+    border-bottom-color: transparent;
+  }.side-ico{
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+    color: #6b7280;
+  }.side-nav .main-tab.active .side-ico{
+    color: #00838f;
+  }.side-label{
+    flex: 1;
+  }.side-nav.collapsed .side-label{
+    display: none;
+  }.side-nav.collapsed .main-tab{
+    justify-content: center;
+    padding: 13px 0;
+    gap: 0;
+  }.side-group{
+    display: flex;
+    flex-direction: column;
+  }.side-arrow{
+    margin-left: auto;
+    font-size: 10px;
+    color: #9ca3af;
+    transition: transform .2s;
+  }.side-nav.collapsed .side-arrow{
+    display: none;
+  }.side-nav .main-tab.has-children.active{
+    background: transparent;
+    color: #00838f;
+    border-left-color: transparent;
+    font-weight: 700;
+  }.side-nav .main-tab.has-children.active .side-ico,
+  .side-nav .main-tab.has-children.active .side-arrow{
+    color: #00838f;
+  }.side-nav .main-tab.has-children.active .side-arrow{
+    transform: rotate(180deg);
+  }.side-children{
+    display: none;
+    flex-direction: column;
+    padding: 2px 0 4px;
+  }.side-group > .main-tab.active + .side-children{
+    display: flex;
+  }.side-nav.collapsed .side-children{
+    display: none !important;
+  }.side-sub{
+    text-align: left;
+    padding: 9px 12px 9px 42px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #6b7280;
+    background: transparent;
+    border: none;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: color .15s, background .15s;
+  }.side-sub:hover{
+    background: #eef2f3;
+    color: #374151;
+  }.side-sub.active{
+    color: #00838f;
+    background: #e6f4f5;
+    border-left-color: #00838f;
+    font-weight: 600;
+  }/* 1·2차 진단: 설비(L1) 가로 탭은 사이드바로 이동 → 숨김 (L2 계통 탭은 유지) */
+  #mainPanel2 .sub-tab-row, #mainPanel3 .sub-tab-row{
+    display: none;
+  }.panels-container{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
   }/* ===== SUB TAB NAV (중분류) ===== */
   .sub-tab-nav{
     display: none;
@@ -462,11 +604,29 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   background: #fff;
   gap: 4px;
   flex-shrink: 0;
+}.diag2-tab-bar .diag2-bar-actions{
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }.diag2-tab-list{
   display: flex;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}.diag2-tab-list::-webkit-scrollbar{
+  height: 6px;
+}.diag2-tab-list::-webkit-scrollbar-thumb{
+  background: #cfcfcf;
+  border-radius: 3px;
 }.diag2-tab{
+  flex-shrink: 0;
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -871,6 +1031,41 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   color: #888;
   flex-shrink: 0;
 }
+/* #1·#2·#3: 2nd Diagnosis 패널이 본문(1920×1080 기준)을 꽉 채우고 스크롤이 없도록 */
+#mainPanel3 .content-area{ display:flex; flex-direction:column; min-height:0; padding:6px 0; }
+/* 보이는 설비 섹션이 남은 높이를 채움 (JS가 display:flex 로 표시) */
+#mainPanel3 .content-area > [id^="d2"]{ flex:1 1 auto; min-height:0; flex-direction:column; }
+#mainPanel3 [id^="d2"][id$="Units"]{ flex:1 1 auto; display:flex; flex-direction:column; min-height:0; }
+#mainPanel3 .diag2-content-area{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+/* 패널 본체가 높이를 가득 채움 (CT + HVAC/Pump 공통) */
+#mainPanel3 .fanEff-unit-panel{ height:100%; display:flex; flex-direction:column; margin:6px 20px; }
+#mainPanel3 .fanEff-main{ flex:1 1 auto; min-height:0 !important; height:auto; }
+#mainPanel3 .ct-main-layout{ height:100%; min-height:0 !important; gap:10px; }
+/* 컴팩트화: 표 셀·제목 간격 축소 */
+#mainPanel3 .fanEff-section-title{ margin:4px 0 3px !important; }
+#mainPanel3 .ct-main-layout .info-table th{ padding:4px 4px !important; }
+#mainPanel3 .ct-main-layout .info-table td{ padding:3px 4px !important; }
+#mainPanel3 .ct-main-layout .info-table input{ padding:3px 2px !important; }
+#mainPanel3 .ct-chart-wrapper{ min-height:160px; }
+/* CT 사진이 좌측 컬럼 남은 높이를 채우도록 */
+#mainPanel3 .ct-main-layout .fanEff-photo-grid{ flex:1 1 auto; grid-template-rows:1fr; min-height:0; }
+#mainPanel3 .ct-main-layout .fanEff-photo-display{ aspect-ratio:auto; min-height:0; }
+#mainPanel3 .diag2-tab-bar{ margin:2px 0 2px; }
+/* #1 급배기팬(및 HVAC/펌프 공통): 설계 Data·측정 결과 입력표 상하 여백 축소 */
+#mainPanel3 .fanEff-unit-panel .info-table th,
+#mainPanel3 .fanEff-unit-panel .info-table td{ padding:2px 4px !important; }
+#mainPanel3 .fanEff-unit-panel .info-table input{ padding:1px 2px !important; }
+#mainPanel3 .fanEff-unit-panel .info-table{ margin-bottom:4px !important; }
+/* #2 펌프: 측정치 입력 표 상하 여백 축소 (기존 셀높이 확대 규칙 되돌림) */
+#mainPanel3 #d2PumpSection .meas-grid-table th{ padding:3px 4px !important; }
+#mainPanel3 #d2PumpSection .meas-grid-table td{ padding:2px 2px !important; }
+#mainPanel3 #d2PumpSection .meas-grid-table input{ padding:2px 2px !important; }
+#mainPanel3 #d2PumpSection .meas-summary-table th,
+#mainPanel3 #d2PumpSection .meas-summary-table td{ padding:3px 4px !important; }
+/* 급배기팬·HVAC 풍속 측정 그리드도 동일하게 상하 여백 축소 */
+#mainPanel3 .fanEff-unit-panel .meas-grid-table th{ padding:3px 4px !important; }
+#mainPanel3 .fanEff-unit-panel .meas-grid-table td{ padding:2px 2px !important; }
+#mainPanel3 .fanEff-unit-panel .meas-grid-table input{ padding:2px 2px !important; }
 
 @media (max-width: 900px) {.ct-main-layout{
     grid-template-columns: 1fr !important;
@@ -1089,6 +1284,39 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
 </head>
 <body>
 
+<!-- ===== SIDE NAV (대분류 - 좌측 전체 높이 세로 탭, 펼치기/접기) ===== -->
+<aside class="side-nav" id="sideNav">
+  <button class="side-collapse-btn" onclick="toggleSideNav()" title="메뉴 접기/펼치기" aria-label="메뉴 접기/펼치기">
+    <span class="side-collapse-icon">&#8810;</span>
+  </button>
+  <nav class="main-tab-nav side-nav-list">
+    <button class="main-tab active" onclick="switchMainTab(this, 0)"><span class="side-ico">&#8962;</span><span class="side-label">Project Overview</span></button>
+    <button class="main-tab" onclick="switchMainTab(this, 7)"><span class="side-ico">&#9636;</span><span class="side-label">Project Tracker</span></button>
+    <button class="main-tab" onclick="switchMainTab(this, 1)"><span class="side-ico">&#10052;</span><span class="side-label">HVAC Diagram</span></button>
+    <div class="side-group" id="sideGrp2">
+      <button class="main-tab has-children" onclick="sideOpenDiag(2,'subRow_3',this)"><span class="side-ico">&#10102;</span><span class="side-label">1st Diagnosis</span><span class="side-arrow">&#9662;</span></button>
+      <div class="side-children">
+        <button class="side-sub" onclick="sideSelectEquip(2,'subRow_3',0,this)">Heat source</button>
+        <button class="side-sub" onclick="sideSelectEquip(2,'subRow_3',1,this)">HVAC</button>
+        <button class="side-sub" onclick="sideSelectEquip(2,'subRow_3',2,this)">Pump</button>
+        <button class="side-sub" onclick="sideSelectEquip(2,'subRow_3',3,this)">Plumbing</button>
+        <button class="side-sub" onclick="sideSelectEquip(2,'subRow_3',4,this)">Piping</button>
+      </div>
+    </div>
+    <div class="side-group" id="sideGrp3">
+      <button class="main-tab has-children" onclick="sideOpenDiag(3,'subRow_4',this)"><span class="side-ico">&#10103;</span><span class="side-label">2nd Diagnosis</span><span class="side-arrow">&#9662;</span></button>
+      <div class="side-children">
+        <button class="side-sub" onclick="sideSelectEquip(3,'subRow_4',0,this)">Heat source</button>
+        <button class="side-sub" onclick="sideSelectEquip(3,'subRow_4',1,this)">HVAC</button>
+        <button class="side-sub" onclick="sideSelectEquip(3,'subRow_4',2,this)">Pump</button>
+        <button class="side-sub" onclick="sideSelectEquip(3,'subRow_4',3,this)">Piping</button>
+      </div>
+    </div>
+    <button class="main-tab" onclick="switchMainTab(this, 4)"><span class="side-ico">&#9638;</span><span class="side-label">Summary</span></button>
+    <button class="main-tab" onclick="switchMainTab(this, 5)"><span class="side-ico">&#8721;</span><span class="side-label">Total Results</span></button>
+  </nav>
+</aside>
+
 <div class="page-container">
 
 <!-- ===== HEADER (보존) ===== -->
@@ -1102,16 +1330,8 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   </div>
 </div>
 
-<!-- ===== MAIN TAB NAV (대분류 6개) ===== -->
-<div class="main-tab-nav">
-  <button class="main-tab active" onclick="switchMainTab(this, 0)">Project Overview</button>
-  <button class="main-tab" onclick="switchMainTab(this, 7)">Project Tracker</button>
-  <button class="main-tab" onclick="switchMainTab(this, 1)">HVAC Diagram</button>
-  <button class="main-tab" onclick="switchMainTab(this, 2)">1st Diagnosis</button>
-  <button class="main-tab" onclick="switchMainTab(this, 3)">2nd Diagnosis</button>
-  <button class="main-tab" onclick="switchMainTab(this, 4)">Summary</button>
-  <button class="main-tab" onclick="switchMainTab(this, 5)">Total Results</button>
-</div>
+<!-- ===== 콘텐츠 컨테이너 (우측) ===== -->
+<div class="panels-container">
 
 <!-- =============================================================== -->
 <!-- MAIN PANEL 0: Project Overview                                   -->
@@ -1707,6 +1927,8 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   </div>
 </div>
 
+</div><!-- // panels-container -->
+
 <!-- ===== COPYRIGHT (보존) ===== -->
 <div class="copyright">
   &copy;HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
@@ -2197,7 +2419,7 @@ function switchMainTab(el, idx) {
   if (target) target.classList.add('active');
 
   /* FIX: Project Tracker 패널 전환 시 초기화 */
-  if (idx === 1) {
+  if (idx === 7) {
     requestAnimationFrame(function() {
       if (typeof ptInit === 'function') ptInit();
     });
@@ -2210,6 +2432,55 @@ function switchMainTab(el, idx) {
     requestAnimationFrame(function() {
       window.dispatchEvent(new Event('resize'));
     });
+  }
+}
+
+// ====== Side Nav 펼치기 / 접기 ======
+function toggleSideNav() {
+  var nav = document.getElementById('sideNav');
+  if (!nav) return;
+  nav.classList.toggle('collapsed');
+  var ico = nav.querySelector('.side-collapse-icon');
+  if (ico) ico.innerHTML = nav.classList.contains('collapsed') ? '&#8811;' : '&#8810;';
+  // 차트/캔버스가 있는 패널은 폭 변경 후 리사이즈 반영
+  setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 230);
+}
+
+// ====== Side Nav 설비(L1) 드릴다운 ======
+// 사이드바 자식(설비) 하이라이트 동기화: panelIdx(2=1차,3=2차) → side-sub
+function syncSideChild(panelIdx, l1Idx) {
+  var g = document.getElementById('sideGrp' + panelIdx);
+  if (!g) return;
+  var subs = g.querySelectorAll('.side-sub');
+  subs.forEach(function(s, i) { s.classList.toggle('active', i === l1Idx); });
+}
+function clearSideChildren() {
+  document.querySelectorAll('.side-sub').forEach(function(s) { s.classList.remove('active'); });
+}
+// 진단 상위 항목 클릭: 패널 전환 + 현재 활성 설비 자식 하이라이트
+function sideOpenDiag(panelIdx, subRowId, parentBtn) {
+  switchMainTab(parentBtn, panelIdx);
+  var row = document.getElementById(subRowId);
+  var idx = 0;
+  if (row) {
+    row.querySelectorAll('.sub-tab-l1').forEach(function(b, i) {
+      if (b.classList.contains('active')) idx = i;
+    });
+  }
+  syncSideChild(panelIdx, idx);
+}
+// 설비 자식 클릭: 패널 전환(필요 시) + 기존 가로 L1 버튼을 프로그램적으로 클릭
+function sideSelectEquip(panelIdx, subRowId, l1Idx, childEl) {
+  var panel = document.getElementById('mainPanel' + panelIdx);
+  if (!panel || !panel.classList.contains('active')) {
+    var grp = childEl.closest('.side-group');
+    var parentBtn = grp ? grp.querySelector('.main-tab') : null;
+    if (parentBtn) switchMainTab(parentBtn, panelIdx);
+  }
+  var row = document.getElementById(subRowId);
+  if (row) {
+    var btns = row.querySelectorAll('.sub-tab-l1');
+    if (btns[l1Idx]) btns[l1Idx].click();
   }
 }
 
@@ -5281,17 +5552,17 @@ function d2UpdateContent(l1Idx, l2Idx) {
   // HVAC(l1=1) > AHU(l2=0) → show d2AhuSection
   if (l1Idx === 1 && l2Idx === 0) {
     var ahu = document.getElementById('d2AhuSection');
-    if (ahu) ahu.style.display = 'block';
+    if (ahu) ahu.style.display = 'flex';
     if (placeholder) placeholder.style.display = 'none';
   // HVAC(l1=1) > Exhaust Fan(l2=3) → show d2FanSection
   } else if (l1Idx === 1 && l2Idx === 3) {
     var fan = document.getElementById('d2FanSection');
-    if (fan) fan.style.display = 'block';
+    if (fan) fan.style.display = 'flex';
     if (placeholder) placeholder.style.display = 'none';
   // Pump(l1=2) > Pump(l2=0) → show d2PumpSection
   } else if (l1Idx === 2 && l2Idx === 0) {
     var pump = document.getElementById('d2PumpSection');
-    if (pump) pump.style.display = 'block';
+    if (pump) pump.style.display = 'flex';
     if (placeholder) placeholder.style.display = 'none';
   // Piping(l1=3) → show d2PipeSection
   } else if (l1Idx === 3) {
@@ -5301,7 +5572,7 @@ function d2UpdateContent(l1Idx, l2Idx) {
   // Heat source(l1=0) > Cooling Tower(l2=3) → show d2CoolingTowerSection
   } else if (l1Idx === 0 && l2Idx === 3) {
     var ct = document.getElementById('d2CoolingTowerSection');
-    if (ct) ct.style.display = 'block';
+    if (ct) ct.style.display = 'flex';
     if (placeholder) placeholder.style.display = 'none';
     /* FIX: CT 섹션이 보이는 시점에 resize 발행 → 숨겨진 상태에서 생성된 차트 다시 그리기 */
     requestAnimationFrame(function() {
@@ -5423,6 +5694,16 @@ function closeFanefPhotoViewer() {
 
       bar.appendChild(tabs);
       container.appendChild(bar);
+
+      /* #3: 해당 설비 섹션의 Equipment ADD(+Exp&Col) 버튼을 유닛 탭 줄로 이동
+             → CT #01 탭과 같은 선상(오른쪽 정렬)에 배치하고, 비게 된 헤더 줄은 숨김 */
+      var _secActions = document.querySelector('#' + type + 'Section .diag-summary-actions');
+      if (_secActions) {
+        _secActions.classList.add('diag2-bar-actions');
+        var _hdr = _secActions.closest('.diag-summary-header');
+        bar.appendChild(_secActions);
+        if (_hdr && _hdr.children.length === 0) _hdr.style.display = 'none';
+      }
 
       /* 콘텐츠 영역 */
       var contentArea = document.createElement('div');
@@ -12024,9 +12305,9 @@ function qnavJumpTo(type, id){
   }
   if(!info) return;
 
-  /* 1) 대분류 → 1st Diagnosis (index 2) */
+  /* 1) 대분류 → 1st Diagnosis (사이드바 인덱스 3) */
   var mainTabs = document.querySelectorAll('.main-tab');
-  if(mainTabs[2] && typeof switchMainTab === 'function') switchMainTab(mainTabs[2], 2);
+  if(mainTabs[3] && typeof switchMainTab === 'function') switchMainTab(mainTabs[3], 2);
 
   /* 2) 중분류 L1 */
   var l1Btns = document.querySelectorAll('#subRow_3 .sub-tab-l1');
@@ -12642,6 +12923,35 @@ document.addEventListener('keydown', function(e){
     renderSubject();
   }, 2000);
 
+})();
+</script>
+
+<!-- ===== Side Nav 동기화 훅 (기존 함수 보존, 사이드바 하이라이트만 추가) ===== -->
+<script>
+(function(){
+  // 가로 L1 탭이 다른 경로(요약표 점프 등)로 바뀌어도 사이드바 자식 하이라이트 동기화
+  if(typeof window.d1SwitchL1 === 'function'){
+    var _od1 = window.d1SwitchL1;
+    window.d1SwitchL1 = function(l1Idx, el){
+      _od1.apply(this, arguments);
+      if(typeof syncSideChild === 'function') syncSideChild(2, l1Idx);
+    };
+  }
+  if(typeof window.switchSubL1 === 'function'){
+    var _os1 = window.switchSubL1;
+    window.switchSubL1 = function(mainIdx, el, l1Idx){
+      _os1.apply(this, arguments);
+      if(mainIdx === 4 && typeof syncSideChild === 'function') syncSideChild(3, l1Idx);
+    };
+  }
+  // 진단(2·3) 외 패널로 이동하면 설비 자식 하이라이트 해제
+  if(typeof window.switchMainTab === 'function'){
+    var _osm = window.switchMainTab;
+    window.switchMainTab = function(el, idx){
+      _osm.apply(this, arguments);
+      if(idx !== 2 && idx !== 3 && typeof clearSideChildren === 'function') clearSideChildren();
+    };
+  }
 })();
 </script>
 
