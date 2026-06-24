@@ -77,9 +77,8 @@
 .pj-dash-header-left{flex:1;}
 .pj-dash-header-title{font-size:24px;font-weight:700;color:#333;margin:0;letter-spacing:-.3px;}
 .pj-dash-header-sub{font-size:12px;color:#999;margin:3px 0 0;font-weight:400;}
-.pj-back-btn{width:36px;height:30px;background:#fff;border:1px solid #dde1e6;border-radius:4px;color:#3d4f5c;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;}
-.pj-back-btn:hover{background:#f4f5f7;border-color:#546a7b;}
-.pj-back-btn svg{width:16px;height:16px;}
+.ico-btn{width:36px;height:30px;border:1px solid #dde1e6;background:#fff;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#3d4f5c;padding:0;transition:all .15s;flex-shrink:0;}
+.ico-btn:hover{background:#f4f5f7;border-color:#546a7b;}
 
 /* ========== PROJECT LIST PAGE (Timeline) ========== */
 .projects-page{min-height:100vh;padding:0;background:#ffffff;animation:fadeIn .4s ease-out;}
@@ -1062,7 +1061,7 @@ body{font-family:'Noto Sans KR',sans-serif;}
       <div class="pj-dash-header-right">
         <div id="dashAuthStatus" class="auth-status"></div>
         <button class="ico-btn" id="btnHome" title="메인으로 이동" onclick="goToMain()">
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+			<svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       </div>
     </div>
   </div>
@@ -1221,7 +1220,7 @@ const CATEGORY_TOOLS = [
     category: '열원',
     tools: [
 		{ id: 'cooling-tower', name: '✔ 냉동기 성능분석', url: 'tools/Tool-201. Chiller Efficiency.html' },
-		{ id: 'cooling-tower', name: '✔ 보일러 열정산분석', url: 'tools/Tool-202. Boiler Heat Balance Analysis.html' },
+		{ id: 'cooling-tower', name: '✔ 보일러 열정산분석', url: 'tools/Tool-202. Boiler Heat Balance Analysis' },
 		{ id: 'cooling-tower', name: '✔ 냉각탑 성능분석', url: 'tools/Tool-203. Cooling Tower Efficiency.html' }
     ]
   },
@@ -1243,7 +1242,8 @@ const CATEGORY_TOOLS = [
   {
     category: '위생',
     tools: [
-		{ id: 'water-saving-fixtures', name: '✔ 절수형 위생기구', url: 'tools/Tool-501. Water-saving plumbing fixtures.html' }
+		{ id: 'water-saving-fixtures', name: '✔ 절수형 위생기구', url: 'tools/Tool-501. Water-saving plumbing fixtures.html' },
+		{ id: 'rainwater-reuse', name: '✔ 우수재이용 경제성 분석', url: 'tools/Tool-502. Rainwater Reuse.html' }
 	]
   },
   {
@@ -1257,8 +1257,7 @@ const CATEGORY_TOOLS = [
     category: '기타',
     tools: [
 		{ id: 'project-tracker', name: '✔ 프로젝트 트래커', url: 'tools/Tool-701. Project Tracker.html' },
-		{ id: 'lcc', name: '✔ LCC 분석', url: 'tools/Tool-702. LCC.html' },
-		{ id: 'rainwater-reuse', name: '✔ 우수재이용 경제성 분석', url: 'tools/Tool-703. Rainwater Reuse.html' }      
+		{ id: 'lcc', name: '✔ LCC 분석', url: 'tools/Tool-702. LCC.html' }
     ]
   }
 ];
