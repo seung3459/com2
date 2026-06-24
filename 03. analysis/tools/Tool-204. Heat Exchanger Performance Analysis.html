@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIMEC - Heat Exchanger Performance Analysis Tool</title>
+<link rel="icon" href="data:,">
+<link rel="shortcut icon" href="data:,">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    font-family:'Noto Sans KR', sans-serif;
+    background:#f5f5f5; color:#333;
+    overflow:hidden; height:100vh; width:100vw;
+  }
+  body { display:flex; flex-direction:column; }
+
+  .page-container {
+    padding:0 100px; flex:1; display:flex; flex-direction:column;
+    overflow:hidden; min-height:0; background:#fff;
+  }
+
+  /* Header */
+  .header {
+    background:#fff; padding:8px 20px; border-bottom:1px solid #ddd; flex-shrink:0;
+    margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px;
+  }
+  .header h1 { font-size:20px; font-weight:700; color:#222; }
+  .header .sub { font-size:11px; color:#888; margin-top:2px; }
+  .header h2 { font-size:15px; font-weight:600; color:#333; margin-top:4px; }
+  .header-right { position:absolute; bottom:8px; right:20px; display:flex; gap:8px; }
+  .header-right button {
+    padding:8px 0; width:90px; border:none; border-radius:4px;
+    font-size:10px; font-weight:600; cursor:pointer; text-align:center;
+  }
+  .btn-save, .btn-file { background:#e85d24; color:#fff; }
+  .btn-main { background:#555f; color:#fff; }
+  .btn-save:hover, .btn-file:hover, .btn-main:hover { opacity:.85; }
+
+  /* Tabs */
+  .tab-bar { display:flex; padding:4px 20px 0; background:#fff; gap:4px; flex-shrink:0; }
+  .tab {
+    padding:5px 20px; border-radius:6px 6px 0 0; font-size:12px; font-weight:600;
+    cursor:pointer; border:none; background:#bbb; color:#fff; position:relative;
+    padding-right:28px !important;
+  }
+  .tab.active { background:#00838f; color:#fff; }
+  .tab.add { background:#999; color:#fff; font-size:14px; padding:5px 16px; padding-right:16px !important; }
+  .tab .tab-close {
+    position:absolute; right:6px; top:50%; transform:translateY(-50%);
+    width:16px; height:16px; border-radius:50%; border:none; background:transparent;
+    color:rgba(255,255,255,.7); font-size:13px; line-height:16px; text-align:center; cursor:pointer; padding:0;
+  }
+  .tab .tab-close:hover { background:rgba(255,0,0,.6); color:#fff; }
+
+  /* Main 3-column */
+  .main {
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:0;
+    padding:0 0 30px 0; flex:1; min-height:0; overflow:hidden;
+  }
+  .panel {
+    background:#fff; padding:10px 12px; display:flex; flex-direction:column;
+    overflow:hidden; min-height:0;
+  }
+  .panel + .panel { border-left:1px solid #eee; }
+
+  .section-title { font-size:12px; font-weight:700; margin-bottom:4px; color:#222; flex-shrink:0; }
+  .section-title.mt { margin-top:6px; }
+
+  .chk-label { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600;
+    color:#444; margin:6px 0 3px; flex-shrink:0; }
+  .chk-label .box { width:11px; height:11px; border:1.5px solid #00838f; border-radius:2px;
+    display:inline-block; position:relative; flex:none; }
+  .chk-label input { display:none; }
+  .chk-label .box.on::after { content:""; position:absolute; left:2px; top:-1px; width:4px; height:8px;
+    border:solid #00838f; border-width:0 2px 2px 0; transform:rotate(45deg); }
+  .chk-label .src { font-size:9px; font-weight:600; color:#888; margin-left:4px; }
+  .chk-label .tag1 { font-size:9px; font-weight:700; color:#d64545; background:#fdf3f3; border:1px solid #f3c9c9; padding:0 5px; border-radius:3px; margin-left:4px; }
+  .chk-label .tag2 { font-size:9px; font-weight:700; color:#00838f; background:#e0f7fa; border:1px solid #b8e3e8; padding:0 5px; border-radius:3px; margin-left:4px; }
+
+  /* info-table */
+  .info-table {
+    width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed;
+    margin-bottom:6px; font-size:10px; flex-shrink:0;
+  }
+  .info-table th, .info-table td {
+    border:1px solid #fff; padding:6px 5px; border-bottom:1.5px solid #ccc; text-align:center;
+  }
+  .info-table th { background:#e8e8e8; color:#555; font-weight:600; font-size:11px; }
+  .info-table tr:first-child th:first-child { border-top-left-radius:8px; }
+  .info-table tr:first-child th:last-child { border-top-right-radius:8px; }
+  .info-table td { background:#fff; }
+  .info-table input, .info-table select {
+    width:100%; border:none; text-align:center; font-size:12px; background:transparent;
+    outline:none; padding:4px 2px; font-family:inherit; color:#333;
+  }
+  .info-table select { text-align:left; cursor:pointer; }
+  .value-unit { display:inline-flex; align-items:center; justify-content:center; gap:2px; }
+  .value-unit input { text-align:right; padding-right:2px; }
+  .value-unit .unit { font-size:11px; color:#888; white-space:nowrap; }
+  .info-table .highlight-cell { background:#e0f7fa; color:#00838f; font-weight:700; }
+  #left-panel .info-table th:first-child, #left-panel .info-table td:first-child { border-left-color:transparent; }
+  #left-panel .info-table th:last-child, #left-panel .info-table td:last-child { border-right-color:transparent; }
+  .note-s { font-size:9px; color:#888; margin:2px 0 4px; text-align:right; flex-shrink:0; }
+
+  /* calc-table */
+  .calc-table { width:100%; border-collapse:separate; border-spacing:0; font-size:10.5px; margin-bottom:8px; }
+  .calc-table th, .calc-table td { padding:8px 8px; border-bottom:1px solid #e2e2e2; text-align:left; }
+  .calc-table th { background:#e8e8e8; color:#555; font-weight:600; font-size:10.5px; }
+  .calc-table tr:first-child th:first-child { border-top-left-radius:6px; }
+  .calc-table tr:first-child th:last-child { border-top-right-radius:6px; }
+  .calc-table td.fx { color:#777; font-size:9.5px; }
+  .calc-table td.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+  .calc-table tr.sub td { background:#ececec; font-weight:800; border-top:1.5px solid #c9c9c9; }
+  .calc-table tr.out td { background:#f2f2f2; font-weight:700; }
+  .calc-table tr.eff td { background:#e2e2e2; font-weight:800; border-top:1.5px solid #c9c9c9; }
+  .tbl-cap { font-size:10.5px; font-weight:700; color:#333; margin:6px 0 4px; display:flex; align-items:center; gap:6px; }
+  .tbl-cap .src { font-size:8.5px; font-weight:600; color:#00838f; background:#e0f7fa; border:1px solid #b8e3e8; padding:1px 6px; border-radius:4px; }
+
+  .residual { font-size:10px; color:#555; background:#f2f2f2; border:1px solid #ddd;
+    border-radius:6px; padding:8px 10px; margin-top:auto; flex-shrink:0; line-height:1.45; }
+
+  /* metric cards */
+  .metrics-area { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+  .metric-card {
+    background:transparent; border:none; border-bottom:1.5px solid #ccc; border-radius:5px;
+    padding:11px 8px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;
+  }
+  .metric-card .ml { flex:1; }
+  .metric-label { font-size:11px; color:#00838f; line-height:1.2; font-weight:bold; }
+  .metric-sub { font-size:8.5px; color:#999; font-weight:500; margin-top:2px; }
+  .metric-value { font-size:26px; font-weight:700; color:#ff8c00; min-width:45px; text-align:right; }
+  .metric-unit { font-size:12px; color:#888; margin-left:2px; vertical-align:super; }
+
+  /* donut */
+  .donut-box { display:flex; gap:18px; align-items:center; padding:10px 0; flex:1; min-height:0; }
+  .donut-box svg { width:190px; height:190px; flex:none; }
+  .legend { display:flex; flex-direction:column; gap:5px; flex:1; }
+  .legend .li { display:flex; align-items:center; gap:8px; font-size:12.5px; color:#444; }
+  .legend .sw { width:12px; height:12px; border-radius:3px; flex:none; }
+  .legend .lv { margin-left:auto; font-weight:700; font-variant-numeric:tabular-nums; }
+
+  /* diagnosis */
+  .diag { display:flex; flex-direction:column; gap:5px; }
+  .diag .d { display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:6px 10px; border-radius:5px; border:none; border-left:3px solid #ccc;
+    background:#fafafa; line-height:1.35; }
+  .diag .d .dhead { font-size:11.5px; font-weight:700; color:#333; white-space:nowrap; flex:none; }
+  .diag .d .dhead .dstat { font-weight:800; margin-left:2px; }
+  .diag .d .dbody { text-align:right; font-size:10px; color:#555; min-width:0; }
+  .diag .d .dsrc { display:block; font-size:8.5px; color:#999; font-weight:600; margin-top:1px;
+    cursor:pointer; }
+
+  /* 설계 총괄계수 : 표준값 기본 + 수정 시 색상 변경 */
+  .urow { display:flex; align-items:center; gap:4px; flex-wrap:nowrap; }
+  .ustd-sel { flex:1 1 auto; min-width:0; max-width:130px; font-size:10px; padding:1px 2px;
+    border:1px solid #cfd6dc; border-radius:3px; background:#fff; color:#333;
+    white-space:nowrap; text-overflow:ellipsis; }
+  .urow .value-unit { flex:0 0 auto; }
+  #uDesign.ustd-input { color:#00838f; font-weight:700; }      /* 표준값 상태 */
+  #uDesign.ustd-input.edited { color:#d23f3f; font-weight:700; } /* 사용자 수정값 */
+  .ustd-src { display:inline; font-size:9px; color:#1268c3; font-weight:600;
+    cursor:pointer; white-space:nowrap; }
+  .ustd-src:hover { color:#0b4e96; }
+  .uedit-mark { color:#d23f3f; font-size:9px; font-weight:700; white-space:nowrap; }
+
+  /* 출처 기준 요약 팝업 */
+  .src-modal-mask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.42);
+    z-index:9999; align-items:center; justify-content:center; }
+  .src-modal-mask.on { display:flex; }
+  .src-modal { background:#fff; width:380px; max-width:92vw; max-height:82vh; overflow:auto;
+    border-radius:8px; box-shadow:0 10px 36px rgba(0,0,0,.25); }
+  .src-modal .sm-head { display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px; border-bottom:1px solid #eee; background:#00838f; border-radius:8px 8px 0 0; }
+  .src-modal .sm-head h3 { font-size:14px; font-weight:700; color:#fff; }
+  .src-modal .sm-head .sm-close { border:none; background:transparent; color:#fff; font-size:20px;
+    line-height:1; cursor:pointer; padding:0 2px; }
+  .src-modal .sm-body { padding:14px 16px; }
+  .src-modal .sm-std { font-size:11px; font-weight:700; color:#00838f; margin-bottom:8px; }
+  .src-modal .sm-desc { font-size:11px; color:#555; line-height:1.5; margin-bottom:10px; }
+  .src-modal table { width:100%; border-collapse:collapse; font-size:11px; }
+  .src-modal th, .src-modal td { border:1px solid #e3e3e3; padding:5px 8px; text-align:left; }
+  .src-modal th { background:#f4f4f4; font-weight:700; color:#333; }
+  .src-modal td.rng { white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .src-modal .lv-ok { color:#1f9d6b; font-weight:700; }
+  .src-modal .lv-warn { color:#e0a106; font-weight:700; }
+  .src-modal .lv-bad { color:#d23f3f; font-weight:700; }
+  .src-modal tr.cur td { background:#fff8e1; }
+  .d.ok { background:#f4faf7; border-left-color:#1f9d6b; } .d.ok .dstat { color:#1f9d6b; }
+  .d.warn { background:#fdf9ec; border-left-color:#e0a106; } .d.warn .dstat { color:#e0a106; }
+  .d.bad { background:#fdf3f3; border-left-color:#d64545; } .d.bad .dstat { color:#d64545; }
+
+  /* refs card */
+  .refs-card { border:none; border-top:1px solid #e2e2e2; border-radius:0; background:transparent; padding:10px 2px 0;
+    flex:1; min-height:0; overflow:hidden; margin-top:6px; }
+  .refs-card h3 { font-size:10px; font-weight:700; color:#333; margin-bottom:6px; }
+  .refs-sub { font-size:8px; font-weight:400; color:#999; text-transform:uppercase; letter-spacing:.3px;
+    margin:6px 0 4px; padding-bottom:4px; border-bottom:1px dashed #ddd; }
+  .std-list { list-style:none; font-size:8px; font-weight:400; color:#888; }
+  .std-list li { padding:4px 0; border-bottom:1px dashed #e2e2e2; line-height:1.45; font-weight:400; }
+  .std-list li b { color:#555; font-weight:400; }
+
+  .calc-card { flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; }
+  .right-scroll { flex:none; overflow:visible; }
+
+  /* Copyright */
+  .copyright {
+    background:#fff; border-top:1px solid #ddd; padding:6px 20px;
+    margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px;
+    text-align:center; font-size:10px; color:#888; flex-shrink:0;
+  }
+
+  @media (max-width:1600px) {
+    .page-container { padding:0 60px; }
+    .header { margin-left:-60px; margin-right:-60px; padding-left:80px; padding-right:80px; }
+    .copyright { padding:6px 80px; margin-left:-60px; margin-right:-60px; }
+  }
+  @media (max-width:1300px) {
+    .page-container { padding:0 30px; }
+    .header { margin-left:-30px; margin-right:-30px; padding-left:50px; padding-right:50px; }
+    .copyright { padding:6px 50px; margin-left:-30px; margin-right:-30px; }
+  }
+  @media (max-width:1100px) {
+    .page-container { padding:0 15px; overflow:auto; }
+    .header { margin-left:-15px; margin-right:-15px; padding-left:35px; padding-right:35px; }
+    .copyright { padding:6px 35px; margin-left:-15px; margin-right:-15px; }
+    .main { grid-template-columns:1fr 1fr; overflow:visible; }
+    .panel { overflow:visible; }
+    .calc-card, .right-scroll, .refs-card { overflow:visible; }
+  }
+  @media (max-width:700px) {
+    .main { grid-template-columns:1fr; }
+  }
+  .info-table input::placeholder { color:#aaa; font-style:italic; font-size:10px; }
+</style>
+</head>
+<body>
+
+<div class="page-container">
+<!-- Header -->
+<div class="header" style="position:relative;">
+  <h1>HIMEC &minus; Mechanical Facility Aging Diagnosis System</h1>
+  <div class="sub">(주)하이멕 &minus; 기계설비 노후화 진단</div>
+  <h2>Heat Exchanger Performance Analysis Tool</h2>
+  <div class="header-right">
+    <button class="btn-save" onclick="saveData()">Save</button>
+    <button class="btn-file" onclick="exportFile()">File Trans</button>
+    <button class="btn-main" onclick="goMain()">Main</button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+  <button class="tab active" id="tab-1" onclick="switchTab(1)">HX-01 #01<span class="tab-close" onclick="event.stopPropagation();removeTab(1)">&#10005;</span></button>
+  <button class="tab add" onclick="addTab()">+</button>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- LEFT -->
+  <div class="panel" id="left-panel">
+    <div class="section-title">&#9632; 장비 개요</div>
+    <table class="info-table">
+      <tr><th>장비명</th><th>열교환기 형식</th><th>용도</th><th>비고</th></tr>
+      <tr>
+        <td><input id="inp-name" placeholder="입력 해주세요" onchange="recalc()"></td>
+        <td><select id="inp-type" onchange="onTypeChange()">
+          <option value="plate">판형(Plate)</option>
+          <option value="shelltube">셸&amp;튜브</option>
+          <option value="brazed">브레이징 판형</option>
+        </select></td>
+        <td><select id="inp-use" onchange="onUseChange()">
+          <option value="heating">난방 열교환</option>
+          <option value="dhw">급탕 열교환</option>
+          <option value="cooling">냉방(냉수) 열교환</option>
+        </select></td>
+        <td><input id="inp-note" placeholder="입력 해주세요" onchange="recalc()"></td>
+      </tr>
+    </table>
+
+    <div class="section-title mt">&#9632; 설계 기준값</div>
+    <table class="info-table">
+      <tr><th>전열면적 A</th><th>설계 총괄계수 U&#x209B; <span id="uStdSrc" class="ustd-src" onclick="showUStdSrc()" title="클릭하면 표준값 출처·기준 보기">&#9432; 출처&middot;기준</span><span id="uEditMark" class="uedit-mark" style="display:none"> · 사용자 수정값</span></th><th>설계 열교환량</th></tr>
+      <tr>
+        <td><span class="value-unit"><input id="area" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">m&sup2;</span></span></td>
+        <td>
+          <div class="urow">
+            <select id="uStd" class="ustd-sel" onchange="applyUStd()"></select>
+            <span class="value-unit"><input id="uDesign" class="ustd-input" placeholder="입력" type="number" step="any" oninput="onUEdit()" onchange="onUCommit()"><span class="unit">W/m&sup2;K</span></span>
+          </div>
+        </td>
+        <td><span class="value-unit"><input id="qDesign" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">kW</span></span></td>
+      </tr>
+    </table>
+
+    <div class="section-title mt">&#9632; 현장 측정값</div>
+
+    <label class="chk-label">1차측 (고온&middot;열원측)</label>
+    <table class="info-table">
+      <tr><th>유량</th><th>비열</th><th>입구온도</th><th>출구온도</th></tr>
+      <tr>
+        <td><span class="value-unit"><input id="flow1" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">L/min</span></span></td>
+        <td><span class="value-unit"><input id="cp1" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">kcal/kg&middot;&#8451;</span></span></td>
+        <td><span class="value-unit"><input id="t1i" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
+        <td><span class="value-unit"><input id="t1o" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
+      </tr>
+    </table>
+
+    <label class="chk-label">2차측 (저온&middot;부하측)</label>
+    <table class="info-table">
+      <tr><th>유량</th><th>비열</th><th>입구온도</th><th>출구온도</th></tr>
+      <tr>
+        <td><span class="value-unit"><input id="flow2" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">L/min</span></span></td>
+        <td><span class="value-unit"><input id="cp2" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">kcal/kg&middot;&#8451;</span></span></td>
+        <td><span class="value-unit"><input id="t2i" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
+        <td><span class="value-unit"><input id="t2o" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
+      </tr>
+    </table>
+
+    <label class="chk-label">차압 측정<span class="src">(오염&middot;막힘 평가용)</span></label>
+    <table class="info-table">
+      <tr><th>1차측 차압 &Delta;P&#8321;</th><th>2차측 차압 &Delta;P&#8322;</th></tr>
+      <tr>
+        <td><span class="value-unit"><input id="dp1" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">kPa</span></span></td>
+        <td><span class="value-unit"><input id="dp2" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">kPa</span></span></td>
+      </tr>
+    </table>
+
+    <div class="refs-card">
+      <h3>기준 및 출처</h3>
+      <div class="refs-sub">적용 표준 (상세 출처)</div>
+      <ul class="std-list">
+        <li><b>KS B 6362</b> &mdash; 열교환기 성능 시험방법 (열수지&middot;전열성능 측정 규정)</li>
+        <li><b>ASME PTC 12.5</b> &mdash; Single Phase Heat Exchangers (성능 인수시험)</li>
+        <li><b>TEMA</b> &mdash; Standards of Tubular Exchanger Manufacturers (오염계수&middot;설계기준)</li>
+        <li><b>AHRI 400</b> &mdash; Liquid-to-Liquid Heat Exchangers (정격 성능 표준)</li>
+        <li><b>LMTD &middot; &epsilon;-NTU</b> &mdash; 대수평균온도차법 / 유효도-전달단위수법 (전열 해석 표준)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="panel" id="center-panel">
+    <div class="section-title">&#9632; 열교환 성능 분석표</div>
+    <div class="calc-card">
+      <label class="chk-label"><input type="checkbox" id="tg-bal" checked onchange="toggleSec()"><span class="box on" id="box-bal"></span>열수지 분석</label>
+      <div id="sec-bal">
+        <div class="tbl-cap">열수지 (Heat Balance)</div>
+        <table class="calc-table">
+          <tr><th style="width:36%">항목</th><th>산식&middot;출처</th><th style="text-align:right">kcal/h</th><th style="width:13%;text-align:right">kW</th></tr>
+          <tr><td>1차측 방열량 Q&#x2095;</td><td class="fx">m&#8321;&middot;cp&middot;(T&#8321;&#7522;&minus;T&#8321;&#7506;) &middot; KS B 6362</td><td class="num" id="v-qhot">&ndash;</td><td class="num" id="v-qhotk">&ndash;</td></tr>
+          <tr><td>2차측 흡열량 Q&#x1d04;</td><td class="fx">m&#8322;&middot;cp&middot;(T&#8322;&#7506;&minus;T&#8322;&#7522;) &middot; KS B 6362</td><td class="num" id="v-qcold">&ndash;</td><td class="num" id="v-qcoldk">&ndash;</td></tr>
+          <tr class="out"><td>열손실률</td><td class="fx">(Q&#x2095;&minus;Q&#x1d04;)/Q&#x2095; &times;100</td><td class="num" id="v-loss">&ndash;</td><td class="num">&ndash;</td></tr>
+          <tr class="sub"><td>유효 열교환량 Q</td><td class="fx">2차측 흡열 기준(유효출열)</td><td class="num" id="v-qeff">&ndash;</td><td class="num" id="v-qeffk">&ndash;</td></tr>
+        </table>
+      </div>
+
+      <label class="chk-label"><input type="checkbox" id="tg-trf" checked onchange="toggleSec()"><span class="box on" id="box-trf"></span>전열 성능 분석</label>
+      <div id="sec-trf">
+        <div class="tbl-cap">대수평균온도차 (LMTD, 향류 기준)</div>
+        <table class="calc-table">
+          <tr><th style="width:42%">항목</th><th>산식&middot;출처</th><th style="width:20%;text-align:right">&#8451;</th></tr>
+          <tr><td>고온단 온도차 &Delta;T&#8321;</td><td class="fx">T&#8321;&#7522; &minus; T&#8322;&#7506;</td><td class="num" id="v-dt1">&ndash;</td></tr>
+          <tr><td>저온단 온도차 &Delta;T&#8322;</td><td class="fx">T&#8321;&#7506; &minus; T&#8322;&#7522;</td><td class="num" id="v-dt2">&ndash;</td></tr>
+          <tr><td>접근온도 (Approach)</td><td class="fx">min(&Delta;T&#8321;, &Delta;T&#8322;)</td><td class="num" id="v-appr">&ndash;</td></tr>
+          <tr class="sub"><td>LMTD</td><td class="fx">(&Delta;T&#8321;&minus;&Delta;T&#8322;)/ln(&Delta;T&#8321;/&Delta;T&#8322;)</td><td class="num" id="v-lmtd">&ndash;</td></tr>
+        </table>
+        <div class="tbl-cap">전열계수 &middot; 유효도 (U &middot; &epsilon;-NTU)</div>
+        <table class="calc-table">
+          <tr><th style="width:42%">항목</th><th>산식&middot;출처</th><th style="width:20%;text-align:right">값</th></tr>
+          <tr class="out"><td>총괄열전달계수 U</td><td class="fx">Q/(A&middot;LMTD) &middot; W/m&sup2;K</td><td class="num" id="v-u">&ndash;</td></tr>
+          <tr><td>전달단위수 NTU</td><td class="fx">U&middot;A / C&#x2098;&#x1d62;&#x2099;</td><td class="num" id="v-ntu">&ndash;</td></tr>
+          <tr><td>청결도 (U/U&#x209B;)</td><td class="fx">실측U / 설계U &times;100</td><td class="num" id="v-clean">&ndash;</td></tr>
+          <tr class="eff"><td>열교환 유효도 &epsilon;</td><td class="fx">Q / [C&#x2098;&#x1d62;&#x2099;(T&#8321;&#7522;&minus;T&#8322;&#7522;)] &times;100</td><td class="num" id="v-eps">&ndash;</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="residual" id="residual">&ndash;</div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="panel" id="right-panel">
+    <div class="section-title">&#9632; 성능 산정 결과</div>
+    <div class="metrics-area">
+      <div class="metric-card" id="mc-q"><div class="ml"><div class="metric-label">&#10003; 유효 열교환량 Q</div><div class="metric-sub">KS B 6362 &middot; 2차측 흡열 기준</div></div><div><span class="metric-value" id="m-q">&ndash;</span><span class="metric-unit">kW</span></div></div>
+      <div class="metric-card" id="mc-u"><div class="ml"><div class="metric-label">&#10003; 총괄열전달계수 U</div><div class="metric-sub">U = Q/(A&middot;LMTD)</div></div><div><span class="metric-value" id="m-u">&ndash;</span><span class="metric-unit">W/m&sup2;K</span></div></div>
+      <div class="metric-card" id="mc-eps"><div class="ml"><div class="metric-label">&#10003; 열교환 유효도 &epsilon;</div><div class="metric-sub">&epsilon;-NTU &middot; 이론최대 대비</div></div><div><span class="metric-value" id="m-eps">&ndash;</span><span class="metric-unit">%</span></div></div>
+      <div class="metric-card" id="mc-lmtd"><div class="ml"><div class="metric-label">&#10003; 대수평균온도차</div><div class="metric-sub">LMTD &middot; 향류 기준</div></div><div><span class="metric-value" id="m-lmtd">&ndash;</span><span class="metric-unit">&#8451;</span></div></div>
+      <div class="metric-card" id="mc-none" style="display:none;justify-content:center"><div class="ml"><div class="metric-sub" style="text-align:center">열수지 또는 전열 성능 분석을 체크하면<br>성능 산정 결과가 표시됩니다.</div></div></div>
+    </div>
+
+    <div id="sec-donut">
+      <div class="section-title mt">&#9632; 열수지 분포 (열회수율)</div>
+      <div class="donut-box">
+        <svg id="donut" viewBox="0 0 120 120"></svg>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+
+    <div id="sec-diag">
+      <div class="section-title mt"> </div>
+      <div class="right-scroll">
+        <div class="diag" id="diag"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- Copyright -->
+<div class="copyright">
+  &copy;HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
+</div>
+
+<script>
+/* ===== 용도별 프리셋 ===== */
+const PRESET = {
+  heating:{flow1:300, cp1:1, t1i:80, t1o:60, flow2:350, cp2:1, t2i:50, t2o:68, area:12, qDesign:420, dp1:25, dp2:28},
+  dhw:    {flow1:250, cp1:1, t1i:70, t1o:45, flow2:200, cp2:1, t2i:15, t2o:50, area:10, qDesign:380, dp1:22, dp2:30},
+  cooling:{flow1:400, cp1:1, t1i:12, t1o:7,  flow2:380, cp2:1, t2i:5,  t2o:11, area:15, qDesign:330, dp1:30, dp2:32}
+};
+const $=id=>document.getElementById(id);
+const num=id=>{const e=$(id); if(!e) return 0; const v=parseFloat(e.value); return isNaN(v)?0:v;};
+const fmt=n=>n.toLocaleString('en-US',{maximumFractionDigits:0});
+const KCAL_KW=1/860;          /* kcal/h -> kW */
+const KCAL_W_TO_SI=1.163;     /* kcal/m2h℃ -> W/m2K */
+
+function applyPreset(t){ const p=PRESET[t]; for(const k in p){ if($(k)) $(k).value=p[k]; } }
+function onUseChange(){ applyPreset($("inp-use").value); recalc(); }
+
+function toggleSec(){
+  const b=$("tg-bal").checked, t=$("tg-trf").checked;
+  $("sec-bal").style.display=b?"":"none";
+  $("sec-trf").style.display=t?"":"none";
+  $("box-bal").classList.toggle("on",b);
+  $("box-trf").classList.toggle("on",t);
+  $("mc-q").style.display=b?"":"none";
+  $("mc-u").style.display=t?"":"none";
+  $("mc-eps").style.display=t?"":"none";
+  $("mc-lmtd").style.display=t?"":"none";
+  $("mc-none").style.display=(!b&&!t)?"flex":"none";
+  $("sec-donut").style.display=b?"":"none";
+  $("sec-diag").style.display=(b||t)?"":"none";
+  fitCenter();
+}
+
+function recalc(){
+  const A=num("area"), Ud=num("uDesign");
+  const m1=num("flow1")*60, cp1=num("cp1")||1, t1i=num("t1i"), t1o=num("t1o");
+  const m2=num("flow2")*60, cp2=num("cp2")||1, t2i=num("t2i"), t2o=num("t2o");
+  const C1=m1*cp1, C2=m2*cp2;             /* 열용량유량 kcal/h℃ */
+  const Qhot=C1*(t1i-t1o);
+  const Qcold=C2*(t2o-t2i);
+  const Qeff=Qcold;                        /* 유효 열교환량(2차측) */
+  const lossRate=Qhot>0?((Qhot-Qcold)/Qhot*100):NaN;
+
+  /* LMTD (향류) */
+  const dT1=t1i-t2o, dT2=t1o-t2i;
+  let LMTD=NaN;
+  if(dT1>0&&dT2>0){ LMTD=(Math.abs(dT1-dT2)<1e-9)?dT1:(dT1-dT2)/Math.log(dT1/dT2); }
+  const approach=(dT1>0&&dT2>0)?Math.min(dT1,dT2):NaN;
+
+  /* U (kcal/m2h℃ -> W/m2K) */
+  const U_kc=(A>0&&LMTD>0&&Qeff>0)?Qeff/(A*LMTD):NaN;
+  const U=isFinite(U_kc)?U_kc*KCAL_W_TO_SI:NaN;
+
+  /* 유효도 ε-NTU */
+  const Cmin=Math.min(C1,C2), Cmax=Math.max(C1,C2);
+  const Qmax=Cmin*(t1i-t2i);
+  const eps=(Qmax>0&&Qeff>0)?(Qeff/Qmax*100):NaN;
+  const NTU=(Cmin>0&&isFinite(U_kc))?(U_kc*A/Cmin):NaN;
+  const clean=(Ud>0&&isFinite(U))?(U/Ud*100):NaN;
+
+  /* metrics */
+  $("m-q").textContent=Qeff>0?(Qeff*KCAL_KW).toFixed(1):'\u2013';
+  $("m-u").textContent=isFinite(U)?U.toFixed(0):'\u2013';
+  $("m-eps").textContent=isFinite(eps)?eps.toFixed(1):'\u2013';
+  $("m-lmtd").textContent=isFinite(LMTD)?LMTD.toFixed(1):'\u2013';
+
+  /* 열수지표 */
+  $("v-qhot").textContent=Qhot?fmt(Qhot):'\u2013';
+  $("v-qhotk").textContent=Qhot?(Qhot*KCAL_KW).toFixed(1):'\u2013';
+  $("v-qcold").textContent=Qcold?fmt(Qcold):'\u2013';
+  $("v-qcoldk").textContent=Qcold?(Qcold*KCAL_KW).toFixed(1):'\u2013';
+  $("v-loss").textContent=isFinite(lossRate)?lossRate.toFixed(1)+' %':'\u2013';
+  $("v-qeff").textContent=Qeff?fmt(Qeff):'\u2013';
+  $("v-qeffk").textContent=Qeff?(Qeff*KCAL_KW).toFixed(1):'\u2013';
+
+  /* 전열표 */
+  $("v-dt1").textContent=isFinite(dT1)?dT1.toFixed(1):'\u2013';
+  $("v-dt2").textContent=isFinite(dT2)?dT2.toFixed(1):'\u2013';
+  $("v-appr").textContent=isFinite(approach)?approach.toFixed(1):'\u2013';
+  $("v-lmtd").textContent=isFinite(LMTD)?LMTD.toFixed(2):'\u2013';
+  $("v-u").textContent=isFinite(U)?U.toFixed(0)+' W/m\u00b2K':'\u2013';
+  $("v-ntu").textContent=isFinite(NTU)?NTU.toFixed(2):'\u2013';
+  $("v-clean").textContent=isFinite(clean)?clean.toFixed(1)+' %':'\u2013';
+  $("v-eps").textContent=isFinite(eps)?eps.toFixed(1)+' %':'\u2013';
+
+  /* residual */
+  if(isFinite(lossRate)){
+    const ok=Math.abs(lossRate)<=5;
+    $("residual").innerHTML=`열수지 잔차(미확인손실) = (Q&#x2095;&minus;Q&#x1d04;)/Q&#x2095; = <b>${lossRate.toFixed(1)}%</b>. `+
+      (ok?`&plusmn;5% 이내이면 1차&middot;2차 측정이 일관됨(KS B 6362 상호검증).`
+         :`\u26a0 &plusmn;5% 초과 \u2014 유량&middot;온도 측정 또는 단열손실 재검토 필요.`);
+  }else{
+    $("residual").innerHTML=`\u26a0 온도차(&Delta;T&#8321;,&Delta;T&#8322;)가 0 이하이면 LMTD&middot;U 계산 불가. 1차측이 2차측보다 고온인지, 입출구 온도를 확인하세요.`;
+  }
+
+  drawDonut(Qhot,Qcold);
+  diagnose({type:$("inp-type").value,eps,lossRate,approach,clean,Ud,U,dp1:num("dp1"),dp2:num("dp2"),LMTD});
+  fitCenter();
+}
+
+function fitCenter(){
+  const card=document.querySelector('#center-panel .calc-card');
+  if(!card) return;
+  const tds=card.querySelectorAll('.calc-table td, .calc-table th');
+  const BASE=8, MIN=1.5;
+  tds.forEach(td=>{ td.style.paddingTop=''; td.style.paddingBottom=''; });
+  requestAnimationFrame(()=>{
+    const trCount=card.querySelectorAll('.calc-table tr').length;
+    if(trCount<=0) return;
+    const free=card.clientHeight - card.scrollHeight;
+    let adj=free/trCount/2;
+    let pad=BASE+adj;
+    if(pad<MIN) pad=MIN;
+    pad=Math.floor(pad*10)/10;
+    tds.forEach(td=>{ td.style.paddingTop=pad+'px'; td.style.paddingBottom=pad+'px'; });
+  });
+}
+
+function drawDonut(Qhot,Qcold){
+  const loss=Math.max(Qhot-Qcold,0);
+  const data=[
+    {l:"유효 회수열(2차흡열)",v:Math.max(Qcold,0),c:"#00838f"},
+    {l:"열손실(미회수)",v:loss,c:"#ff8c00"}
+  ];
+  const tot=data.reduce((s,d)=>s+d.v,0)||1;
+  const recov=Qhot>0?(Qcold/Qhot*100):0;
+  let a=-90, svg="";
+  data.forEach(d=>{
+    const ang=d.v/tot*360, a2=a+ang, r=54,cx=60,cy=60,R=Math.PI/180;
+    const x1=cx+r*Math.cos(a*R),y1=cy+r*Math.sin(a*R);
+    const x2=cx+r*Math.cos(a2*R),y2=cy+r*Math.sin(a2*R);
+    const large=ang>180?1:0;
+    svg+=`<path d="M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2} Z" fill="${d.c}"/>`;
+    a=a2;
+  });
+  svg+=`<circle cx="60" cy="60" r="36" fill="#fff"/>
+    <text x="60" y="54" text-anchor="middle" font-size="10" fill="#888">회수율</text>
+    <text x="60" y="72" text-anchor="middle" font-size="20" font-weight="800" fill="#00838f">${recov.toFixed(1)}%</text>`;
+  $("donut").innerHTML=svg;
+  $("legend").innerHTML=data.map(d=>
+    `<div class="li"><span class="sw" style="background:${d.c}"></span>${d.l}<span class="lv">${(d.v*KCAL_KW).toFixed(1)} kW</span></div>`).join("");
+}
+
+function diagnose(o){
+  const D=[];
+  /* 열수지 일관성 */
+  if(isFinite(o.lossRate)){
+    const al=Math.abs(o.lossRate);
+    if(al<=5) D.push(["ok","열수지","양호","손실률 "+o.lossRate.toFixed(1)+"% \u2014 1차&middot;2차 측정 일관(\u00b15% 이내).","출처: KS B 6362 상호검증"]);
+    else if(al<=10) D.push(["warn","열수지","주의","손실률 "+o.lossRate.toFixed(1)+"% \u2014 유량&middot;온도 측정 재확인 권장.","출처: ASME PTC 12.5"]);
+    else D.push(["bad","열수지","불일치","손실률 "+o.lossRate.toFixed(1)+"% \u2014 측정오차 또는 단열불량 의심.","출처: ASME PTC 12.5"]);
+  }
+  /* 유효도 */
+  if(isFinite(o.eps)){
+    if(o.eps>=80) D.push(["ok","유효도","우수","&epsilon; "+o.eps.toFixed(1)+"% \u2014 전열성능 우수. 현 운전 유지.","출처: AHRI 400 / TEMA"]);
+    else if(o.eps>=65) D.push(["warn","유효도","보통","&epsilon; "+o.eps.toFixed(1)+"% \u2014 개선 여지. 유량&middot;오염 점검.","출처: \u03b5-NTU 벤치마크"]);
+    else D.push(["bad","유효도","저조","&epsilon; "+o.eps.toFixed(1)+"% \u2014 전열성능 저하. 세정&middot;정비 필요.","출처: TEMA 오염 기준"]);
+  }
+  /* 접근온도 */
+  if(isFinite(o.approach)){
+    if(o.approach<=5) D.push(["ok","접근온도","양호","Approach "+o.approach.toFixed(1)+"\u2103 \u2014 근접 양호, 전열 충분.","출처: 판형 HX 설계기준"]);
+    else if(o.approach<=10) D.push(["warn","접근온도","다소 큼","Approach "+o.approach.toFixed(1)+"\u2103 \u2014 전열면 점검 권장.","출처: 판형 HX 설계기준"]);
+    else D.push(["bad","접근온도","과대","Approach "+o.approach.toFixed(1)+"\u2103 \u2014 면적부족/오염 가능. 점검 필요.","출처: TEMA"]);
+  }
+  /* 청결도(오염) */
+  if(isFinite(o.clean)){
+    if(o.clean>=90) D.push(["ok","청결도","양호","U/U&#x209B; "+o.clean.toFixed(0)+"% \u2014 설계 전열성능 유지.","출처: TEMA 오염계수"]);
+    else if(o.clean>=75) D.push(["warn","청결도","오염진행","U/U&#x209B; "+o.clean.toFixed(0)+"% \u2014 스케일&middot;슬러지 진행. 세정 계획.","출처: TEMA 오염계수"]);
+    else D.push(["bad","청결도","오염심함","U/U&#x209B; "+o.clean.toFixed(0)+"% \u2014 전열저하 심함. 즉시 세정 권장.","출처: TEMA 오염계수"]);
+  }
+  /* 차압 */
+  const dpMax=Math.max(o.dp1||0,o.dp2||0);
+  if(dpMax>0){
+    if(dpMax>60) D.push(["bad","차압","과다","최대 &Delta;P "+dpMax.toFixed(0)+"kPa \u2014 막힘/오염 의심. 분해세정 검토.","출처: 판형 HX 운전기준"]);
+    else if(dpMax>40) D.push(["warn","차압","상승","최대 &Delta;P "+dpMax.toFixed(0)+"kPa \u2014 유로 오염 진행 가능.","출처: 판형 HX 운전기준"]);
+    else D.push(["ok","차압","정상","최대 &Delta;P "+dpMax.toFixed(0)+"kPa \u2014 유로 정상.","출처: 판형 HX 운전기준"]);
+  }
+  $("diag").innerHTML=D.map(d=>`<div class="d ${d[0]}"><div class="dhead">${d[1]} : <span class="dstat">${d[2]}</span></div><div class="dbody">${d[3]}<span class="dsrc" onclick="showSrcPopup('${d[1]}','${d[0]}')" title="클릭하면 판정 기준 요약 보기">${d[4]}</span></div></div>`).join("");
+}
+
+/* ===== 출처/판정 기준 요약 팝업 ===== */
+const SRC_INFO={
+  "열수지":{ std:"KS B 6362 · ASME PTC 12.5",
+    desc:"1차측·2차측 전열량(Q)을 상호검증하여 측정 신뢰도를 평가합니다. 손실률 = (Q1−Q2)/Q1 의 절대값 기준.",
+    unit:"|손실률|",
+    rows:[["ok","≤ 5%","양호 — 1·2차 측정 일관"],
+          ["warn","5 ~ 10%","주의 — 유량·온도 측정 재확인"],
+          ["bad","> 10%","불일치 — 측정오차/단열불량 의심"]] },
+  "유효도":{ std:"AHRI 400 / TEMA · ε-NTU 벤치마크",
+    desc:"실제 전열량 대비 이론 최대 전열량의 비(ε)로 전열성능을 평가합니다.",
+    unit:"ε(유효도)",
+    rows:[["ok","≥ 80%","우수 — 현 운전 유지"],
+          ["warn","65 ~ 80%","보통 — 유량·오염 점검"],
+          ["bad","< 65%","저조 — 세정·정비 필요"]] },
+  "접근온도":{ std:"판형 HX 설계기준 · TEMA",
+    desc:"고온측 출구와 저온측 입구의 온도차(Approach). 값이 작을수록 전열면 활용도가 높습니다.",
+    unit:"Approach",
+    rows:[["ok","≤ 5℃","양호 — 근접 양호, 전열 충분"],
+          ["warn","5 ~ 10℃","다소 큼 — 전열면 점검 권장"],
+          ["bad","> 10℃","과대 — 면적부족/오염 가능"]] },
+  "청결도":{ std:"TEMA 오염계수(Fouling Factor)",
+    desc:"운전 총괄전열계수(U)와 설계값(Us)의 비. 스케일·슬러지 오염 정도를 나타냅니다.",
+    unit:"U/Us",
+    rows:[["ok","≥ 90%","양호 — 설계 전열성능 유지"],
+          ["warn","75 ~ 90%","오염진행 — 세정 계획 수립"],
+          ["bad","< 75%","오염심함 — 즉시 세정 권장"]] },
+  "차압":{ std:"판형 HX 운전기준",
+    desc:"1차·2차측 압력강하(ΔP) 중 최대값. 상승 시 유로 막힘·오염을 시사합니다.",
+    unit:"최대 ΔP",
+    rows:[["ok","≤ 40 kPa","정상 — 유로 정상"],
+          ["warn","40 ~ 60 kPa","상승 — 유로 오염 진행 가능"],
+          ["bad","> 60 kPa","과다 — 막힘/오염, 분해세정 검토"]] }
+};
+function showSrcPopup(cat,curLv){
+  const info=SRC_INFO[cat]; if(!info) return;
+  const lvName={ok:"양호",warn:"주의",bad:"불량"};
+  const rows=info.rows.map(r=>`<tr class="${r[0]===curLv?'cur':''}"><td class="rng">${r[1]}</td><td><span class="lv-${r[0]}">${lvName[r[0]]}</span></td><td>${r[2].split('—')[1]?r[2].split('—')[1].trim():r[2]}</td></tr>`).join("");
+  $("srcModalTitle").textContent=cat+" 판정 기준";
+  $("srcModalBody").innerHTML=
+    `<div class="sm-std">출처: ${info.std}</div>`+
+    `<div class="sm-desc">${info.desc}</div>`+
+    `<table><thead><tr><th>${info.unit}</th><th>판정</th><th>의미</th></tr></thead><tbody>${rows}</tbody></table>`+
+    `<div class="sm-desc" style="margin-top:8px;color:#999;">※ 음영 행은 현재 측정값의 판정 구간입니다.</div>`;
+  $("srcModalMask").classList.add("on");
+}
+function closeSrcPopup(){ $("srcModalMask").classList.remove("on"); }
+
+/* ===== 설계 총괄계수 U\u209b 표준값 (공신력 출처 기반) ===== */
+const STD_U=[
+  {t:"plate",     short:"물-물",   label:"판형 · 물-물 (액-액)",   min:3000, max:7000, val:4000,
+   src:"Perry's Chemical Engineers' Handbook (11th Ed., Table 11-3) · Alfa Laval Heat Transfer Theory",
+   note:"개스킷 판형, 고난류 컴팩트형. 물-물 액체 열교환의 표준 범위."},
+  {t:"plate",     short:"증기-물", label:"판형 · 증기-물 (응축가열)", min:3500, max:6000, val:4500,
+   src:"Alfa Laval Heat Transfer Theory · Perry's CEH",
+   note:"증기 응축으로 물을 가열하는 판형 가열기."},
+  {t:"brazed",    short:"물-물",   label:"브레이징 판형 · 물-물",   min:3000, max:6000, val:4000,
+   src:"Alfa Laval Technical Literature (Brazed PHE)",
+   note:"브레이징 접합 판형. 개스킷형과 유사한 고전열 성능."},
+  {t:"shelltube", short:"물-물",   label:"셸&튜브 · 물-물",        min:800,  max:1500, val:1100,
+   src:"Coulson & Richardson 'Chemical Engineering' Vol.6, Table 12.1 · TEMA Standards",
+   note:"표준 산업용 셸&튜브, 물-물 액체 열교환."},
+  {t:"shelltube", short:"증기-물", label:"셸&튜브 · 증기-물",      min:1500, max:4000, val:2500,
+   src:"Coulson & Richardson Vol.6, Table 12.1",
+   note:"증기로 물을 가열하는 셸&튜브 가열기."},
+  {t:"shelltube", short:"경질유-물", label:"셸&튜브 · 경질유-물",     min:350,  max:900,  val:600,
+   src:"Coulson & Richardson Vol.6, Table 12.1",
+   note:"경질유(light oil) 냉각/가열."}
+];
+/* 형식 변경 시 표준값 목록 갱신(기본=표준값) */
+function onTypeChange(){
+  buildUStdOptions();
+  applyUStd();   // 형식 변경 시 표준값으로 재설정
+}
+function buildUStdOptions(keepSel){
+  const type=$("inp-type").value;
+  const prev=$("uStd").value;
+  const matched=STD_U.filter(s=>s.t===type);
+  const use=matched.length?matched:STD_U;
+  // 짧은 라벨(유체조합만) — 한 줄을 넘기지 않도록
+  $("uStd").innerHTML=use.map(s=>`<option value="${STD_U.indexOf(s)}">${s.short} (${s.val.toLocaleString()})</option>`).join("");
+  if(keepSel && [...$("uStd").options].some(o=>o.value===prev)) $("uStd").value=prev;
+}
+/* 표준값 적용: 입력칸을 표준값으로 채우고 표준상태(청록) 표시 */
+function applyUStd(){
+  const idx=parseInt($("uStd").value); const s=STD_U[idx]; if(!s) return;
+  $("uDesign").value=s.val;
+  $("uDesign").classList.remove("edited");
+  $("uEditMark").style.display="none";
+  recalc();
+}
+/* 사용자가 직접 수정하면 글자색(빨강)으로 표시 (타이핑 중) */
+function onUEdit(){
+  const idx=parseInt($("uStd").value); const s=STD_U[idx];
+  const raw=$("uDesign").value.trim();
+  const v=parseFloat(raw);
+  // 비어있으면 표준값과 동일한 상태로 간주(빨강 표시 안 함)
+  const edited = raw==="" ? false : (!s || isNaN(v) ? true : (v!==s.val));
+  $("uDesign").classList.toggle("edited", edited);
+  $("uEditMark").style.display = edited ? "" : "none";
+}
+/* 입력칸을 벗어났을 때 비어있으면 표준값으로 복원 */
+function onUCommit(){
+  if($("uDesign").value.trim()===""){ applyUStd(); }  // 표준값 복원 + recalc
+  else recalc();
+}
+function showUStdSrc(){
+  const idx=parseInt($("uStd").value); const cur=STD_U[idx];
+  const rows=STD_U.map(s=>`<tr class="${s===cur?'cur':''}"><td>${s.label}</td><td class="rng">${s.min.toLocaleString()}~${s.max.toLocaleString()}</td><td class="rng">${s.val.toLocaleString()}</td></tr>`).join("");
+  $("srcModalTitle").textContent="설계 총괄계수 U\u209b 표준값 기준";
+  $("srcModalBody").innerHTML=
+    (cur?`<div class="sm-std">선택: ${cur.label}</div><div class="sm-desc">${cur.note}<br><b>출처:</b> ${cur.src}</div>`:"")+
+    `<table><thead><tr><th>형식 · 유체조합</th><th>범위 (W/m&sup2;K)</th><th>설계값</th></tr></thead><tbody>${rows}</tbody></table>`+
+    `<div class="sm-desc" style="margin-top:8px;color:#999;">※ 음영 행이 현재 선택값. 값은 단상(액-액/증기-물) 기준이며, 실제 설계는 유속&middot;오염계수&middot;재질에 따라 TEMA/Perry's 방법으로 보정해야 합니다.</div>`+
+    `<div class="sm-desc" style="color:#999;"><b>적용 표준·출처:</b> Perry's Chemical Engineers' Handbook (11th Ed.), TEMA Standards, Coulson &amp; Richardson Chemical Engineering Vol.6, Alfa Laval Technical Literature.</div>`;
+  $("srcModalMask").classList.add("on");
+}
+
+/* ===== Tab Management ===== */
+let tabCount=1, activeTab=1, nextTabId=2;
+const FIELD_IDS=['inp-name','inp-type','inp-use','inp-note','area','uDesign','qDesign',
+  'flow1','cp1','t1i','t1o','flow2','cp2','t2i','t2o','dp1','dp2'];
+const equipStore={};
+function snapshot(){ const o={}; FIELD_IDS.forEach(id=>{const e=$(id); if(e) o[id]=e.value;}); return o; }
+function saveCurrentTab(){ equipStore[activeTab]=snapshot(); }
+function loadTab(id){
+  const d=equipStore[id]||{};
+  FIELD_IDS.forEach(k=>{ const e=$(k); if(e&&d[k]!==undefined) e.value=d[k]; });
+  buildUStdOptions(true); onUEdit();   // 표준값 목록 갱신 + 수정값 색상 반영
+}
+function updateTabName(){
+  const name=$("inp-name").value||'HX';
+  const btn=$("tab-"+activeTab);
+  if(btn){ const c=btn.querySelector('.tab-close'); btn.textContent=name+' #'+String(activeTab).padStart(2,'0'); if(c) btn.appendChild(c); }
+}
+function switchTab(id){
+  if(id===activeTab) return;
+  saveCurrentTab(); updateTabName();
+  document.querySelectorAll('.tab:not(.add)').forEach(t=>t.classList.remove('active'));
+  const b=$("tab-"+id); if(b) b.classList.add('active');
+  activeTab=id; loadTab(id); recalc();
+}
+function addTab(){
+  saveCurrentTab(); updateTabName();
+  const id=nextTabId++; tabCount++;
+  equipStore[id]=Object.assign({'inp-name':'HX-'+String(tabCount).padStart(2,'0'),'inp-type':'plate','inp-use':'heating','inp-note':'정격부하'},PRESET.heating);
+  const btn=document.createElement('button');
+  btn.className='tab'; btn.id='tab-'+id; btn.textContent='HX-'+String(id).padStart(2,'0')+' #'+String(id).padStart(2,'0');
+  btn.onclick=()=>switchTab(id);
+  const c=document.createElement('span'); c.className='tab-close'; c.innerHTML='&#10005;';
+  c.onclick=e=>{e.stopPropagation();removeTab(id);}; btn.appendChild(c);
+  const bar=document.querySelector('.tab-bar'); bar.insertBefore(btn,bar.lastElementChild);
+  document.querySelectorAll('.tab:not(.add)').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active'); activeTab=id; loadTab(id); updateTabName(); recalc();
+}
+function removeTab(id){
+  const tabs=document.querySelectorAll('.tab:not(.add)');
+  if(tabs.length<=1){ alert('최소 1개의 장비는 유지해야 합니다.'); return; }
+  const b=$("tab-"+id); const nm=b?b.textContent.replace('\u2715','').trim():'장비';
+  if(!confirm('"'+nm+'" 장비를 삭제하시겠습니까?')) return;
+  if(b) b.remove(); delete equipStore[id];
+  if(activeTab===id){ const r=document.querySelectorAll('.tab:not(.add)')[0]; const fid=parseInt(r.id.replace('tab-','')); r.classList.add('active'); activeTab=fid; loadTab(fid); recalc(); }
+}
+function saveData(){ saveCurrentTab(); updateTabName(); alert('데이터가 저장되었습니다.'); }
+function exportFile(){ alert('파일 변환 기능'); }
+function goMain(){ location.href='../dashboard.html'; }
+
+window.addEventListener('DOMContentLoaded',function(){
+  $("inp-name").addEventListener('input',updateTabName);
+  applyPreset('heating'); buildUStdOptions(); applyUStd(); toggleSec(); recalc();
+  setTimeout(fitCenter,60);
+});
+window.addEventListener('resize',fitCenter);
+</script>
+<div class="src-modal-mask" id="srcModalMask" onclick="if(event.target===this)closeSrcPopup()">
+  <div class="src-modal">
+    <div class="sm-head"><h3 id="srcModalTitle">판정 기준</h3><button class="sm-close" onclick="closeSrcPopup()">&times;</button></div>
+    <div class="sm-body" id="srcModalBody"></div>
+  </div>
+</div>
+</body>
+</html>
