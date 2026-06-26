@@ -3,18 +3,27 @@
 <head>
   <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
   <script src="/js/supabase-config.js"></script>
+  <!-- ▼ 로그인 가드 + 로그아웃 (설정 파일보다 뒤, sync보다 앞) -->
+  <script src="/js/auth-guard.js"></script>
   <script src="/js/himec-supabase-sync.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HIMEC – Project Dashboard</title>
+  <style>
+/* ========== RESET & BASE ========== */
+*{
+  box-sizing:border-box;
+  font-family:'Noto Sans KR','Pretendard',-apple-system,sans-serif;
+}
 
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HIMEC – Project Dashboard</title>
-<style>
-*{box-sizing:border-box;font-family:'Noto Sans KR','Pretendard',-apple-system,sans-serif;}
-body{margin:0;background:#fff;padding:18px;}
+/* ========== ANIMATIONS ========== */
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 @keyframes slideUp{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.6;}}
 
-.pj-dash-header{background:#fff;border-bottom:1px solid #e0e0e0;padding:18px 30px 14px;}
+/* ========== PROJECT DASHBOARD HEADER ========== */
+.pj-dash-header{background:#fff;border-bottom:1px solid #e0e0e0;padding:18px 30px 14px;;}
 .pj-dash-header-inner{max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;}
 .pj-dash-header-left{flex:1;}
 .pj-dash-header-title{font-size:24px;font-weight:700;color:#333;margin:0;letter-spacing:-.3px;}
@@ -22,11 +31,14 @@ body{margin:0;background:#fff;padding:18px;}
 .pj-dash-header-right{display:flex;align-items:center;gap:10px;}
 .auth-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#555;}
 .auth-user-info{font-size:13px;color:#555;white-space:nowrap;}
-.pj-back-btn{width:36px;height:30px;border:1px solid #dde1e6;background:#fff;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#3d4f5c;padding:0;transition:all .15s;flex-shrink:0;}
-.pj-back-btn:hover{background:#f4f5f7;border-color:#546a7b;}
 
+/* ========== ICON BUTTON & BACK BUTTON ========== */
+.ico-btn{width:36px;height:30px;border:1px solid #dde1e6;background:#fff;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#3d4f5c;padding:0;transition:all .15s;flex-shrink:0;}
+.ico-btn:hover{background:#f4f5f7;border-color:#546a7b;}
+
+/* ========== PROJECT LIST PAGE (Timeline) ========== */
 .projects-page{min-height:100vh;padding:0;background:#fff;animation:fadeIn .4s ease-out;}
-.projects-container{max-width:1100px;margin:0 auto;padding:30px 20px;}
+.projects-container{max-width:1100px;margin:0 auto;padding:20px 30px;}
 .projects-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;flex-wrap:wrap;gap:14px;}
 .projects-title{font-size:28px;font-weight:800;color:#1f2937;margin:0 0 6px 0;}
 .projects-subtitle{font-size:10px;color:#888;}
@@ -34,6 +46,7 @@ body{margin:0;background:#fff;padding:18px;}
 .projects-empty-state{padding:60px 20px;text-align:center;color:#94a3b8;font-size:14px;background:#fff;border-radius:12px;border:1px dashed #ddd;}
 .projects-info-bottom{margin-top:28px;text-align:right;font-size:10px;color:#999;}
 
+/* ========== TIMELINE YEAR GROUP ========== */
 .tl-year-group{margin-bottom:30px;position:relative;}
 .tl-year-header{display:flex;align-items:center;gap:12px;cursor:pointer;padding:4px 0;user-select:none;margin-bottom:6px;}
 .tl-year-left{display:flex;align-items:center;gap:10px;}
@@ -43,6 +56,8 @@ body{margin:0;background:#fff;padding:18px;}
 .tl-year-header:hover .tl-year-label{color:#d14e1a;}
 .tl-year-header:hover .tl-year-dot{border-color:#e85d24;}
 .tl-year-content{position:relative;margin-left:50px;padding-left:24px;border-left:2px solid #ddd;}
+
+/* ========== TIMELINE PROJECT ROW ========== */
 .tl-project-row{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;margin-bottom:4px;background:#fff;border:none;border-bottom:1px solid #eee;transition:all .15s;gap:12px;}
 .tl-project-row:hover{background:#f8f8f8;}
 .tl-project-row.tl-active{background:#f0f7ff;border-left:3px solid #1a4b8c;}
@@ -53,6 +68,8 @@ body{margin:0;background:#fff;padding:18px;}
 .tl-project-actions{display:flex;gap:6px;flex-shrink:0;}
 .tl-activity-box{display:inline-flex;align-items:center;justify-content:center;background:none;color:#075985;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:800;cursor:default;user-select:none;width:40px;height:24px;text-align:center;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tl-activity-box i[data-lucide]{width:18px;height:18px;stroke-width:2;}
+
+/* ========== STATUS BADGE ========== */
 .tl-status-badge{display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;border-radius:50%;cursor:pointer;user-select:none;box-sizing:border-box;border:none;flex-shrink:0;align-self:center;padding:0;font:inherit;outline:none;transition:transform .15s,box-shadow .15s;}
 .tl-status-badge:hover{transform:scale(1.3);box-shadow:0 0 0 3px rgba(0,0,0,.1);}
 .tl-status-badge:focus{box-shadow:0 0 0 3px rgba(37,99,235,.3);}
@@ -62,6 +79,7 @@ body{margin:0;background:#fff;padding:18px;}
 .tl-action-documents{color:#e85d24;cursor:pointer;transition:color .15s;display:inline-flex;align-items:center;justify-content:center;background:none;border:none;padding:0;}
 .tl-action-documents:hover{color:#f5a080;}
 
+/* ========== MODALS ========== */
 .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:20px;}
 .modal-backdrop.active{display:flex;}
 .modal{background:#fff;border-radius:16px;max-width:560px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3);overflow:hidden;animation:slideUp .25s ease-out;max-height:90vh;display:flex;flex-direction:column;}
@@ -70,19 +88,24 @@ body{margin:0;background:#fff;padding:18px;}
 .modal-header h3{margin:0;font-size:16px;}
 .modal-close{background:transparent;color:#fff;border:none;font-size:22px;cursor:pointer;padding:0 4px;}
 .modal-body{padding:18px;overflow-y:auto;}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:14px 18px;background:#f9fafb;border-top:1px solid #e5e7eb;flex-shrink:0;}
+
+/* ========== FORM STYLES ========== */
 .project-form{display:flex;flex-direction:column;gap:18px;}
 .form-group{display:flex;flex-direction:column;gap:6px;}
 .form-label{font-size:13px;font-weight:700;color:#1f2937;display:flex;align-items:center;gap:6px;}
 .form-input{padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;background:#f9fafb;transition:all .15s;font-family:inherit;width:100%;box-sizing:border-box;}
 .form-input:focus{outline:none;border-color:#1a4b8c;background:#fff;box-shadow:0 0 0 3px rgba(26,75,140,.12);}
+.form-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;}
 .required{color:#dc2626;font-size:14px;font-weight:900;}
-.modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:14px 18px;background:#f9fafb;border-top:1px solid #e5e7eb;flex-shrink:0;}
+
+/* ========== BUTTONS ========== */
 .btn-primary{background:linear-gradient(135deg,#1a4b8c,#2563eb);color:#fff;border:none;padding:11px 24px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit;box-shadow:0 4px 12px rgba(26,75,140,.3);}
 .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(26,75,140,.4);}
 .btn-secondary{background:#fff;color:#4b5563;border:1.5px solid #e5e7eb;padding:11px 20px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit;}
 .btn-secondary:hover{background:#f3f4f6;border-color:#9ca3af;}
 
-.form-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;}
+/* ========== DOCUMENT BUTTONS ========== */
 .doc-list{display:flex;flex-direction:column;gap:10px;}
 .doc-row{display:flex;gap:10px;align-items:center;}
 .doc-btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;min-width:80px;text-align:center;}
@@ -93,11 +116,16 @@ body{margin:0;background:#fff;padding:18px;}
 .doc-reupload{background:#fff;border:1.5px solid #d1d5db;color:#374151;}
 .doc-reupload:hover{background:#f3f4f6;border-color:#9ca3af;}
 
-#toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:#333;color:#fff;padding:12px 22px;border-radius:8px;font-size:13px;z-index:2000;opacity:0;transition:opacity .2s;pointer-events:none;}
-#toast.show{opacity:1;}
-#loading{display:none;position:fixed;inset:0;background:rgba(255,255,255,.7);z-index:1500;align-items:center;justify-content:center;font-size:14px;color:#333;}
-#loading.show{display:flex;}
+/* ========== TOAST & LOADING ========== */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(100px);background:#059669;color:#fff;padding:14px 24px;border-radius:12px;font-size:14px;font-weight:700;box-shadow:0 10px 25px rgba(0,0,0,.2);z-index:2000;opacity:0;transition:all .3s;pointer-events:none;max-width:90vw;text-align:center;}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.loading-overlay.active{display:flex;}
+.loading-box{background:#fff;border-radius:16px;padding:30px 40px;box-shadow:0 20px 50px rgba(0,0,0,.3);text-align:center;}
+.spinner{width:40px;height:40px;border:4px solid #e5e7eb;border-top-color:#1a4b8c;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px;}
+.loading-text{font-size:14px;font-weight:700;color:#1f2937;white-space:pre-line;}
 
+/* ========== UPLOAD MODAL ========== */
 .upload-modal .modal{max-width:420px;}
 .upload-modal .modal-header{background:#1a4b8c;}
 .upload-modal .modal-header h3{font-size:15px;margin:0;}
@@ -113,8 +141,21 @@ body{margin:0;background:#fff;padding:18px;}
 .file-status .file-name{font-weight:600;word-break:break-all;}
 .file-status .file-delete{background:#fee2e2;color:#dc2626;border:none;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;}
 .file-status .file-delete:hover{background:#fecaca;}
-</style>
-<script src="https://unpkg.com/lucide@latest"></script>
+
+/* ========== COPYRIGHT FOOTER ========== */
+.pj-footer{position:fixed;bottom:0;left:0;right:0;background:#ffffff;padding:12px 16px;z-index:50;}
+.pj-footer-inner{max-width:1100px;margin:0 auto;text-align:center;}
+.pj-footer-copyright{font-size:10px;font-weight:400;color:#e0e0e0;margin:0 0 4px 0;letter-spacing:0.3px;}
+
+/* ========== RESPONSIVE ========== */
+@media(max-width:768px){
+  .pj-dash-header{padding:18px 30px 14px;}
+  .pj-dash-header-inner{flex-direction:column;gap:8px;align-items:flex-start;}
+  .pj-dash-header-title{font-size:18px;}
+  .projects-container{padding:20px 16px;}
+}
+  </style>
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
 
@@ -127,9 +168,9 @@ body{margin:0;background:#fff;padding:18px;}
       </div>
       <div class="pj-dash-header-right">
         <div id="dashAuthStatus" class="auth-status"></div>
-        <button class="pj-back-btn" title="메인으로 이동" onclick="goHome()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-      </button>
+        <button class="ico-btn" title="메인으로 이동" onclick="goHome()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </button>
       </div>
     </div>
   </div>
@@ -192,8 +233,14 @@ body{margin:0;background:#fff;padding:18px;}
   </div>
 </div>
 
-<div id="toast"></div>
-<div id="loading">로딩 중...</div>
+<!-- ========== 토스트 / 로딩 ========== -->
+<div class="toast" id="toast"></div>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">로딩 중...</div>
+  </div>
+</div>
 
 <div class="modal-backdrop upload-modal" id="uploadModal" onclick="closeUploadModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -220,6 +267,13 @@ body{margin:0;background:#fff;padding:18px;}
   </div>
 </div>
 
+<!-- ========== 푸터 ========== -->
+<footer class="pj-footer">
+  <div class="pj-footer-inner">
+    <p class="pj-footer-copyright">© 2026 HIMEC (주)하이멕. All rights reserved. Made by 성재호, 최승연, 신동민</p>
+  </div>
+</footer>
+
 <script>
 const GITHUB_CONFIG = { dataPath: 'data' };
 let currentUser = { login:'local', displayName:'로컬 사용자', role:'editor' };
@@ -243,10 +297,21 @@ function showToast(msg){
   if(!t) return;
   t.textContent = msg; t.classList.add('show');
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
-function showLoading(msg){ const l = document.getElementById('loading'); if(l){ l.textContent = msg || '로딩 중...'; l.classList.add('show'); } }
-function hideLoading(){ const l = document.getElementById('loading'); if(l) l.classList.remove('show'); }
+
+function showLoading(msg){
+  const el = document.getElementById('loadingOverlay');
+  if(el){
+    document.getElementById('loadingText').textContent = msg || '로딩 중...';
+    el.classList.add('active');
+  }
+}
+
+function hideLoading(){
+  const el = document.getElementById('loadingOverlay');
+  if(el) el.classList.remove('active');
+}
 
 function _lsKey(path){ return 'gh_file_' + path; }
 async function ghGetFile(path){
@@ -467,7 +532,7 @@ document.addEventListener('keydown', function(e){
   if(e.key === 'Escape'){ closeProjectModal(); }
 });
 
-function goHome(){ window.location.href = '../index.html'; }
+function goHome(){ window.location.href = '../main.html'; }
 
 function goToManagement(idx){
   // 프로젝트 정보를 localStorage에 저장하고 management 페이지로 이동
@@ -482,7 +547,7 @@ function goToManagement(idx){
       _syncId: project._syncId
     }));
   }
-  window.location.href = '../04. management/manage.html';
+  window.location.href = '../01. management/manage.html';
 }
 
 let currentDocType = null;
