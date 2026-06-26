@@ -1,11 +1,16 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/himec-supabase-sync.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HIMEC - Boiler Heat Balance Analysis Tool</title>
+<link rel="icon" href="data:,">
+<link rel="shortcut icon" href="data:,">
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
+  * { margin:0; padding:20; box-sizing:border-box; }
   html, body {
     font-family:'Noto Sans KR', sans-serif;
     background:#f5f5f5; color:#333;
@@ -18,7 +23,7 @@
     overflow:hidden; min-height:0; background:#fff;
   }
 
-  /* Header (Tool-003 동일) */
+  /* Header */
   .header {
     background:#fff; padding:8px 20px; border-bottom:1px solid #ddd; flex-shrink:0;
     margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px;
@@ -35,7 +40,7 @@
   .btn-main { background:#555f; color:#fff; }
   .btn-save:hover, .btn-file:hover, .btn-main:hover { opacity:.85; }
 
-  /* Tabs (Tool-003 동일) */
+  /* Tabs */
   .tab-bar { display:flex; padding:4px 20px 0; background:#fff; gap:4px; flex-shrink:0; }
   .tab {
     padding:5px 20px; border-radius:6px 6px 0 0; font-size:12px; font-weight:600;
@@ -51,7 +56,7 @@
   }
   .tab .tab-close:hover { background:rgba(255,0,0,.6); color:#fff; }
 
-  /* Main 3-column (균등 1fr) — 카피라이트 30px 위까지 */
+  /* Main 3-column */
   .main {
     display:grid; grid-template-columns:1fr 1fr 1fr; gap:0;
     padding:0 0 30px 0; flex:1; min-height:0; overflow:hidden;
@@ -61,11 +66,13 @@
     overflow:hidden; min-height:0;
   }
   .panel + .panel { border-left:1px solid #eee; }
+  /* 좌측 패널 오토사이즈(하단 클리핑) 제거: 내용 높이 기준, 넘치면 스크롤 */
+  #left-panel{ overflow-y:auto; overflow-x:hidden; justify-content:flex-start; }
 
   .section-title { font-size:12px; font-weight:700; margin-bottom:4px; color:#222; flex-shrink:0; }
   .section-title.mt { margin-top:6px; }
+  #sec-donut .section-title.mt { margin-top:20px; }  /* 전열 회수량 카드 -> 회수 열량 분포 제목 간격 */
 
-  /* checkbox-style sub label */
   .chk-label { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600;
     color:#444; margin:6px 0 3px; flex-shrink:0; }
   .chk-label .box { width:11px; height:11px; border:1.5px solid #00838f; border-radius:2px;
@@ -74,8 +81,10 @@
   .chk-label .box.on::after { content:""; position:absolute; left:2px; top:-1px; width:4px; height:8px;
     border:solid #00838f; border-width:0 2px 2px 0; transform:rotate(45deg); }
   .chk-label .src { font-size:9px; font-weight:600; color:#888; margin-left:4px; }
+  .chk-label .tag1 { font-size:9px; font-weight:700; color:#d64545; background:#fdf3f3; border:1px solid #f3c9c9; padding:0 5px; border-radius:3px; margin-left:4px; }
+  .chk-label .tag2 { font-size:9px; font-weight:700; color:#00838f; background:#e0f7fa; border:1px solid #b8e3e8; padding:0 5px; border-radius:3px; margin-left:4px; }
 
-  /* ===== info-table (Tool-003 동일) ===== */
+  /* info-table */
   .info-table {
     width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed;
     margin-bottom:6px; font-size:10px; flex-shrink:0;
@@ -83,7 +92,7 @@
   .info-table th, .info-table td {
     border:1px solid #fff; padding:6px 5px; border-bottom:1.5px solid #ccc; text-align:center;
   }
-  .info-table th { background:#e8e8e8; color:#555; font-weight:600; font-size:11px; }
+  .info-table th { background:rgba(108,122,137,0.2); color:#3A4A57; font-weight:600; font-size:11px; }
   .info-table tr:first-child th:first-child { border-top-left-radius:8px; }
   .info-table tr:first-child th:last-child { border-top-right-radius:8px; }
   .info-table td { background:#fff; }
@@ -92,36 +101,41 @@
     outline:none; padding:4px 2px; font-family:inherit; color:#333;
   }
   .info-table select { text-align:left; cursor:pointer; }
-  .value-unit { display:inline-flex; align-items:center; justify-content:center; gap:2px; }
-  .value-unit input { text-align:right; padding-right:2px; }
+  .value-unit { display:inline-flex; align-items:center; justify-content:center; gap:3px; }
+  .value-unit input { width:auto; min-width:30px; max-width:62px; text-align:center; padding-right:0; }
   .value-unit .unit { font-size:11px; color:#888; white-space:nowrap; }
   .info-table .highlight-cell { background:#e0f7fa; color:#00838f; font-weight:700; }
   #left-panel .info-table th:first-child, #left-panel .info-table td:first-child { border-left-color:transparent; }
   #left-panel .info-table th:last-child, #left-panel .info-table td:last-child { border-right-color:transparent; }
   .note-s { font-size:9px; color:#888; margin:2px 0 4px; text-align:right; flex-shrink:0; }
 
-  /* ===== calc-table (열정산표 — 회색계열) ===== */
+  /* calc-table */
   .calc-table { width:100%; border-collapse:separate; border-spacing:0; font-size:10.5px; margin-bottom:8px; }
-  .calc-table th, .calc-table td { padding:8px 8px; border-bottom:1px solid #e2e2e2; text-align:left; }
+  /* ===== 이미지 화살표 두 곳 간격 30px ===== */
+  #center-panel .calc-table { margin-bottom:0; }
+  #center-panel .chk-label { margin-top:6; }
+  #center-panel #sec-ind { margin-bottom:50px; }            /* 화살표1: 직접 열손실 분해 앞 간격 50px */
+  #center-panel #sec-dir .calc-table + .tbl-cap { margin-top:20px; } /* 화살표2: 출열부 앞 간격 20px */
+  .calc-table th, .calc-table td { padding:11px 8px; border-bottom:1px solid #e2e2e2; text-align:center; vertical-align:middle; }
   .calc-table th { background:#e8e8e8; color:#555; font-weight:600; font-size:10.5px; }
   .calc-table tr:first-child th:first-child { border-top-left-radius:6px; }
   .calc-table tr:first-child th:last-child { border-top-right-radius:6px; }
   .calc-table td.fx { color:#777; font-size:9.5px; }
-  .calc-table td.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+  .calc-table td.num { text-align:center; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
   .calc-table tr.sub td { background:#ececec; font-weight:800; border-top:1.5px solid #c9c9c9; }
   .calc-table tr.out td { background:#f2f2f2; font-weight:700; }
   .calc-table tr.eff td { background:#e2e2e2; font-weight:800; border-top:1.5px solid #c9c9c9; }
   .tbl-cap { font-size:10.5px; font-weight:700; color:#333; margin:6px 0 4px; display:flex; align-items:center; gap:6px; }
-  .tbl-cap .src { font-size:8.5px; font-weight:600; color:#00838f; background:#e0f7fa; border:1px solid #b8e3e8; padding:1px 6px; border-radius:4px; }
+  .tbl-cap .src { font-size:9px; font-weight:400; color:#808080; background:transparent; border:none; padding:1px 6px; border-radius:4px; }
 
-  .residual { font-size:10px; color:#555; background:#f2f2f2; border:1px solid #ddd;
-    border-radius:6px; padding:8px 10px; margin-top:auto; flex-shrink:0; line-height:1.45; }
+  .residual { font-size:8px; color:#555; background:#f2f2f2; border:0.5px solid #ddd;
+    border-radius:6px; padding:8px 10px; margin-top:8px; flex-shrink:0; line-height:1.45; }
 
-  /* ===== metric cards (Tool-003 동일) ===== */
-  .metrics-area { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+  /* metric cards */
+  .metrics-area { display:flex; flex-direction:column; gap:10px; flex-shrink:0; }
   .metric-card {
     background:transparent; border:none; border-bottom:1.5px solid #ccc; border-radius:5px;
-    padding:11px 8px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;
+    padding:5.5px 1px 2px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;
   }
   .metric-card .ml { flex:1; }
   .metric-label { font-size:11px; color:#00838f; line-height:1.2; font-weight:bold; }
@@ -129,15 +143,15 @@
   .metric-value { font-size:26px; font-weight:700; color:#ff8c00; min-width:45px; text-align:right; }
   .metric-unit { font-size:12px; color:#888; margin-left:2px; vertical-align:super; }
 
-  /* ===== donut ===== */
-  .donut-box { display:flex; gap:18px; align-items:center; padding:10px 0; flex:1; min-height:0; }
-  .donut-box svg { width:190px; height:190px; flex:none; }
+  /* donut */
+  .donut-box { display:flex; gap:18px; align-items:center; padding:10px 50px; flex:1; min-height:0; }
+  .donut-box svg { width:auto; height:clamp(150px, 38vh, 200px); aspect-ratio:1/1; max-width:55%; flex:none; }
   .legend { display:flex; flex-direction:column; gap:5px; flex:1; }
-  .legend .li { display:flex; align-items:center; gap:8px; font-size:12.5px; color:#444; }
+  .legend .li { display:flex; align-items:center; gap:8px; font-size:11px; color:#444; }
   .legend .sw { width:12px; height:12px; border-radius:3px; flex:none; }
-  .legend .lv { margin-left:auto; font-weight:700; font-variant-numeric:tabular-nums; }
+  .legend .lv { margin-left:auto; font-weight:500; font-variant-numeric:tabular-nums; }
 
-  /* ===== diagnosis (컴팩트 2줄) ===== */
+  /* diagnosis */
   .diag { display:flex; flex-direction:column; gap:5px; }
   .diag .d { display:flex; justify-content:space-between; align-items:center; gap:10px;
     padding:6px 10px; border-radius:5px; border:none; border-left:3px solid #ccc;
@@ -145,29 +159,66 @@
   .diag .d .dhead { font-size:11.5px; font-weight:700; color:#333; white-space:nowrap; flex:none; }
   .diag .d .dhead .dstat { font-weight:800; margin-left:2px; }
   .diag .d .dbody { text-align:right; font-size:10px; color:#555; min-width:0; }
-  .diag .d .dsrc { display:block; font-size:8.5px; color:#999; font-weight:600; margin-top:1px; }
-  .d.ok { background:#f4faf7; border-left-color:#1f9d6b; } .d.ok .dstat { color:#1f9d6b; }
-  .d.warn { background:#fdf9ec; border-left-color:#e0a106; } .d.warn .dstat { color:#e0a106; }
-  .d.bad { background:#fdf3f3; border-left-color:#d64545; } .d.bad .dstat { color:#d64545; }
+  .diag .d .dsrc { display:block; font-size:8.5px; color:#999; font-weight:600; margin-top:1px;
+    cursor:pointer; }
 
-  /* ===== refs card (기준 및 출처 — 토글/계산식 제거) ===== */
-  .refs-card { border:none; border-top:1px solid #e2e2e2; border-radius:0; background:transparent; padding:10px 2px 0;
-    flex:1; min-height:0; overflow:hidden; margin-top:6px; }
+  /* 설계 총괄계수 : 표준값 기본 + 수정 시 색상 변경 */
+  .urow { display:flex; align-items:center; justify-content:center; gap:4px; flex-wrap:nowrap; }
+  .ustd-sel { flex:1 1 auto; min-width:0; max-width:130px; font-size:10px; padding:1px 2px;
+    border:1px solid #cfd6dc; border-radius:3px; background:#fff; color:#333;
+    white-space:nowrap; text-overflow:ellipsis; }
+  .urow .value-unit { flex:0 0 auto; }
+  #uDesign.ustd-input { color:#00838f; font-weight:700; }      /* 표준값 상태 */
+  #uDesign.ustd-input.edited { color:#d23f3f; font-weight:700; } /* 사용자 수정값 */
+  .ustd-src { display:inline; font-size:9px; color:#1268c3; font-weight:600;
+    cursor:pointer; white-space:nowrap; }
+  .ustd-src:hover { color:#0b4e96; }
+  .uedit-mark { color:#d23f3f; font-size:9px; font-weight:700; white-space:nowrap; }
+
+  /* 출처 기준 요약 팝업 */
+  .src-modal-mask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.42);
+    z-index:9999; align-items:center; justify-content:center; }
+  .src-modal-mask.on { display:flex; }
+  .src-modal { background:#fff; width:380px; max-width:92vw; max-height:82vh; overflow:auto;
+    border-radius:8px; box-shadow:0 10px 36px rgba(0,0,0,.25); }
+  .src-modal .sm-head { display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px; border-bottom:1px solid #eee; background:#00838f; border-radius:8px 8px 0 0; }
+  .src-modal .sm-head h3 { font-size:14px; font-weight:700; color:#fff; }
+  .src-modal .sm-head .sm-close { border:none; background:transparent; color:#fff; font-size:20px;
+    line-height:1; cursor:pointer; padding:0 2px; }
+  .src-modal .sm-body { padding:14px 16px; }
+  .src-modal .sm-std { font-size:11px; font-weight:700; color:#00838f; margin-bottom:8px; }
+  .src-modal .sm-desc { font-size:11px; color:#555; line-height:1.5; margin-bottom:10px; }
+  .src-modal table { width:100%; border-collapse:collapse; font-size:11px; }
+  .src-modal th, .src-modal td { border:1px solid #e3e3e3; padding:5px 8px; text-align:left; }
+  .src-modal th { background:#f4f4f4; font-weight:700; color:#333; }
+  .src-modal td.rng { white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .src-modal .lv-ok { color:#00838f; font-weight:700; }
+  .src-modal .lv-warn { color:#FFDC9F; font-weight:700; }
+  .src-modal .lv-bad { color:#ED7458; font-weight:700; }
+  .src-modal tr.cur td { background:#fff8e1; }
+  .d.ok { background:transparent; border-left-color:#00838f; } .d.ok .dstat { color:#00838f; }
+  .d.warn { background:transparent; border-left-color:#FFDC9F; } .d.warn .dstat { color:#FFDC9F; }
+  .d.bad { background:transparent; border-left-color:#ED7458; } .d.bad .dstat { color:#ED7458; }
+
+  /* refs card */
+  .refs-card { border:none; border-radius:0; background:transparent; padding:0 2px;
+    flex:0 0 auto; min-height:0; overflow:hidden; margin-top:30px; text-align:right; }
   .refs-card h3 { font-size:10px; font-weight:700; color:#333; margin-bottom:6px; }
   .refs-sub { font-size:8px; font-weight:400; color:#999; text-transform:uppercase; letter-spacing:.3px;
-    margin:6px 0 4px; padding-bottom:4px; border-bottom:1px dashed #ddd; }
+    margin:6px 0 0; padding-bottom:0; border-bottom:none; }
+  .refs-clickable { cursor:pointer; transition:background .12s; }
+  .refs-clickable:hover { background:transparent; }
+  .refs-clickable:hover h3 { color:#333; }
+  .refs-more { font-size:8px; font-weight:700; color:#999; margin-left:4px; }
   .std-list { list-style:none; font-size:8px; font-weight:400; color:#888; }
   .std-list li { padding:4px 0; border-bottom:1px dashed #e2e2e2; line-height:1.45; font-weight:400; }
   .std-list li b { color:#555; font-weight:400; }
-  .ref-note { font-size:10px; color:#6a5d2e; background:#fdf9ec; border:1px solid #f0e2b5;
-    border-radius:6px; padding:8px 10px; margin-top:8px; line-height:1.5; }
-  .ref-note b { color:#444; }
 
-  /* center scroll card */
-  .calc-card { flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; }
+  .calc-card { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; }
   .right-scroll { flex:none; overflow:visible; }
 
-  /* Copyright (Tool-003 동일) */
+  /* Copyright */
   .copyright {
     background:#fff; border-top:1px solid #ddd; padding:6px 20px;
     margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px;
@@ -196,8 +247,92 @@
     .main { grid-template-columns:1fr; }
   }
   .info-table input::placeholder { color:#aaa; font-style:italic; font-size:10px; }
+
+  /* === 보조 태그 스타일 === */
+  .chk-label .tagOA { font-size:9px; font-weight:700; color:#1769aa; background:#e8f1fb; border:1px solid #bcd6ef; padding:0 5px; border-radius:3px; margin-left:4px; }
+  .chk-label .tagRA { font-size:9px; font-weight:700; color:#c2691c; background:#fdf3e8; border:1px solid #f1d4b0; padding:0 5px; border-radius:3px; margin-left:4px; }
+  #effStdSrc { display:inline; font-size:9px; color:#808080; font-weight:600; cursor:pointer; white-space:nowrap; }
+  #effStdSrc:hover { color:#0b4e96; }
+  #esDesign.ustd-input { color:#00838f; font-weight:700; }
+  #esDesign.ustd-input.edited { color:#d23f3f; font-weight:700; }
+
+</style>
+<style id="himec-iconbtn-style">
+/* === HIMEC 아이콘 버튼 (첨부 이미지 스타일) === */
+.header-right{ gap:6px !important; }
+.header-right button{
+  width:34px !important; height:34px !important; padding:0 !important;
+  background:#ffffff !important; color:#555 !important;
+  border:1px solid #d0d0d0 !important; border-radius:8px !important;
+  display:inline-flex !important; align-items:center; justify-content:center;
+  box-sizing:border-box;
+}
+.header-right button:hover{ background:#f5f5f5 !important; border-color:#bbb !important; }
+.header-right button svg{ width:18px; height:18px; display:block; stroke:#555; }
+.header-right button.btn-save:hover svg{ stroke:#e85d24; }
+.header-right button.btn-file:hover svg{ stroke:#e85d24; }
+/* 내보내기 드롭다운 메뉴 */
+.himec-menu{ position:absolute; z-index:99999; background:#fff; border:1px solid #ccc;
+  border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.15); padding:4px; min-width:178px; }
+.himec-menu button{ display:flex !important; align-items:center; gap:8px; width:100% !important;
+  height:auto !important; background:none !important; border:none !important; color:#222 !important;
+  padding:9px 12px !important; font-size:13px; text-align:left; cursor:pointer; border-radius:6px !important; }
+.himec-menu button:hover{ background:#f1f1f1 !important; }
+.himec-menu button svg{ width:16px; height:16px; stroke:#555; flex:0 0 auto; }
+@media print{ .header-right{ display:none !important; } .himec-menu{ display:none !important; } }
+</style>
+
+<style id="himec-unify-portrait">
+
+/* ===== [TABLE UNIFY → Tool-09 .info-table 규격] .calc-table
+   헤더색/테두리/라운드/폰트만 통일. 숫자정렬·의미색(빨강·파랑·합계행 등)은 보존 ===== */
+.calc-table { border-collapse:separate !important; border-spacing:0 !important; }
+.calc-table th, .calc-table td { border:1px solid #ffffff !important; border-bottom:1.5px solid #ccc !important; padding:6.6px 5px !important; text-align:center !important; }
+.calc-table th { background:#e8e8e8 !important; color:#555 !important; font-weight:600 !important; font-size:11px !important; }
+.calc-table tr:first-child th:first-child { border-top-left-radius:8px !important; }
+.calc-table tr:first-child th:last-child { border-top-right-radius:8px !important; }
+.calc-table input { font-size:12px !important; }
+.calc-table select { font-size:11px !important; }
+/* ===== [TABLE UNIFY] end ===== */
+
+/* ===== [PORTRAIT FIX] 세로형(portrait)일 때 단 단일컬럼 + 좌→중→우(DOM순서) 스택 =====
+   - landscape(가로) 디자인은 일절 변경하지 않음 (orientation 쿼리 내부에서만 적용) */
+@media (orientation: portrait){
+  html, body{ height:auto !important; min-height:100vh !important; overflow:visible !important; width:auto !important; }
+  body .page-container{ height:auto !important; overflow:visible !important; }
+  body .main{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    grid-template-rows:auto !important;
+    grid-auto-flow:row !important;
+    align-items:start !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+  body .main > .panel{
+    width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    overflow:visible !important;
+  }
+  /* 차트/그래프가 height:100% 부모 붕괴로 사라지지 않도록 최소 높이 확보 */
+  body .main canvas, body .main svg{ height:auto !important; min-height:240px !important; }
+  body .main .chart-wrapper, body .main .chart-canvas-container, body .main .bar-chart-container,
+  body .main .donut-container, body .main .hbar-chart, body .main .chart-area, body .main .graph-box{
+    height:auto !important; min-height:240px !important;
+  }
+  body .main, body .main *{ overflow-wrap:anywhere; word-break:keep-all; }
+}
+/* ===== [PORTRAIT FIX] end ===== */
+
+
+  /* === Tool-10 콘텐츠용 클래스 보강 === */
+  .dsrc.clk, .src.clk, .metric-sub.clk, .fx.clk { cursor:pointer; }
+  .ref-note { font-size:10px; color:#6a5d2e; background:#fdf9ec; border:1px solid #f0e2b5;
+    border-radius:6px; padding:8px 10px; margin-top:8px; line-height:1.5; }
 </style>
 </head>
+
 <body>
 
 <div class="page-container">
@@ -207,9 +342,9 @@
   <div class="sub">(주)하이멕 &minus; 기계설비 노후화 진단</div>
   <h2>Boiler Heat Balance Analysis Tool</h2>
   <div class="header-right">
-    <button class="btn-save" onclick="saveData()">Save</button>
-    <button class="btn-file" onclick="exportFile()">File Trans</button>
-    <button class="btn-main" onclick="goMain()">Main</button>
+    <button class="btn-main" onclick="himecMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+    <button class="btn-save" onclick="himecSave()" title="저장(화면 입력값 저장)" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+    <button class="btn-file" onclick="himecExport(this)" title="파일 내보내기 (PDF / Excel)" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
   </div>
 </div>
 
@@ -228,7 +363,7 @@
     <table class="info-table">
       <tr><th>장비명</th><th>보일러 Type</th><th>연료 종류</th><th>비고</th></tr>
       <tr>
-        <td><input id="inp-name" placeholder="입력 해주세요" onchange="recalc()"></td>
+        <td><input id="inp-name" value="B-01" onchange="recalc()"></td>
         <td><select id="inp-type" onchange="onTypeChange()">
           <option value="vacuum">진공온수</option>
           <option value="hotwater">일반온수</option>
@@ -240,7 +375,7 @@
           <option value="diesel">경유</option>
           <option value="hfo">중유(B-C)</option>
         </select></td>
-        <td><input id="inp-note" placeholder="입력 해주세요" onchange="recalc()"></td>
+        <td><input id="inp-note" value="정격부하" onchange="recalc()"></td>
       </tr>
     </table>
 
@@ -250,8 +385,8 @@
     <table class="info-table">
       <tr><th>저위발열량 LHV</th><th>연료 소비량</th></tr>
       <tr>
-        <td><span class="value-unit"><input id="lhv" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit" id="lhvU">kcal/Nm&sup3;</span></span></td>
-        <td><span class="value-unit"><input id="fuelRate" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit" id="frU">Nm&sup3;/h</span></span></td>
+        <td><span class="value-unit"><input id="lhv" type="number" step="any" value="9420" onchange="recalc()"><span class="unit" id="lhvU">kcal/Nm&sup3;</span></span></td>
+        <td><span class="value-unit"><input id="fuelRate" type="number" step="any" value="80" onchange="recalc()"><span class="unit" id="frU">Nm&sup3;/h</span></span></td>
       </tr>
     </table>
 
@@ -261,10 +396,10 @@
       <table class="info-table">
         <tr><th>순환수 유량</th><th>비열(물)</th><th>입구(환수) 온도</th><th>출구(공급) 온도</th></tr>
         <tr>
-          <td><span class="value-unit"><input id="flow" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit">L/min</span></span></td>
-          <td><span class="value-unit"><input id="cp" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit">kcal/kg&middot;&#8451;</span></span></td>
-          <td><span class="value-unit"><input id="tIn" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
-          <td><span class="value-unit"><input id="tOut" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
+          <td><span class="value-unit"><input id="flow" type="number" step="any" value="600" onchange="recalc()"><span class="unit">L/min</span></span></td>
+          <td><span class="value-unit"><input id="cp" type="number" step="any" value="1" onchange="recalc()"><span class="unit">kcal/kg&middot;&#8451;</span></span></td>
+          <td><span class="value-unit"><input id="tIn" type="number" step="any" value="50" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
+          <td><span class="value-unit"><input id="tOut" type="number" step="any" value="70" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
         </tr>
       </table>
     </div>
@@ -275,39 +410,32 @@
       <table class="info-table">
         <tr><th>증기 발생량</th><th>증기압력(g)</th><th>급수 온도</th><th>블로다운률</th></tr>
         <tr>
-          <td><span class="value-unit"><input id="steamRate" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit">kg/h</span></span></td>
-          <td><span class="value-unit"><input id="steamP" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit">bar&middot;g</span></span></td>
-          <td><span class="value-unit"><input id="feedT" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
-          <td><span class="value-unit"><input id="blow" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit">%</span></span></td>
+          <td><span class="value-unit"><input id="steamRate" type="number" step="any" value="2000" onchange="recalc()"><span class="unit">kg/h</span></span></td>
+          <td><span class="value-unit"><input id="steamP" type="number" step="any" value="7" onchange="recalc()"><span class="unit">bar&middot;g</span></span></td>
+          <td><span class="value-unit"><input id="feedT" type="number" step="any" value="80" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
+          <td><span class="value-unit"><input id="blow" type="number" step="any" value="2" onchange="recalc()"><span class="unit">%</span></span></td>
         </tr>
       </table>
       <div class="note-s" id="steamEnth">포화증기 엔탈피: 내장 증기표 자동 적용</div>
     </div>
 
-    <label class="chk-label">배가스 측정<span class="src">(Siegert 식 입력)</span></label>
+    <label class="chk-label">배가스 측정<span class="src clk" onclick="showRefsSrc()" title="클릭하면 적용 표준 보기">(Siegert 식 입력)</span></label>
     <table class="info-table">
       <tr><th>배기온도 T<sub>g</sub></th><th>외기 T<sub>a</sub></th><th>배기 O&#8322;</th><th>배기 CO</th><th>방사&middot;기타</th></tr>
       <tr>
-        <td><span class="value-unit"><input id="tgas" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
-        <td><span class="value-unit"><input id="tair" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
-        <td><span class="value-unit"><input id="o2" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit">%</span></span></td>
-        <td><span class="value-unit"><input id="co" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit">ppm</span></span></td>
-        <td><span class="value-unit"><input id="rad" placeholder="입력 해주세요" type="number" step="any" onchange="recalc()"><span class="unit">%</span></span></td>
+        <td><span class="value-unit"><input id="tgas" type="number" step="any" value="120" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
+        <td><span class="value-unit"><input id="tair" type="number" step="any" value="20" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
+        <td><span class="value-unit"><input id="o2" type="number" step="any" value="4.5" onchange="recalc()"><span class="unit">%</span></span></td>
+        <td><span class="value-unit"><input id="co" type="number" step="any" value="40" onchange="recalc()"><span class="unit">ppm</span></span></td>
+        <td><span class="value-unit"><input id="rad" type="number" step="any" value="1.5" onchange="recalc()"><span class="unit">%</span></span></td>
       </tr>
     </table>
 
-    <!-- 기준 및 출처 (토글/계산식 제거) -->
-    <div class="refs-card">
-      <h3>기준 및 출처</h3>
-      <div class="refs-sub">적용 표준 (상세 출처)</div>
-      <ul class="std-list">
-        <li><b>KS B 6205</b> &mdash; 육용 보일러의 열정산 방식 (입출열법&middot;열손실법 규정)</li>
-        <li><b>ASME PTC 4</b> &mdash; Fired Steam Generators (Input-Output법 &middot; Energy Balance법)</li>
-        <li><b>EN 12952-15</b> &mdash; 수관 보일러 효율 인수시험(Acceptance tests)</li>
-        <li><b>EN 12953-11</b> &mdash; 노통연관 보일러 시험 / 방사손실 추정</li>
-        <li><b>Siegert 식 &middot; 1.BImSchV</b> &mdash; 연소가스 분석 표준식 및 연료별 계수(A&#8322;&middot;B)</li>
-      </ul>
-      </div>
+    <!-- 기준 및 출처 (클릭 시 팝업) -->
+    <div class="refs-card refs-clickable" onclick="showRefsSrc()" title="클릭하면 적용 표준&middot;상세 출처를 팝업으로 봅니다">
+      <h3>기준 및 출처 <span class="refs-more">&#9432; 상세 보기</span></h3>
+      <div class="refs-sub">적용 표준 (상세 출처) &mdash; 클릭하여 전체 목록 보기</div>
+    </div>
   </div>
 
   <!-- CENTER -->
@@ -317,7 +445,7 @@
       <!-- 간접 -->
       <label class="chk-label"><input type="checkbox" id="tg-ind" checked onchange="toggleSec()"><span class="box on" id="box-ind"></span>간접 열손실 분해</label>
       <div id="sec-ind">
-        <div class="tbl-cap">열정산표 (간접법 열손실 분해)</div>
+        <div class="tbl-cap">열정산표 (간접법 열손실 분해)<span class="src clk" onclick="showRefsSrc()" title="클릭하면 적용 표준 보기">Siegert &middot; KS B 6205 5.2</span></div>
         <table class="calc-table">
           <tr><th style="width:38%">항목</th><th>산식&middot;출처</th><th style="width:18%;text-align:right">손실 [%]</th></tr>
           <tr><td>배기가스 손실 L_배기</td><td class="fx">Siegert (T&#8330;&minus;T&#8336;)(A&#8322;/(21&minus;O&#8322;)+B)</td><td class="num" id="v-lflue">&ndash;</td></tr>
@@ -346,34 +474,29 @@
           <tr class="eff"><td>간접법 효율 &eta;<sub>i</sub></td><td class="fx">100 &minus; &Sigma;손실 &middot; KS B 6205 5.2</td><td class="num"></td><td class="num" id="v-effi-tbl">&ndash;</td></tr>
         </table>
       </div>
+      <div class="residual" id="residual">&ndash;</div>
     </div>
-    <div class="residual" id="residual">&ndash;</div>
   </div>
 
   <!-- RIGHT -->
   <div class="panel" id="right-panel">
     <div class="section-title">&#9632; 효율 산정 결과</div>
     <div class="metrics-area">
-      <div class="metric-card" id="mc-effd"><div class="ml"><div class="metric-label">&#10003; 직접법 효율 &eta;<sub>d</sub></div><div class="metric-sub">KS B 6205 5.1 &middot; Input-Output</div></div><div><span class="metric-value" id="m-effd">&ndash;</span><span class="metric-unit">%</span></div></div>
-      <div class="metric-card" id="mc-effi"><div class="ml"><div class="metric-label">&#10003; 간접법 효율 &eta;<sub>i</sub></div><div class="metric-sub">KS B 6205 5.2 &middot; Energy Balance</div></div><div><span class="metric-value" id="m-effi">&ndash;</span><span class="metric-unit">%</span></div></div>
-      <div class="metric-card" id="mc-effc"><div class="ml"><div class="metric-label">&#10003; 연소효율 &eta;<sub>c</sub></div><div class="metric-sub">100 &minus; 배기&middot;CO손실(Siegert)</div></div><div><span class="metric-value" id="m-effc">&ndash;</span><span class="metric-unit">%</span></div></div>
-      <div class="metric-card" id="mc-airr"><div class="ml"><div class="metric-label">&#10003; 공기비 m</div><div class="metric-sub">m = 21/(21&minus;O&#8322;) 과잉공기 평가</div></div><div><span class="metric-value" id="m-airr">&ndash;</span></div></div>
-      <div class="metric-card" id="mc-none" style="display:none;justify-content:center"><div class="ml"><div class="metric-sub" style="text-align:center">간접 또는 직접 열손실 분해를 체크하면<br>효율 산정 결과가 표시됩니다.</div></div></div>
+      <div class="metric-card"><div class="ml"><div class="metric-label">&#10003; 직접법 효율 &eta;<sub>d</sub></div><div class="metric-sub clk" onclick="showRefsSrc()" title="클릭하면 적용 표준 보기">KS B 6205 5.1 &middot; Input-Output</div></div><div><span class="metric-value" id="m-effd">&ndash;</span><span class="metric-unit">%</span></div></div>
+      <div class="metric-card"><div class="ml"><div class="metric-label">&#10003; 간접법 효율 &eta;<sub>i</sub></div><div class="metric-sub clk" onclick="showRefsSrc()" title="클릭하면 적용 표준 보기">KS B 6205 5.2 &middot; Energy Balance</div></div><div><span class="metric-value" id="m-effi">&ndash;</span><span class="metric-unit">%</span></div></div>
+      <div class="metric-card"><div class="ml"><div class="metric-label">&#10003; 연소효율 &eta;<sub>c</sub></div><div class="metric-sub clk" onclick="showRefsSrc()" title="클릭하면 적용 표준 보기">100 &minus; 배기&middot;CO손실(Siegert)</div></div><div><span class="metric-value" id="m-effc">&ndash;</span><span class="metric-unit">%</span></div></div>
+      <div class="metric-card"><div class="ml"><div class="metric-label">&#10003; 공기비 m</div><div class="metric-sub clk" onclick="showRefsSrc()" title="클릭하면 적용 표준 보기">m = 21/(21&minus;O&#8322;) 과잉공기 평가</div></div><div><span class="metric-value" id="m-airr">&ndash;</span></div></div>
     </div>
 
-    <div id="sec-donut">
-      <div class="section-title mt">&#9632; 열분배 분포(간접법 효율 ηi)</div>
-      <div class="donut-box">
-        <svg id="donut" viewBox="0 0 120 120"></svg>
-        <div class="legend" id="legend"></div>
-      </div>
+    <div class="section-title mt">&#9632; 열분배 분포(간접법 효율 ηi)</div>
+    <div class="donut-box">
+      <svg id="donut" viewBox="0 0 120 120"></svg>
+      <div class="legend" id="legend"></div>
     </div>
 
-    <div id="sec-diag">
-      <div class="section-title mt"> </div>
-      <div class="right-scroll">
-        <div class="diag" id="diag"></div>
-      </div>
+    <div class="section-title mt"> </div>
+    <div class="right-scroll">
+      <div class="diag" id="diag"></div>
     </div>
   </div>
 
@@ -433,15 +556,6 @@ function toggleSec(){
   $("sec-dir").style.display=d?"":"none";
   $("box-ind").classList.toggle("on",i);
   $("box-dir").classList.toggle("on",d);
-  /* 효율 산정 결과 연동: 직접법=직접체크 / 간접법·연소효율·공기비=간접체크 */
-  $("mc-effd").style.display=d?"":"none";
-  $("mc-effi").style.display=i?"":"none";
-  $("mc-effc").style.display=i?"":"none";
-  $("mc-airr").style.display=i?"":"none";
-  $("mc-none").style.display=(!i&&!d)?"flex":"none";
-  /* 간접 미체크 시: 열분배 분포 그래프 + 하단 평가박스 숨김 */
-  $("sec-donut").style.display=i?"":"none";
-  $("sec-diag").style.display=i?"":"none";
   fitCenter();
 }
 
@@ -519,24 +633,87 @@ function fitCenter(){
   const card=document.querySelector('#center-panel .calc-card');
   if(!card) return;
   const tds=card.querySelectorAll('.calc-table td, .calc-table th');
-  const BASE=8;        // CSS 기본 상하 패딩(px)
-  const MIN=1.5;       // 최소 상하 패딩(px) — 넘칠 때 여기까지 축소
-  // 패딩 초기화 후 자연 높이 측정
+  const BASE=8, MIN=1.5, MAX=22;
   tds.forEach(td=>{ td.style.paddingTop=''; td.style.paddingBottom=''; });
   requestAnimationFrame(()=>{
-    const trCount=card.querySelectorAll('.calc-table tr').length;
+    // 화면에 보이는 표 행만 카운트
+    const visTrs=[...card.querySelectorAll('.calc-table tr')].filter(tr=>tr.offsetParent!==null);
+    const trCount=visTrs.length;
     if(trCount<=0) return;
-    // 양수=남는 공간, 음수=넘침
-    const free=card.clientHeight - card.scrollHeight;
-    let adj=free/trCount/2;            // 행당 상·하 각각 조절량
-    let pad=BASE+adj;
-    if(pad<MIN) pad=MIN;              // 줄여도 최소값 유지(스크롤 대신 압축)
-    pad=Math.floor(pad*10)/10;
-    tds.forEach(td=>{
-      td.style.paddingTop=pad+'px';
-      td.style.paddingBottom=pad+'px';
+    // 기준 패딩(BASE) 상태에서 콘텐츠가 실제 차지한 높이를 측정
+    const cardTop=card.getBoundingClientRect().top;
+    let contentBottom=cardTop;
+    card.querySelectorAll(':scope > *').forEach(el=>{
+      if(el.offsetParent===null) return; // 숨김 요소 제외
+      const b=el.getBoundingClientRect().bottom;
+      if(b>contentBottom) contentBottom=b;
     });
+    const used=contentBottom-cardTop;
+    const free=card.clientHeight-used;   // 남는 공간(+) 또는 넘침(-)
+    let adj=free/trCount/2;
+    let pad=BASE+adj;
+    if(pad<MIN) pad=MIN;
+    if(pad>MAX) pad=MAX;
+    pad=Math.floor(pad*10)/10;
+    tds.forEach(td=>{ td.style.paddingTop=pad+'px'; td.style.paddingBottom=pad+'px'; });
   });
+}
+
+
+/* ===== 출처 기준 팝업 (Tool-12 동일 디자인) ===== */
+const SRC_INFO={
+  "배기온도":{ std:"US DOE Steam Tip #4 · Carbon Trust CTG012",
+    desc:"배기가스와 외기의 온도차(Tg−Ta). 값이 커질수록 전열면 스케일·그을음으로 배기 열손실이 증가합니다.",
+    unit:"배기-외기 온도차",
+    rows:[["ok","≤ 120℃","양호 — 정상 범위"],
+          ["warn","120 ~ 180℃","다소 높음 — 전열면 점검 권장"],
+          ["bad","> 180℃","과다 — 스케일/그을음, 청소 권장"]] },
+  "공기비":{ std:"US EPA / US DOE Combustion",
+    desc:"연소 배기 O₂ 농도로 산정한 과잉공기비(m=21/(21−O₂)). 과다하면 배기손실, 부족하면 불완전연소·CO가 발생합니다.",
+    unit:"배기 O₂ (공기비)",
+    rows:[["ok","O₂ 3 ~ 5% (m≈1.2~1.3)","적정 — 최적 연소 범위"],
+          ["warn","O₂ > 7% (m>1.5)","과다 — 배기손실 증가, 공연비 재조정"],
+          ["bad","O₂ < 2%","부족 — 불완전연소·CO 위험, 공기량 증대"]] },
+  "CO":{ std:"US EPA · EN 12953 · 연소관리 가이드",
+    desc:"배기가스 중 일산화탄소(CO) 농도. 불완전연소의 직접 지표로, 상승 시 버너·공연비 정비가 필요합니다.",
+    unit:"배기 CO",
+    rows:[["ok","≤ 100 ppm","양호 — 완전연소"],
+          ["warn","100 ~ 400 ppm","주의 — 연소상태 점검 권장"],
+          ["bad","> 400 ppm","과다 — 불완전연소 심함, 버너 정비"]] },
+  "효율":{ std:"KS B 6205 · Carbon Trust · US DOE",
+    desc:"간접법(열손실법) 보일러 효율 η_i = 100 − Σ손실. 정격 대비 저하 시 전열면·공연비 점검이 필요합니다.",
+    unit:"간접법 효율 η_i",
+    rows:[["ok","≥ 90%","우수 — 현 운전 유지"],
+          ["warn","82 ~ 90%","보통 — 배기손실 점검, 개선 여지"],
+          ["bad","< 82%","저조 — 정비 필요(전열면·공연비)"]] }
+};
+function showSrcPopup(cat,curLv){
+  const info=SRC_INFO[cat]; if(!info) return;
+  const lvName={ok:"양호",warn:"주의",bad:"불량"};
+  const rows=info.rows.map(r=>`<tr class="${r[0]===curLv?'cur':''}"><td class="rng">${r[1]}</td><td><span class="lv-${r[0]}">${lvName[r[0]]}</span></td><td>${r[2].split('—')[1]?r[2].split('—')[1].trim():r[2]}</td></tr>`).join("");
+  $("srcModalTitle").textContent=cat+" 판정 기준";
+  $("srcModalBody").innerHTML=
+    `<div class="sm-std">출처: ${info.std}</div>`+
+    `<div class="sm-desc">${info.desc}</div>`+
+    `<table><thead><tr><th>${info.unit}</th><th>판정</th><th>의미</th></tr></thead><tbody>${rows}</tbody></table>`+
+    `<div class="sm-desc" style="margin-top:8px;color:#999;">※ 음영 행은 현재 측정값의 판정 구간입니다.</div>`;
+  $("srcModalMask").classList.add("on");
+}
+function closeSrcPopup(){ $("srcModalMask").classList.remove("on"); }
+function showRefsSrc(){
+  const stds=[
+    ["KS B 6205","육용 보일러의 열정산 방식 (입출열법&middot;열손실법 규정)"],
+    ["ASME PTC 4","Fired Steam Generators (Input-Output법 &middot; Energy Balance법)"],
+    ["EN 12952-15","수관 보일러 효율 인수시험 (Acceptance tests)"],
+    ["EN 12953-11","노통연관 보일러 시험 / 방사손실 추정"],
+    ["Siegert 식 &middot; 1.BImSchV","연소가스 분석 표준식 및 연료별 계수 (A&#8322;&middot;B)"]
+  ];
+  const rows=stds.map(s=>`<tr><td class="rng" style="font-weight:700;color:#00838f;">${s[0]}</td><td>${s[1]}</td></tr>`).join("");
+  $("srcModalTitle").textContent="기준 및 출처 — 적용 표준 (상세)";
+  $("srcModalBody").innerHTML=
+    `<div class="sm-desc">본 도구의 열정산(입출열법&middot;열손실법)&middot;배기손실&middot;효율 판정에 적용된 표준 및 상세 출처 목록입니다.</div>`+
+    `<table><thead><tr><th>적용 표준</th><th>내용</th></tr></thead><tbody>${rows}</tbody></table>`;
+  $("srcModalMask").classList.add("on");
 }
 
 function drawDonut(eff,lf,lco,lr){
@@ -556,9 +733,19 @@ function drawDonut(eff,lf,lco,lr){
     svg+=`<path d="M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2} Z" fill="${d.c}"/>`;
     a=a2;
   });
+  /* 중앙 % 텍스트: 안쪽 흰 원(지름72)을 넘칠 때만 글자크기 자동 축소 + textLength로 폭 고정 (Tool-12 차트형식) */
+  const effTxt=(isFinite(eff)?eff.toFixed(1):'-')+'%';
+  const HOLE_W=62, baseFS=20;
+  let fsAttr=`font-size="${baseFS}"`, lenAttr='';
+  const estW=effTxt.length*baseFS*0.6;
+  if(estW>HOLE_W){
+    const effFS=baseFS*HOLE_W/estW;
+    fsAttr=`font-size="${effFS.toFixed(2)}"`;
+    lenAttr=` textLength="${HOLE_W}" lengthAdjust="spacingAndGlyphs"`;
+  }
   svg+=`<circle cx="60" cy="60" r="36" fill="#fff"/>
     <text x="60" y="54" text-anchor="middle" font-size="10" fill="#888">효율</text>
-    <text x="60" y="72" text-anchor="middle" font-size="20" font-weight="800" fill="#00838f">${eff.toFixed(1)}%</text>`;
+    <text x="60" y="72" text-anchor="middle" ${fsAttr} font-weight="800" fill="#00838f"${lenAttr}>${effTxt}</text>`;
   $("donut").innerHTML=svg;
   $("legend").innerHTML=data.map(d=>
     `<div class="li"><span class="sw" style="background:${d.c}"></span>${d.l}<span class="lv">${d.v.toFixed(1)}%</span></div>`).join("");
@@ -583,7 +770,7 @@ function diagnose(effD,effI,o2,air,co,tg,ta,denom){
     else if(effI>=82) D.push(["warn","효율","보통","간접법 효율 "+effI.toFixed(1)+"% \u2014 개선 여지. 배기손실 점검.","출처: US DOE 벤치마크"]);
     else D.push(["bad","효율","저조","간접법 효율 "+effI.toFixed(1)+"% \u2014 정비 필요. 전열면&middot;공연비 점검.","출처: US DOE / Carbon Trust"]);
   }
-  $("diag").innerHTML=D.map(d=>`<div class="d ${d[0]}"><div class="dhead">${d[1]} : <span class="dstat">${d[2]}</span></div><div class="dbody">${d[3]}<span class="dsrc">${d[4]}</span></div></div>`).join("");
+  $("diag").innerHTML=D.map(d=>{const has=!!SRC_INFO[d[1]];return `<div class="d ${d[0]}"><div class="dhead">${d[1]} : <span class="dstat">${d[2]}</span></div><div class="dbody">${d[3]}<span class="dsrc${has?' clk':''}"${has?` onclick="showSrcPopup('${d[1]}','${d[0]}')" title="클릭하면 판정 기준 보기"`:''}>${d[4]}</span></div></div>`}).join("");
 }
 
 /* ===== Tab Management (Tool-003 방식) ===== */
@@ -634,14 +821,93 @@ function removeTab(id){
 }
 function saveData(){ saveCurrentTab(); updateTabName(); alert('데이터가 저장되었습니다.'); }
 function exportFile(){ alert('파일 변환 기능'); }
-function goMain(){ location.href='../dashboard.html'; }
 
 window.addEventListener('DOMContentLoaded',function(){
   $("inp-name").addEventListener('input',updateTabName);
-  applyFuel(); toggleSec(); recalc();
+  applyFuel(); recalc();
   setTimeout(fitCenter,60);
 });
 window.addEventListener('resize',fitCenter);
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeSrcPopup(); });
+</script>
+<div class="src-modal-mask" id="srcModalMask" onclick="if(event.target===this)closeSrcPopup()">
+  <div class="src-modal">
+    <div class="sm-head"><h3 id="srcModalTitle">판정 기준</h3><button class="sm-close" onclick="closeSrcPopup()">&times;</button></div>
+    <div class="sm-body" id="srcModalBody"></div>
+  </div>
+</div>
+<script>
+/* === HIMEC 공통 헤더 기능 (Save / Export / Main) === */
+(function(){
+  function fields(){ return Array.prototype.slice.call(document.querySelectorAll('input, select, textarea')); }
+  function fkey(el,i){ return el.id ? ('#'+el.id) : ('@'+i); }
+  function storeKey(){ return 'HIMEC_SAVE::' + (location.pathname || document.title || 'tool'); }
+
+  function himecSave(){
+    try{
+      var data={};
+      fields().forEach(function(el,i){
+        var k=fkey(el,i);
+        if(el.type==='checkbox'||el.type==='radio'){ data[k]={t:'chk', v:el.checked}; }
+        else { data[k]={t:'val', v:el.value}; }
+      });
+      localStorage.setItem(storeKey(), JSON.stringify(data));
+      alert('현재 화면의 입력값이 저장되었습니다.');
+    }catch(e){ alert('저장 중 오류가 발생했습니다: '+e.message); }
+  }
+
+  function himecRestore(){
+    try{
+      var raw=localStorage.getItem(storeKey()); if(!raw) return;
+      var data=JSON.parse(raw);
+      fields().forEach(function(el,i){
+        var rec=data[fkey(el,i)]; if(!rec) return;
+        if(rec.t==='chk'){ el.checked=!!rec.v; el.dispatchEvent(new Event('change',{bubbles:true})); }
+        else { el.value=rec.v; el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }
+      });
+    }catch(e){}
+  }
+
+  function closeMenu(){ var m=document.getElementById('himecExportMenu'); if(m) m.parentNode.removeChild(m); document.removeEventListener('click', outside, true); }
+  function outside(e){ var m=document.getElementById('himecExportMenu'); if(m && !m.contains(e.target)) closeMenu(); }
+
+  function himecExport(btn){
+    if(document.getElementById('himecExportMenu')){ closeMenu(); return; }
+    var m=document.createElement('div'); m.className='himec-menu'; m.id='himecExportMenu';
+    m.innerHTML =
+      '<button data-x="pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF로 저장</button>'+
+      '<button data-x="xls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>Excel로 내보내기</button>';
+    document.body.appendChild(m);
+    var r=btn.getBoundingClientRect();
+    var left=window.scrollX+r.right-m.offsetWidth; if(left<6) left=6;
+    m.style.top=(window.scrollY+r.bottom+6)+'px';
+    m.style.left=left+'px';
+    m.addEventListener('click', function(e){
+      var t=e.target.closest('button'); if(!t) return;
+      var x=t.getAttribute('data-x'); closeMenu();
+      if(x==='pdf') himecPDF(); else himecExcel();
+    });
+    setTimeout(function(){ document.addEventListener('click', outside, true); }, 0);
+  }
+
+  function himecPDF(){
+    /* 화면 비율 그대로 인쇄 → 브라우저 인쇄 대화상자에서 'PDF로 저장' 선택 */
+    window.print();
+  }
+  function himecExcel(){
+    alert('Excel 내보내기는 추후 별도 양식으로 제공될 예정입니다.');
+  }
+
+  function himecMain(){
+    location.href = '../dashboard.html';
+  }
+
+  window.himecMain=himecMain;
+
+  if(document.readyState==='loading'){
+    window.addEventListener('DOMContentLoaded', function(){ setTimeout(himecRestore, 60); });
+  } else { setTimeout(himecRestore, 60); }
+})();
 </script>
 </body>
 </html>
