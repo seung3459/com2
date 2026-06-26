@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/himec-supabase-sync.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HIMEC - Heat Exchanger Performance Analysis Tool</title>
 <link rel="icon" href="data:,">
 <link rel="shortcut icon" href="data:,">
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
+  * { margin:0; padding:20; box-sizing:border-box; }
   html, body {
     font-family:'Noto Sans KR', sans-serif;
     background:#f5f5f5; color:#333;
@@ -63,9 +66,12 @@
     overflow:hidden; min-height:0;
   }
   .panel + .panel { border-left:1px solid #eee; }
+  /* 좌측 패널 오토사이즈(하단 클리핑) 제거: 내용 높이 기준, 넘치면 스크롤 */
+  #left-panel{ overflow-y:auto; overflow-x:hidden; justify-content:flex-start; }
 
   .section-title { font-size:12px; font-weight:700; margin-bottom:4px; color:#222; flex-shrink:0; }
   .section-title.mt { margin-top:6px; }
+  #sec-donut .section-title.mt { margin-top:20px; }  /* 전열 회수량 카드 -> 회수 열량 분포 제목 간격 */
 
   .chk-label { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600;
     color:#444; margin:6px 0 3px; flex-shrink:0; }
@@ -86,7 +92,7 @@
   .info-table th, .info-table td {
     border:1px solid #fff; padding:6px 5px; border-bottom:1.5px solid #ccc; text-align:center;
   }
-  .info-table th { background:#e8e8e8; color:#555; font-weight:600; font-size:11px; }
+  .info-table th { background:rgba(108,122,137,0.2); color:#3A4A57; font-weight:600; font-size:11px; }
   .info-table tr:first-child th:first-child { border-top-left-radius:8px; }
   .info-table tr:first-child th:last-child { border-top-right-radius:8px; }
   .info-table td { background:#fff; }
@@ -95,8 +101,8 @@
     outline:none; padding:4px 2px; font-family:inherit; color:#333;
   }
   .info-table select { text-align:left; cursor:pointer; }
-  .value-unit { display:inline-flex; align-items:center; justify-content:center; gap:2px; }
-  .value-unit input { text-align:right; padding-right:2px; }
+  .value-unit { display:inline-flex; align-items:center; justify-content:center; gap:3px; }
+  .value-unit input { width:auto; min-width:30px; max-width:62px; text-align:center; padding-right:0; }
   .value-unit .unit { font-size:11px; color:#888; white-space:nowrap; }
   .info-table .highlight-cell { background:#e0f7fa; color:#00838f; font-weight:700; }
   #left-panel .info-table th:first-child, #left-panel .info-table td:first-child { border-left-color:transparent; }
@@ -105,26 +111,31 @@
 
   /* calc-table */
   .calc-table { width:100%; border-collapse:separate; border-spacing:0; font-size:10.5px; margin-bottom:8px; }
-  .calc-table th, .calc-table td { padding:8px 8px; border-bottom:1px solid #e2e2e2; text-align:left; }
+  /* ===== 이미지 화살표 두 곳 간격 30px ===== */
+  #center-panel .calc-table { margin-bottom:0; }
+  #center-panel .chk-label { margin-top:6; }
+  #center-panel #sec-bal { margin-bottom:50px; }            /* 화살표1: 전열 성능 분석 앞 (50px) */
+  #center-panel #sec-trf .calc-table + .tbl-cap { margin-top:20px; } /* 화살표2: 전열계수·유효도 앞 (20px) */
+  .calc-table th, .calc-table td { padding:11px 8px; border-bottom:1px solid #e2e2e2; text-align:center; vertical-align:middle; }
   .calc-table th { background:#e8e8e8; color:#555; font-weight:600; font-size:10.5px; }
   .calc-table tr:first-child th:first-child { border-top-left-radius:6px; }
   .calc-table tr:first-child th:last-child { border-top-right-radius:6px; }
   .calc-table td.fx { color:#777; font-size:9.5px; }
-  .calc-table td.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+  .calc-table td.num { text-align:center; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
   .calc-table tr.sub td { background:#ececec; font-weight:800; border-top:1.5px solid #c9c9c9; }
   .calc-table tr.out td { background:#f2f2f2; font-weight:700; }
   .calc-table tr.eff td { background:#e2e2e2; font-weight:800; border-top:1.5px solid #c9c9c9; }
   .tbl-cap { font-size:10.5px; font-weight:700; color:#333; margin:6px 0 4px; display:flex; align-items:center; gap:6px; }
-  .tbl-cap .src { font-size:8.5px; font-weight:600; color:#00838f; background:#e0f7fa; border:1px solid #b8e3e8; padding:1px 6px; border-radius:4px; }
+  .tbl-cap .src { font-size:9px; font-weight:400; color:#808080; background:transparent; border:none; padding:1px 6px; border-radius:4px; }
 
-  .residual { font-size:10px; color:#555; background:#f2f2f2; border:1px solid #ddd;
-    border-radius:6px; padding:8px 10px; margin-top:auto; flex-shrink:0; line-height:1.45; }
+  .residual { font-size:8px; color:#555; background:#f2f2f2; border:0.5px solid #ddd;
+    border-radius:6px; padding:8px 10px; margin-top:8px; flex-shrink:0; line-height:1.45; }
 
   /* metric cards */
-  .metrics-area { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+  .metrics-area { display:flex; flex-direction:column; gap:10px; flex-shrink:0; }
   .metric-card {
     background:transparent; border:none; border-bottom:1.5px solid #ccc; border-radius:5px;
-    padding:11px 8px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;
+    padding:5.5px 1px 2px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;
   }
   .metric-card .ml { flex:1; }
   .metric-label { font-size:11px; color:#00838f; line-height:1.2; font-weight:bold; }
@@ -133,12 +144,12 @@
   .metric-unit { font-size:12px; color:#888; margin-left:2px; vertical-align:super; }
 
   /* donut */
-  .donut-box { display:flex; gap:18px; align-items:center; padding:10px 0; flex:1; min-height:0; }
-  .donut-box svg { width:190px; height:190px; flex:none; }
+  .donut-box { display:flex; gap:18px; align-items:center; padding:10px 3px; flex:1; min-height:0; }
+  .donut-box svg { width:auto; height:clamp(110px, 38vh, 210px); aspect-ratio:1/1; max-width:55%; flex:none; }
   .legend { display:flex; flex-direction:column; gap:5px; flex:1; }
-  .legend .li { display:flex; align-items:center; gap:8px; font-size:12.5px; color:#444; }
+  .legend .li { display:flex; align-items:center; gap:8px; font-size:11px; color:#444; }
   .legend .sw { width:12px; height:12px; border-radius:3px; flex:none; }
-  .legend .lv { margin-left:auto; font-weight:700; font-variant-numeric:tabular-nums; }
+  .legend .lv { margin-left:auto; font-weight:500; font-variant-numeric:tabular-nums; }
 
   /* diagnosis */
   .diag { display:flex; flex-direction:column; gap:5px; }
@@ -152,7 +163,7 @@
     cursor:pointer; }
 
   /* 설계 총괄계수 : 표준값 기본 + 수정 시 색상 변경 */
-  .urow { display:flex; align-items:center; gap:4px; flex-wrap:nowrap; }
+  .urow { display:flex; align-items:center; justify-content:center; gap:4px; flex-wrap:nowrap; }
   .ustd-sel { flex:1 1 auto; min-width:0; max-width:130px; font-size:10px; padding:1px 2px;
     border:1px solid #cfd6dc; border-radius:3px; background:#fff; color:#333;
     white-space:nowrap; text-overflow:ellipsis; }
@@ -182,25 +193,29 @@
   .src-modal th, .src-modal td { border:1px solid #e3e3e3; padding:5px 8px; text-align:left; }
   .src-modal th { background:#f4f4f4; font-weight:700; color:#333; }
   .src-modal td.rng { white-space:nowrap; font-variant-numeric:tabular-nums; }
-  .src-modal .lv-ok { color:#1f9d6b; font-weight:700; }
-  .src-modal .lv-warn { color:#e0a106; font-weight:700; }
-  .src-modal .lv-bad { color:#d23f3f; font-weight:700; }
+  .src-modal .lv-ok { color:#00838f; font-weight:700; }
+  .src-modal .lv-warn { color:#FFDC9F; font-weight:700; }
+  .src-modal .lv-bad { color:#ED7458; font-weight:700; }
   .src-modal tr.cur td { background:#fff8e1; }
-  .d.ok { background:#f4faf7; border-left-color:#1f9d6b; } .d.ok .dstat { color:#1f9d6b; }
-  .d.warn { background:#fdf9ec; border-left-color:#e0a106; } .d.warn .dstat { color:#e0a106; }
-  .d.bad { background:#fdf3f3; border-left-color:#d64545; } .d.bad .dstat { color:#d64545; }
+  .d.ok { background:transparent; border-left-color:#00838f; } .d.ok .dstat { color:#00838f; }
+  .d.warn { background:transparent; border-left-color:#FFDC9F; } .d.warn .dstat { color:#FFDC9F; }
+  .d.bad { background:transparent; border-left-color:#ED7458; } .d.bad .dstat { color:#ED7458; }
 
   /* refs card */
-  .refs-card { border:none; border-top:1px solid #e2e2e2; border-radius:0; background:transparent; padding:10px 2px 0;
-    flex:1; min-height:0; overflow:hidden; margin-top:6px; }
+  .refs-card { border:none; border-radius:0; background:transparent; padding:0 2px;
+    flex:0 0 auto; min-height:0; overflow:hidden; margin-top:30px; text-align:right; }
   .refs-card h3 { font-size:10px; font-weight:700; color:#333; margin-bottom:6px; }
   .refs-sub { font-size:8px; font-weight:400; color:#999; text-transform:uppercase; letter-spacing:.3px;
-    margin:6px 0 4px; padding-bottom:4px; border-bottom:1px dashed #ddd; }
+    margin:6px 0 0; padding-bottom:0; border-bottom:none; }
+  .refs-clickable { cursor:pointer; transition:background .12s; }
+  .refs-clickable:hover { background:transparent; }
+  .refs-clickable:hover h3 { color:#333; }
+  .refs-more { font-size:8px; font-weight:700; color:#999; margin-left:4px; }
   .std-list { list-style:none; font-size:8px; font-weight:400; color:#888; }
   .std-list li { padding:4px 0; border-bottom:1px dashed #e2e2e2; line-height:1.45; font-weight:400; }
   .std-list li b { color:#555; font-weight:400; }
 
-  .calc-card { flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; }
+  .calc-card { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; }
   .right-scroll { flex:none; overflow:visible; }
 
   /* Copyright */
@@ -232,8 +247,87 @@
     .main { grid-template-columns:1fr; }
   }
   .info-table input::placeholder { color:#aaa; font-style:italic; font-size:10px; }
+
+  /* === ERV 추가 스타일 === */
+  .chk-label .tagOA { font-size:9px; font-weight:700; color:#1769aa; background:#e8f1fb; border:1px solid #bcd6ef; padding:0 5px; border-radius:3px; margin-left:4px; }
+  .chk-label .tagRA { font-size:9px; font-weight:700; color:#c2691c; background:#fdf3e8; border:1px solid #f1d4b0; padding:0 5px; border-radius:3px; margin-left:4px; }
+  #effStdSrc { display:inline; font-size:9px; color:#808080; font-weight:600; cursor:pointer; white-space:nowrap; }
+  #effStdSrc:hover { color:#0b4e96; }
+  #esDesign.ustd-input { color:#00838f; font-weight:700; }
+  #esDesign.ustd-input.edited { color:#d23f3f; font-weight:700; }
+
+</style>
+<style id="himec-iconbtn-style">
+/* === HIMEC 아이콘 버튼 (첨부 이미지 스타일) === */
+.header-right{ gap:6px !important; }
+.header-right button{
+  width:34px !important; height:34px !important; padding:0 !important;
+  background:#ffffff !important; color:#555 !important;
+  border:1px solid #d0d0d0 !important; border-radius:8px !important;
+  display:inline-flex !important; align-items:center; justify-content:center;
+  box-sizing:border-box;
+}
+.header-right button:hover{ background:#f5f5f5 !important; border-color:#bbb !important; }
+.header-right button svg{ width:18px; height:18px; display:block; stroke:#555; }
+.header-right button.btn-save:hover svg{ stroke:#e85d24; }
+.header-right button.btn-file:hover svg{ stroke:#e85d24; }
+/* 내보내기 드롭다운 메뉴 */
+.himec-menu{ position:absolute; z-index:99999; background:#fff; border:1px solid #ccc;
+  border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.15); padding:4px; min-width:178px; }
+.himec-menu button{ display:flex !important; align-items:center; gap:8px; width:100% !important;
+  height:auto !important; background:none !important; border:none !important; color:#222 !important;
+  padding:9px 12px !important; font-size:13px; text-align:left; cursor:pointer; border-radius:6px !important; }
+.himec-menu button:hover{ background:#f1f1f1 !important; }
+.himec-menu button svg{ width:16px; height:16px; stroke:#555; flex:0 0 auto; }
+@media print{ .header-right{ display:none !important; } .himec-menu{ display:none !important; } }
+</style>
+
+<style id="himec-unify-portrait">
+
+/* ===== [TABLE UNIFY → Tool-09 .info-table 규격] .calc-table
+   헤더색/테두리/라운드/폰트만 통일. 숫자정렬·의미색(빨강·파랑·합계행 등)은 보존 ===== */
+.calc-table { border-collapse:separate !important; border-spacing:0 !important; }
+.calc-table th, .calc-table td { border:1px solid #ffffff !important; border-bottom:1.5px solid #ccc !important; padding:6.6px 5px !important; text-align:center !important; }
+.calc-table th { background:#e8e8e8 !important; color:#555 !important; font-weight:600 !important; font-size:11px !important; }
+.calc-table tr:first-child th:first-child { border-top-left-radius:8px !important; }
+.calc-table tr:first-child th:last-child { border-top-right-radius:8px !important; }
+.calc-table input { font-size:12px !important; }
+.calc-table select { font-size:11px !important; }
+/* ===== [TABLE UNIFY] end ===== */
+
+/* ===== [PORTRAIT FIX] 세로형(portrait)일 때 단 단일컬럼 + 좌→중→우(DOM순서) 스택 =====
+   - landscape(가로) 디자인은 일절 변경하지 않음 (orientation 쿼리 내부에서만 적용) */
+@media (orientation: portrait){
+  html, body{ height:auto !important; min-height:100vh !important; overflow:visible !important; width:auto !important; }
+  body .page-container{ height:auto !important; overflow:visible !important; }
+  body .main{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    grid-template-rows:auto !important;
+    grid-auto-flow:row !important;
+    align-items:start !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+  body .main > .panel{
+    width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    overflow:visible !important;
+  }
+  /* 차트/그래프가 height:100% 부모 붕괴로 사라지지 않도록 최소 높이 확보 */
+  body .main canvas, body .main svg{ height:auto !important; min-height:240px !important; }
+  body .main .chart-wrapper, body .main .chart-canvas-container, body .main .bar-chart-container,
+  body .main .donut-container, body .main .hbar-chart, body .main .chart-area, body .main .graph-box{
+    height:auto !important; min-height:240px !important;
+  }
+  body .main, body .main *{ overflow-wrap:anywhere; word-break:keep-all; }
+}
+/* ===== [PORTRAIT FIX] end ===== */
+
 </style>
 </head>
+
 <body>
 
 <div class="page-container">
@@ -243,9 +337,9 @@
   <div class="sub">(주)하이멕 &minus; 기계설비 노후화 진단</div>
   <h2>Heat Exchanger Performance Analysis Tool</h2>
   <div class="header-right">
-    <button class="btn-save" onclick="saveData()">Save</button>
-    <button class="btn-file" onclick="exportFile()">File Trans</button>
-    <button class="btn-main" onclick="goMain()">Main</button>
+    <button class="btn-main" onclick="himecMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+    <button class="btn-save" onclick="himecSave()" title="저장(화면 입력값 저장)" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+    <button class="btn-file" onclick="himecExport(this)" title="파일 내보내기 (PDF / Excel)" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
   </div>
 </div>
 
@@ -375,8 +469,8 @@
           <tr class="eff"><td>열교환 유효도 &epsilon;</td><td class="fx">Q / [C&#x2098;&#x1d62;&#x2099;(T&#8321;&#7522;&minus;T&#8322;&#7522;)] &times;100</td><td class="num" id="v-eps">&ndash;</td></tr>
         </table>
       </div>
-    </div>
     <div class="residual" id="residual">&ndash;</div>
+    </div>
   </div>
 
   <!-- RIGHT -->
@@ -443,7 +537,7 @@ function toggleSec(){
   $("mc-none").style.display=(!b&&!t)?"flex":"none";
   $("sec-donut").style.display=b?"":"none";
   $("sec-diag").style.display=(b||t)?"":"none";
-  fitCenter();
+  fitAll();
 }
 
 function recalc(){
@@ -510,50 +604,81 @@ function recalc(){
 
   drawDonut(Qhot,Qcold);
   diagnose({type:$("inp-type").value,eps,lossRate,approach,clean,Ud,U,dp1:num("dp1"),dp2:num("dp2"),LMTD});
-  fitCenter();
+  fitAll();
 }
 
 function fitCenter(){
+  /* 오토사이즈 제거: 셀 패딩은 CSS 고정값(11px) 사용 */
   const card=document.querySelector('#center-panel .calc-card');
   if(!card) return;
-  const tds=card.querySelectorAll('.calc-table td, .calc-table th');
-  const BASE=8, MIN=1.5;
-  tds.forEach(td=>{ td.style.paddingTop=''; td.style.paddingBottom=''; });
-  requestAnimationFrame(()=>{
-    const trCount=card.querySelectorAll('.calc-table tr').length;
-    if(trCount<=0) return;
-    const free=card.clientHeight - card.scrollHeight;
-    let adj=free/trCount/2;
-    let pad=BASE+adj;
-    if(pad<MIN) pad=MIN;
-    pad=Math.floor(pad*10)/10;
-    tds.forEach(td=>{ td.style.paddingTop=pad+'px'; td.style.paddingBottom=pad+'px'; });
+  card.querySelectorAll('.calc-table td, .calc-table th').forEach(td=>{
+    td.style.paddingTop=''; td.style.paddingBottom='';
   });
 }
 
+/* ===== 좌/우 패널 높이 자동 채움 (하단 점선까지 표·박스 높이 확장) ===== */
+function fitLeft(){
+  /* 오토사이즈 제거: 셀 패딩은 CSS 고정값(11px) 사용 */
+  const panel=document.querySelector('#left-panel'); if(!panel) return;
+  panel.querySelectorAll('.info-table td, .info-table th').forEach(c=>{
+    c.style.paddingTop=''; c.style.paddingBottom='';
+  });
+}
+function fitRight(){
+  const panel=document.querySelector('#right-panel'); if(!panel) return;
+  const rows=[...panel.querySelectorAll('.metric-card, .diag .d')].filter(el=>el.offsetParent!==null);
+  if(!rows.length) return;
+  rows.forEach(el=>{ el.style.paddingTop=''; el.style.paddingBottom=''; });
+  requestAnimationFrame(()=>{
+    const pTop=panel.getBoundingClientRect().top;
+    let cb=pTop;
+    panel.querySelectorAll(':scope > *').forEach(el=>{ if(el.offsetParent===null) return;
+      const b=el.getBoundingClientRect().bottom; if(b>cb) cb=b; });
+    const free=panel.clientHeight-(cb-pTop);
+    let pad=8+free/rows.length/2;
+    if(pad<2) pad=2; if(pad>40) pad=40;
+    pad=Math.floor(pad*10)/10;
+    rows.forEach(el=>{ const isMc=el.classList.contains('metric-card'); if(isMc){ el.style.paddingTop='2px'; el.style.paddingBottom='2px'; } else { el.style.paddingTop='6px'; el.style.paddingBottom='6px'; } });
+  });
+}
+function fitAll(){ fitCenter(); fitRight(); }  /* fitLeft 제거: 좌측 패널 오토사이즈 비활성 */
+
 function drawDonut(Qhot,Qcold){
-  const loss=Math.max(Qhot-Qcold,0);
-  const data=[
-    {l:"유효 회수열(2차흡열)",v:Math.max(Qcold,0),c:"#00838f"},
-    {l:"열손실(미회수)",v:loss,c:"#ff8c00"}
-  ];
-  const tot=data.reduce((s,d)=>s+d.v,0)||1;
-  const recov=Qhot>0?(Qcold/Qhot*100):0;
-  let a=-90, svg="";
-  data.forEach(d=>{
-    const ang=d.v/tot*360, a2=a+ang, r=54,cx=60,cy=60,R=Math.PI/180;
+  /* ===== Tool-12 차트형식(게이지형 도넛): 전체 원=100%, 열회수율만큼 색상 채움 / 나머지는 연회색 트랙 ===== */
+  const recov=(Qhot>0)?(Qcold/Qhot*100):NaN;            /* 열회수율 = 2차흡열 / 1차방열 */
+  const qcoldKW=Math.max(Qcold,0)*KCAL_KW;
+  const lossKW=Math.max(Qhot-Qcold,0)*KCAL_KW;
+  const eff=isFinite(recov)?Math.max(0,Math.min(100,recov)):0;
+  const cx=60,cy=60,r=54,R=Math.PI/180, col="#00838f", track="#e6e9ec";
+  let svg=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${track}"/>`;
+  const ang=eff/100*360;
+  if(ang>=359.99){
+    svg+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${col}"/>`;
+  }else if(ang>0.01){
+    const a=-90, a2=a+ang;
     const x1=cx+r*Math.cos(a*R),y1=cy+r*Math.sin(a*R);
     const x2=cx+r*Math.cos(a2*R),y2=cy+r*Math.sin(a2*R);
     const large=ang>180?1:0;
-    svg+=`<path d="M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2} Z" fill="${d.c}"/>`;
-    a=a2;
-  });
+    svg+=`<path d="M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2} Z" fill="${col}"/>`;
+  }
+  /* 중앙 % 라벨: 안쪽 흰 원(r=36) 내부에만 표시 - 넘칠 때만 자동 축소하여 청록 링 침범 방지 */
+  const pctLabel = isFinite(recov) ? recov.toFixed(1)+'%' : '-';
+  const HOLE_W = 58;                              /* 안쪽 흰 원 내부 가용 폭(지름 72 - 여백) */
+  let pctFS = 20;                                 /* Tool-12 기본 글자 크기 유지 */
+  let pctTL = '';
+  const approxW = pctLabel.length * pctFS * 0.56; /* 굵은 숫자 대략 폭 추정 */
+  if(approxW > HOLE_W){                           /* 넘칠 때만 축소 + 폭 고정 */
+    pctFS = +(pctFS * HOLE_W / approxW).toFixed(2);
+    pctTL = ` textLength="${HOLE_W}" lengthAdjust="spacingAndGlyphs"`;
+  }
   svg+=`<circle cx="60" cy="60" r="36" fill="#fff"/>
-    <text x="60" y="54" text-anchor="middle" font-size="10" fill="#888">회수율</text>
-    <text x="60" y="72" text-anchor="middle" font-size="20" font-weight="800" fill="#00838f">${recov.toFixed(1)}%</text>`;
+    <text x="60" y="50" text-anchor="middle" font-size="4.6" fill="#888">\uc5f4\ud68c\uc218\uc728</text>
+    <text x="60" y="72" text-anchor="middle" font-size="${pctFS}" font-weight="800" fill="${col}"${pctTL}>${pctLabel}</text>`;
   $("donut").innerHTML=svg;
-  $("legend").innerHTML=data.map(d=>
-    `<div class="li"><span class="sw" style="background:${d.c}"></span>${d.l}<span class="lv">${(d.v*KCAL_KW).toFixed(1)} kW</span></div>`).join("");
+  /* 범례: 유효 회수열(채움) / 열손실(미회수) — Tool-12 색상 규격(#00838f / #ff8c00) */
+  let lg=`<div class="li"><span class="sw" style="background:${col}"></span>\uc720\ud6a8 \ud68c\uc218\uc5f4(2\ucc28\ud761\uc5f4)<span class="lv">${qcoldKW.toFixed(1)} kW</span></div>`
+        +`<div class="li"><span class="sw" style="background:#ff8c00;opacity:.55"></span>\uc5f4\uc190\uc2e4(\ubbf8\ud68c\uc218)<span class="lv">${lossKW.toFixed(1)} kW</span></div>`;
+  $("legend").innerHTML=lg;
 }
 
 function diagnose(o){
@@ -757,20 +882,97 @@ function removeTab(id){
 }
 function saveData(){ saveCurrentTab(); updateTabName(); alert('데이터가 저장되었습니다.'); }
 function exportFile(){ alert('파일 변환 기능'); }
-function goMain(){ location.href='../dashboard.html'; }
 
 window.addEventListener('DOMContentLoaded',function(){
   $("inp-name").addEventListener('input',updateTabName);
+  // 입력 즉시 실시간 재계산 (onchange=blur 외에 input 이벤트도 반영)
+  ['flow1','cp1','t1i','t1o','flow2','cp2','t2i','t2o','area','qDesign','dp1','dp2']
+    .forEach(function(id){
+      var el=$(id);
+      if(el) el.addEventListener('input',recalc);
+    });
   applyPreset('heating'); buildUStdOptions(); applyUStd(); toggleSec(); recalc();
-  setTimeout(fitCenter,60);
+  setTimeout(fitAll,60);
 });
-window.addEventListener('resize',fitCenter);
-</script>
-<div class="src-modal-mask" id="srcModalMask" onclick="if(event.target===this)closeSrcPopup()">
+window.addEventListener('resize',fitAll);
+</script><div class="src-modal-mask" id="srcModalMask" onclick="if(event.target===this)closeSrcPopup()">
   <div class="src-modal">
     <div class="sm-head"><h3 id="srcModalTitle">판정 기준</h3><button class="sm-close" onclick="closeSrcPopup()">&times;</button></div>
     <div class="sm-body" id="srcModalBody"></div>
   </div>
 </div>
+<script>
+/* === HIMEC 공통 헤더 기능 (Save / Export / Main) === */
+(function(){
+  function fields(){ return Array.prototype.slice.call(document.querySelectorAll('input, select, textarea')); }
+  function fkey(el,i){ return el.id ? ('#'+el.id) : ('@'+i); }
+  function storeKey(){ return 'HIMEC_SAVE::' + (location.pathname || document.title || 'tool'); }
+
+  function himecSave(){
+    try{
+      var data={};
+      fields().forEach(function(el,i){
+        var k=fkey(el,i);
+        if(el.type==='checkbox'||el.type==='radio'){ data[k]={t:'chk', v:el.checked}; }
+        else { data[k]={t:'val', v:el.value}; }
+      });
+      localStorage.setItem(storeKey(), JSON.stringify(data));
+      alert('현재 화면의 입력값이 저장되었습니다.');
+    }catch(e){ alert('저장 중 오류가 발생했습니다: '+e.message); }
+  }
+
+  function himecRestore(){
+    try{
+      var raw=localStorage.getItem(storeKey()); if(!raw) return;
+      var data=JSON.parse(raw);
+      fields().forEach(function(el,i){
+        var rec=data[fkey(el,i)]; if(!rec) return;
+        if(rec.t==='chk'){ el.checked=!!rec.v; el.dispatchEvent(new Event('change',{bubbles:true})); }
+        else { el.value=rec.v; el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }
+      });
+    }catch(e){}
+  }
+
+  function closeMenu(){ var m=document.getElementById('himecExportMenu'); if(m) m.parentNode.removeChild(m); document.removeEventListener('click', outside, true); }
+  function outside(e){ var m=document.getElementById('himecExportMenu'); if(m && !m.contains(e.target)) closeMenu(); }
+
+  function himecExport(btn){
+    if(document.getElementById('himecExportMenu')){ closeMenu(); return; }
+    var m=document.createElement('div'); m.className='himec-menu'; m.id='himecExportMenu';
+    m.innerHTML =
+      '<button data-x="pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF로 저장</button>'+
+      '<button data-x="xls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>Excel로 내보내기</button>';
+    document.body.appendChild(m);
+    var r=btn.getBoundingClientRect();
+    var left=window.scrollX+r.right-m.offsetWidth; if(left<6) left=6;
+    m.style.top=(window.scrollY+r.bottom+6)+'px';
+    m.style.left=left+'px';
+    m.addEventListener('click', function(e){
+      var t=e.target.closest('button'); if(!t) return;
+      var x=t.getAttribute('data-x'); closeMenu();
+      if(x==='pdf') himecPDF(); else himecExcel();
+    });
+    setTimeout(function(){ document.addEventListener('click', outside, true); }, 0);
+  }
+
+  function himecPDF(){
+    /* 화면 비율 그대로 인쇄 → 브라우저 인쇄 대화상자에서 'PDF로 저장' 선택 */
+    window.print();
+  }
+  function himecExcel(){
+    alert('Excel 내보내기는 추후 별도 양식으로 제공될 예정입니다.');
+  }
+
+  function himecMain(){
+    location.href = '../dashboard.html';
+  }
+
+  window.himecMain=himecMain;
+
+  if(document.readyState==='loading'){
+    window.addEventListener('DOMContentLoaded', function(){ setTimeout(himecRestore, 60); });
+  } else { setTimeout(himecRestore, 60); }
+})();
+</script>
 </body>
 </html>
