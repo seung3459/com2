@@ -4,7 +4,6 @@
   <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
   <script src="/js/supabase-config.js"></script>
   <script src="/js/himec-supabase-sync.js"></script>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HIMEC - Pipe Diameter Selection Tool</title>
@@ -206,6 +205,66 @@
   #left-panel .table-fill > .info-table { height: 100%; margin-bottom: 0; }
   #left-panel .info-table th, #left-panel .info-table td { vertical-align: middle; }
 </style>
+
+<style id="himec-iconbtn-style">
+/* === HIMEC 아이콘 버튼 (첨부 이미지 스타일) === */
+.header-right{ gap:6px !important; }
+.header-right button{
+  width:34px !important; height:34px !important; padding:0 !important;
+  background:#ffffff !important; color:#555 !important;
+  border:1px solid #d0d0d0 !important; border-radius:8px !important;
+  display:inline-flex !important; align-items:center; justify-content:center;
+  box-sizing:border-box;
+}
+.header-right button:hover{ background:#f5f5f5 !important; border-color:#bbb !important; }
+.header-right button svg{ width:18px; height:18px; display:block; stroke:#555; }
+.header-right button.btn-save:hover svg{ stroke:#e85d24; }
+.header-right button.btn-file:hover svg{ stroke:#e85d24; }
+/* 내보내기 드롭다운 메뉴 */
+.himec-menu{ position:absolute; z-index:99999; background:#fff; border:1px solid #ccc;
+  border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.15); padding:4px; min-width:178px; }
+.himec-menu button{ display:flex !important; align-items:center; gap:8px; width:100% !important;
+  height:auto !important; background:none !important; border:none !important; color:#222 !important;
+  padding:9px 12px !important; font-size:13px; text-align:left; cursor:pointer; border-radius:6px !important; }
+.himec-menu button:hover{ background:#f1f1f1 !important; }
+.himec-menu button svg{ width:16px; height:16px; stroke:#555; flex:0 0 auto; }
+@media print{ .header-right{ display:none !important; } .himec-menu{ display:none !important; } }
+</style>
+
+
+<style id="himec-unify-portrait">
+
+/* ===== [PORTRAIT FIX] 세로형(portrait)일 때 단 단일컬럼 + 좌→중→우(DOM순서) 스택 =====
+   - landscape(가로) 디자인은 일절 변경하지 않음 (orientation 쿼리 내부에서만 적용) */
+@media (orientation: portrait){
+  html, body{ height:auto !important; min-height:100vh !important; overflow:visible !important; width:auto !important; }
+  body .page-container{ height:auto !important; overflow:visible !important; }
+  body .main{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    grid-template-rows:auto !important;
+    grid-auto-flow:row !important;
+    align-items:start !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+  body .main > .panel{
+    width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    overflow:visible !important;
+  }
+  /* 차트/그래프가 height:100% 부모 붕괴로 사라지지 않도록 최소 높이 확보 */
+  body .main canvas, body .main svg{ height:auto !important; min-height:240px !important; }
+  body .main .chart-wrapper, body .main .chart-canvas-container, body .main .bar-chart-container,
+  body .main .donut-container, body .main .hbar-chart, body .main .chart-area, body .main .graph-box{
+    height:auto !important; min-height:240px !important;
+  }
+  body .main, body .main *{ overflow-wrap:anywhere; word-break:keep-all; }
+}
+/* ===== [PORTRAIT FIX] end ===== */
+
+</style>
 </head>
 <body>
 
@@ -216,9 +275,9 @@
   <div class="sub">(주)하이멥 − 기계설비 노후화 진단</div>
   <h2>Pipe Diameter Selection Tool</h2>
   <div class="header-right">
-    <button class="btn-save" onclick="saveData()">Save</button>
-    <button class="btn-file" onclick="exportFile()">File Trans</button>
-    <button class="btn-main" onclick="GoMain()">Main</button>
+    <button class="btn-main" onclick="himecMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+    <button class="btn-save" onclick="himecSave()" title="저장(화면 입력값 저장)" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+    <button class="btn-file" onclick="himecExport(this)" title="파일 내보내기 (PDF / Excel)" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
   </div>
 </div>
 
@@ -632,7 +691,6 @@ function removeTab(tabId) {
 
 function saveData() { saveCurrentTab(); updateTabName(); alert('\uB370\uC774\uD130\uAC00 \uC800\uC7A5\uB418\uC5C8\uC2B5\uB2C8\uB2E4.'); }
 function exportFile() { alert('\uD30C\uC77C \uBCC0\uD658 \uAE30\uB2A5'); }
-function GoMain(){ if(window.STD){ STD.goMain(null); } else { window.location.href='../dashboard.html'; } }
 
 // Initialize
 window.addEventListener('DOMContentLoaded', function () {
@@ -644,102 +702,80 @@ window.addEventListener('DOMContentLoaded', function () {
 window.addEventListener('resize', function () { recalc(); });
 </script>
 
-<script>window.__STD_TOOL='601';</script>
+
 <script>
-/* ============================================================
-   STD Storage  —  표준 저장 모듈 v1 (전 도구 공통)
-   방식: localStorage 우선 + GitHub 동기화(가능 시)
-        + beforeunload 백업 + 저장 후 이동(GoMain)
-   ============================================================ */
+/* === HIMEC 공통 헤더 기능 (Save / Export / Main) === */
 (function(){
-  if (window.STD) return;                         // 중복 주입 방지
-  var TOOL = window.__STD_TOOL || 'tool';
-  function qp(k){ return new URLSearchParams(location.search).get(k) || ''; }
-  function pid(){ return qp('projectId') || qp('project') || qp('id') || ''; }
-  function pname(){ return qp('projectName') || qp('name') || ''; }
-  function lsKey(){ var id=pid(); return 'std_'+TOOL+'_'+(id||'standalone'); }
-  function ghPath(){ var id=pid(); return id ? ('data/'+TOOL+'/'+id+'.json') : null; }
+  function fields(){ return Array.prototype.slice.call(document.querySelectorAll('input, select, textarea')); }
+  function fkey(el,i){ return el.id ? ('#'+el.id) : ('@'+i); }
+  function storeKey(){ return 'HIMEC_SAVE::' + (location.pathname || document.title || 'tool'); }
 
-  function genericData(){
-    var o={__std:true, t:Date.now(), fields:{}};
-    document.querySelectorAll('input[id],select[id],textarea[id]').forEach(function(el){
-      var ty=(el.type||'').toLowerCase();
-      if(ty==='button'||ty==='submit'||ty==='reset'||ty==='file') return;
-      o.fields[el.id]=(ty==='checkbox'||ty==='radio') ? el.checked : el.value;
+  function himecSave(){
+    try{
+      var data={};
+      fields().forEach(function(el,i){
+        var k=fkey(el,i);
+        if(el.type==='checkbox'||el.type==='radio'){ data[k]={t:'chk', v:el.checked}; }
+        else { data[k]={t:'val', v:el.value}; }
+      });
+      localStorage.setItem(storeKey(), JSON.stringify(data));
+      alert('현재 화면의 입력값이 저장되었습니다.');
+    }catch(e){ alert('저장 중 오류가 발생했습니다: '+e.message); }
+  }
+
+  function himecRestore(){
+    try{
+      var raw=localStorage.getItem(storeKey()); if(!raw) return;
+      var data=JSON.parse(raw);
+      fields().forEach(function(el,i){
+        var rec=data[fkey(el,i)]; if(!rec) return;
+        if(rec.t==='chk'){ el.checked=!!rec.v; el.dispatchEvent(new Event('change',{bubbles:true})); }
+        else { el.value=rec.v; el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }
+      });
+    }catch(e){}
+  }
+
+  function closeMenu(){ var m=document.getElementById('himecExportMenu'); if(m) m.parentNode.removeChild(m); document.removeEventListener('click', outside, true); }
+  function outside(e){ var m=document.getElementById('himecExportMenu'); if(m && !m.contains(e.target)) closeMenu(); }
+
+  function himecExport(btn){
+    if(document.getElementById('himecExportMenu')){ closeMenu(); return; }
+    var m=document.createElement('div'); m.className='himec-menu'; m.id='himecExportMenu';
+    m.innerHTML =
+      '<button data-x="pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF로 저장</button>'+
+      '<button data-x="xls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>Excel로 내보내기</button>';
+    document.body.appendChild(m);
+    var r=btn.getBoundingClientRect();
+    var left=window.scrollX+r.right-m.offsetWidth; if(left<6) left=6;
+    m.style.top=(window.scrollY+r.bottom+6)+'px';
+    m.style.left=left+'px';
+    m.addEventListener('click', function(e){
+      var t=e.target.closest('button'); if(!t) return;
+      var x=t.getAttribute('data-x'); closeMenu();
+      if(x==='pdf') himecPDF(); else himecExcel();
     });
-    return o;
-  }
-  function genericRestore(o){
-    if(!o||!o.fields) return;
-    Object.keys(o.fields).forEach(function(id){
-      var el=document.getElementById(id); if(!el) return;
-      var ty=(el.type||'').toLowerCase();
-      if(ty==='checkbox'||ty==='radio') el.checked=!!o.fields[id];
-      else el.value=o.fields[id];
-      try{ el.dispatchEvent(new Event('input',{bubbles:true}));
-           el.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){}
-    });
-  }
-  function lsSave(){
-    try{ localStorage.setItem(lsKey(), JSON.stringify(genericData())); return true; }
-    catch(e){ console.warn('[STD] LS save fail', e); return false; }
-  }
-  function lsLoad(){
-    try{ var r=localStorage.getItem(lsKey()); return r? JSON.parse(r):null; }catch(e){ return null; }
-  }
-  function ghSync(){
-    var p=ghPath();
-    if(p && typeof window.ghSaveFile==='function'){
-      return Promise.resolve(window.ghSaveFile(p, genericData(), 'STD save '+TOOL+' '+pid()))
-        .then(function(){ return true; })
-        .catch(function(e){ console.warn('[STD] GH save fail', e); return false; });
-    }
-    return Promise.resolve(null);                 // GitHub 미사용 페이지
-  }
-  function toast(msg, type){
-    if(typeof window._showToast==='function'){ try{ window._showToast(msg, type||'success'); return; }catch(e){} }
-    if(typeof window.showToast==='function'){ try{ window.showToast(msg, type||'success'); return; }catch(e){} }
-    var el=document.getElementById('__stdToast');
-    if(!el){ el=document.createElement('div'); el.id='__stdToast';
-      el.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;opacity:0;transition:opacity .2s';
-      document.body.appendChild(el); }
-    el.textContent=msg; el.style.opacity='1';
-    clearTimeout(el.__t); el.__t=setTimeout(function(){ el.style.opacity='0'; }, 1800);
+    setTimeout(function(){ document.addEventListener('click', outside, true); }, 0);
   }
 
-  var dirty=false;
-  document.addEventListener('input', function(){ dirty=true; }, true);
-  document.addEventListener('change', function(){ dirty=true; }, true);
+  function himecPDF(){
+    /* 화면 비율 그대로 인쇄 → 브라우저 인쇄 대화상자에서 'PDF로 저장' 선택 */
+    window.print();
+  }
+  function himecExcel(){
+    alert('Excel 내보내기는 추후 별도 양식으로 제공될 예정입니다.');
+  }
 
-  function save(pageSaver, opts){
-    opts=opts||{};
-    lsSave();                                     // 1) 항상 localStorage 백업
-    var hasPage=(typeof pageSaver==='function');
-    if(hasPage){                                  // 2a) 리치 저장(페이지 고유 LS+GitHub)
-      return Promise.resolve().then(pageSaver).then(function(){ dirty=false; return {page:true}; })
-        .catch(function(e){ console.warn('[STD] pageSaver fail', e); dirty=false; return {page:false}; });
-    }
-    return ghSync().then(function(gh){             // 2b) 제네릭 GitHub 동기화(가능 시)
-      dirty=false;
-      if(!opts.silent) toast(gh===false?'로컬에 저장되었습니다 (클라우드 동기화 실패)':'저장되었습니다.', gh===false?'warn':'success');
-      return {gh:gh};
-    });
+  function himecMain(){
+    location.href = '../dashboard.html';
   }
-  function load(pageLoader){
-    if(typeof pageLoader==='function'){ try{ return pageLoader(); }catch(e){ console.warn('[STD] pageLoader fail', e); } }
-    var o=lsLoad(); if(o) genericRestore(o); dirty=false; return o;
-  }
-  function goMain(pageSaver){
-    var url=(typeof window.dashboardUrl!=='undefined' && window.dashboardUrl) ? window.dashboardUrl : '../dashboard.html';
-    Promise.resolve(save(pageSaver, {silent:true})).then(function(){ location.href=url; }, function(){ location.href=url; });
-  }
-  window.addEventListener('beforeunload', function(){ try{ lsSave(); }catch(e){} });
 
-  window.STD={ save:save, load:load, goMain:goMain, lsSave:lsSave, lsLoad:lsLoad,
-               genericData:genericData, genericRestore:genericRestore,
-               projectId:pid, projectName:pname, key:lsKey, ghPath:ghPath, isDirty:function(){return dirty;} };
+  window.himecMain=himecMain;
+
+  if(document.readyState==='loading'){
+    window.addEventListener('DOMContentLoaded', function(){ setTimeout(himecRestore, 60); });
+  } else { setTimeout(himecRestore, 60); }
 })();
 </script>
-<script>(function(){function r(f){document.readyState!=='loading'?f():document.addEventListener('DOMContentLoaded',f);}r(function(){try{if(window.STD)STD.load();}catch(e){}});})();</script>
+
 </body>
 </html>
