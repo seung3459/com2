@@ -3,8 +3,9 @@
 <head>
   <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
   <script src="/js/supabase-config.js"></script>
+  <!-- ▼ 로그인 가드 + 로그아웃 (설정 파일보다 뒤, sync보다 앞) -->
+  <script src="/js/auth-guard.js"></script>
   <script src="/js/himec-supabase-sync.js"></script>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HIMEC - Metrics</title>
@@ -283,7 +284,7 @@ function renderResult(){
 function saveData(){ try{localStorage.setItem('himec_metrics',JSON.stringify({projects,diagResults}));}catch(e){} alert('저장되었습니다.'); }
 function exportFile(){ alert('파일 변환 기능 (구현 예정)'); }
 // ===== Main 화면 이동 =====
-function GoMain(){ if(window.STD){ STD.goMain((typeof hddSaveData==='function')?hddSaveData:null); } else { window.location.href='../index.html'; } }
+function GoMain(){ if(window.STD){ STD.goMain((typeof hddSaveData==='function')?hddSaveData:null); } else { window.location.href='../main.html'; } }
 
 window.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveData();} });
 
