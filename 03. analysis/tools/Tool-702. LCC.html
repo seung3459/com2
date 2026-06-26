@@ -3,8 +3,9 @@
 <head>
   <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
   <script src="/js/supabase-config.js"></script>
+  <!-- ▼ 로그인 가드 + 로그아웃 (설정 파일보다 뒤, sync보다 앞) -->
+  <script src="/js/auth-guard.js"></script>
   <script src="/js/himec-supabase-sync.js"></script>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LCC 생애주기비용 분석</title>
