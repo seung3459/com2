@@ -3,359 +3,544 @@
 <head>
   <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
   <script src="/js/supabase-config.js"></script>
+  <!-- ▼ 로그인 가드 + 로그아웃 (설정 파일보다 뒤, sync보다 앞) -->
+  <script src="/js/auth-guard.js"></script>
   <script src="/js/himec-supabase-sync.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HIMEC - 냉동기·냉온수기 성능 분석</title>
+<title>HIMEC - Chiller / Absorption Performance Analysis Tool</title>
+<link rel="icon" href="data:,">
+<link rel="shortcut icon" href="data:,">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-:root{
-  --orange:#e85d24; --teal:#159b8a; --label-bg:#a6a6a6;
-  --line:#d9d9d9; --line2:#e8e8e8; --blue:#2f6fb0; --red:#e06550;
-  --txt:#333; --muted:#888; --green:#27ae60;
-}
-html,body{ font-family:'Noto Sans KR','Malgun Gothic',sans-serif; background:#f5f5f5; color:var(--txt); height:100vh; width:100vw; overflow:hidden; font-size:10px; }
-body{ display:flex; flex-direction:column; }
-.page-container{ padding:0 100px; background:#fff; flex:1; display:flex; flex-direction:column; overflow:hidden; min-height:0; }
+  * { margin:0; padding:20; box-sizing:border-box; }
+  html, body {
+    font-family:'Noto Sans KR', sans-serif;
+    background:#f5f5f5; color:#333;
+    overflow:hidden; height:100vh; width:100vw;
+  }
+  body { display:flex; flex-direction:column; }
 
-.header{ background:#fff; padding:5px 20px; border-bottom:1px solid #ddd; flex-shrink:0; margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px; position:relative; }
-.header h1{ font-size:16px; font-weight:700; color:#222; }
-.header .sub{ font-size:10px; color:#888; margin-top:0; }
-.header h2{ font-size:12px; font-weight:600; color:#333; margin-top:2px; }
-.header-right{ position:absolute; bottom:8px; right:120px; display:flex; gap:7px; }
-.header-right button{ padding:7px 0; width:84px; border:none; border-radius:4px; font-size:10px; font-weight:600; cursor:pointer; }
-.btn-save,.btn-file{ background:var(--orange); color:#fff; } .btn-main{ background:#555; color:#fff; }
-.btn-save:hover,.btn-file:hover,.btn-main:hover{ opacity:.85; }
+  .page-container {
+    padding:0 100px; flex:1; display:flex; flex-direction:column;
+    overflow:hidden; min-height:0; background:#fff;
+  }
 
-.main-content{ flex:1; min-height:0; display:flex; flex-direction:column; padding:5px 0 10px; overflow:hidden; }
-.eq-tabs{ display:flex; align-items:center; gap:5px; margin-bottom:12px; flex-shrink:0; flex-wrap:wrap; }
-.eq-tab{ display:flex; align-items:center; gap:7px; background:#eef0f0; color:#666; border:1px solid #dfe2e2; padding:4px 9px; border-radius:5px; font-size:11.5px; font-weight:600; cursor:pointer; }
-.eq-tab.active{ background:var(--teal); color:#fff; border-color:var(--teal); }
-.eq-tab .x{ cursor:pointer; font-weight:700; opacity:.8; }
-.eq-add{ width:26px; height:26px; border:1px solid #dfe2e2; background:#eef0f0; border-radius:5px; font-size:15px; color:#666; cursor:pointer; }
+  /* Header */
+  .header {
+    background:#fff; padding:8px 20px; border-bottom:1px solid #ddd; flex-shrink:0;
+    margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px;
+  }
+  .header h1 { font-size:20px; font-weight:700; color:#222; }
+  .header .sub { font-size:11px; color:#888; margin-top:2px; }
+  .header h2 { font-size:15px; font-weight:600; color:#333; margin-top:4px; }
+  .header-right { position:absolute; bottom:8px; right:20px; display:flex; gap:8px; }
+  .header-right button {
+    padding:8px 0; width:90px; border:none; border-radius:4px;
+    font-size:10px; font-weight:600; cursor:pointer; text-align:center;
+  }
+  .btn-save, .btn-file { background:#e85d24; color:#fff; }
+  .btn-main { background:#555f; color:#fff; }
+  .btn-save:hover, .btn-file:hover, .btn-main:hover { opacity:.85; }
 
-.grid3{ flex:1; min-height:0; display:grid; grid-template-columns:1fr 1.5fr 1fr; gap:15px; align-items:start; }
-.col{ min-height:0; overflow:hidden; padding-right:2px; }
-.col::-webkit-scrollbar{ width:6px; } .col::-webkit-scrollbar-thumb{ background:#d8d8d8; border-radius:3px; }
-.sec{ font-size:11px; font-weight:700; color:#222; margin:0 0 5px; flex-shrink:0; }
-.sec::before{ content:"■ "; }
-.sec.mt{ margin-top:6px; flex-shrink:0; }
+  /* Tabs */
+  .tab-bar { display:flex; padding:4px 20px 0; background:#fff; gap:4px; flex-shrink:0; }
+  .tab {
+    padding:5px 20px; border-radius:6px 6px 0 0; font-size:12px; font-weight:600;
+    cursor:pointer; border:none; background:#bbb; color:#fff; position:relative;
+    padding-right:28px !important;
+  }
+  .tab.active { background:#00838f; color:#fff; }
+  .tab.add { background:#999; color:#fff; font-size:14px; padding:5px 16px; padding-right:16px !important; }
+  .tab .tab-close {
+    position:absolute; right:6px; top:50%; transform:translateY(-50%);
+    width:16px; height:16px; border-radius:50%; border:none; background:transparent;
+    color:rgba(255,255,255,.7); font-size:13px; line-height:16px; text-align:center; cursor:pointer; padding:0;
+  }
+  .tab .tab-close:hover { background:rgba(255,0,0,.6); color:#fff; }
 
-.ov-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 8px; }
-.lbl-bar{ background:var(--label-bg); color:#fff; text-align:center; font-size:10px; font-weight:600; padding:2px 3px; border-radius:4px; }
-.ov-field{ display:flex; flex-direction:column; gap:2px; }
-.ov-field input,.ov-field select{ width:100%; border:none; border-bottom:1px solid var(--line); text-align:center; font-size:10.5px; padding:2px 2px; background:transparent; outline:none; }
-.ov-field select{ cursor:pointer; }
-.ov-field input:focus,.ov-field select:focus{ border-bottom-color:var(--orange); }
+  /* Main 3-column */
+  .main {
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:0;
+    padding:0 0 30px 0; flex:1; min-height:0; overflow:hidden;
+  }
+  .panel {
+    background:#fff; padding:10px 12px; display:flex; flex-direction:column;
+    overflow:hidden; min-height:0;
+  }
+  .panel + .panel { border-left:1px solid #eee; }
+  /* 좌측 패널 오토사이즈(하단 클리핑) 제거: 내용 높이 기준, 넘치면 스크롤 */
+  #left-panel{ overflow-y:auto; overflow-x:hidden; justify-content:flex-start; }
 
-.row2{ display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:8px; align-items:end; }
-.kind-toggle{ display:flex; border:1px solid var(--line); border-radius:5px; overflow:hidden; }
-.kind-toggle button{ flex:1; border:none; background:#f3f3f3; padding:5px 0; font-size:11px; font-weight:600; color:#777; cursor:pointer; }
-.kind-toggle button.on{ background:var(--teal); color:#fff; }
-.plr-select{ position:relative; }
-.plr-select select{ width:100%; border:1px solid var(--line); border-radius:5px; text-align:center; font-size:11.5px; font-weight:600; padding:6px 18px 6px 6px; background:#fafafa; cursor:pointer; outline:none; appearance:none; }
-.plr-select::after{ content:"▼"; position:absolute; right:7px; top:8px; font-size:9px; color:#999; pointer-events:none; }
-.fuel-field{ margin-top:8px; display:flex; align-items:center; gap:8px; }
-.fuel-field .lbl{ flex:1; background:var(--label-bg); color:#fff; text-align:center; font-size:11px; font-weight:600; padding:4px 4px; border-radius:4px; min-width:0; }
-.fuel-field input{ flex:1; min-width:0; border:1px solid var(--line); border-radius:4px; text-align:center; font-size:12px; padding:4px 2px; color:#1a4f8b; font-weight:700; outline:none; }
-.fuel-field input:focus{ border-color:var(--orange); }
+  .section-title { font-size:12px; font-weight:700; margin-bottom:4px; color:#222; flex-shrink:0; }
+  .section-title.mt { margin-top:6px; }
+  #sec-donut .section-title.mt { margin-top:4px; }  /* 전열 회수량 카드 -> 회수 열량 분포 제목 간격 */
 
-.plr-panel{ border:1px solid var(--line2); border-radius:6px; padding:5px 6px; margin-top:8px; background:#fbfbfb; font-size:10px; flex-shrink:0; }
-.plr-panel h4{ font-size:11px; margin-bottom:4px; color:#444; }
-.plr-panel table{ width:100%; border-collapse:collapse; font-size:10.5px; }
-.plr-panel th,.plr-panel td{ border:1px solid #ddd; padding:2px 3px; text-align:center; }
-.plr-panel th{ background:#eef0f0; }
-.plr-panel input{ width:100%; border:1px solid #e2e2e2; border-radius:3px; text-align:center; font-size:11px; padding:3px 2px; outline:none; color:#1a4f8b; font-weight:600; background:#fff; }
-.plr-panel tbody tr:nth-child(even){ background:#f7f7f7; }
-.plr-panel tbody td{ border:1px solid #ddd; padding:2px 3px; text-align:center; }
-.plr-panel input:focus{ border-color:var(--orange); }
-.plr-rated{ display:flex; align-items:center; gap:8px; }
-.plr-rated .lbl{ background:var(--label-bg); color:#fff; padding:5px 10px; border-radius:4px; font-weight:600; }
-.plr-rated input{ width:90px; }
-.plr-note{ font-size:9.8px; color:#999; margin-top:3px; line-height:1.35; }
+  .chk-label { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600;
+    color:#444; margin:6px 0 3px; flex-shrink:0; }
+  .chk-label .box { width:11px; height:11px; border:1.5px solid #00838f; border-radius:2px;
+    display:inline-block; position:relative; flex:none; }
+  .chk-label input { display:none; }
+  .chk-label .box.on::after { content:""; position:absolute; left:2px; top:-1px; width:4px; height:8px;
+    border:solid #00838f; border-width:0 2px 2px 0; transform:rotate(45deg); }
+  .chk-label .src { font-size:9px; font-weight:600; color:#888; margin-left:4px; }
+  .chk-label .tag1 { font-size:9px; font-weight:700; color:#d64545; background:#fdf3f3; border:1px solid #f3c9c9; padding:0 5px; border-radius:3px; margin-left:4px; }
+  .chk-label .tag2 { font-size:9px; font-weight:700; color:#00838f; background:#e0f7fa; border:1px solid #b8e3e8; padding:0 5px; border-radius:3px; margin-left:4px; }
 
-.dt-wrap{ flex:1; min-height:0; overflow:hidden; margin-top:0; }
-.dt{ width:100%; border-collapse:collapse; font-size:10px; margin-top:0; table-layout:fixed; }
-.dt th,.dt td{ border:1px solid #cfcfcf; padding:3px 3px; text-align:center; word-break:break-word; }
-.dt thead th{ background:var(--label-bg); color:#fff; font-weight:600; }
-.dt td.grp{ background:#f3f3f3; font-weight:600; }
-.dt td.name{ text-align:left; padding-left:5px; }
-.dt td.calc{ background:#fbf6f0; font-weight:700; color:#444; }
-.dt input{ width:100%; border:none; text-align:center; font-size:10px; padding:0; background:transparent; outline:none; color:#1a4f8b; font-weight:600; }
-.dt input:focus{ background:#fff7ee; }
+  /* info-table */
+  .info-table {
+    width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed;
+    margin-bottom:6px; font-size:10px; flex-shrink:0;
+  }
+  .info-table th, .info-table td {
+    border:1px solid #fff; padding:5.1px 5px; border-bottom:1.5px solid #ccc; text-align:center;
+  }
+  .info-table th { background:rgba(108,122,137,0.2); color:#3A4A57; font-weight:600; font-size:11px; }
+  .info-table tr:first-child th:first-child { border-top-left-radius:8px; }
+  .info-table tr:first-child th:last-child { border-top-right-radius:8px; }
+  .info-table td { background:#fff; }
+  .info-table input, .info-table select {
+    width:100%; border:none; text-align:center; font-size:12px; background:transparent;
+    outline:none; padding:4px 2px; font-family:inherit; color:#333;
+  }
+  .info-table select { text-align:left; cursor:pointer; }
+  .value-unit { display:inline-flex; align-items:center; justify-content:center; gap:3px; }
+  .value-unit input { width:auto; min-width:30px; max-width:62px; text-align:center; padding-right:0; }
+  .value-unit .unit { font-size:11px; color:#888; white-space:nowrap; }
+  .info-table .highlight-cell { background:#e0f7fa; color:#00838f; font-weight:700; }
+  #left-panel .info-table th:first-child, #left-panel .info-table td:first-child { border-left-color:transparent; }
+  #left-panel .info-table th:last-child, #left-panel .info-table td:last-child { border-right-color:transparent; }
+  .note-s { font-size:9px; color:#888; margin:2px 0 4px; text-align:right; flex-shrink:0; }
 
-.cards{ display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px; flex:1; align-items:stretch; }
-.card{ border:1px solid var(--line2); border-radius:6px; padding:10px 12px; box-shadow:0 1px 2px rgba(0,0,0,.03); display:flex; flex-direction:column; justify-content:space-between; }
-.card .t{ font-size:11px; color:#777; }
-.card .v{ font-size:20px; font-weight:700; color:#222; margin-top:4px; }
-.card .v small{ font-size:10px; font-weight:600; color:#999; margin-left:2px; }
-.card .s{ font-size:10px; color:#999; margin-top:4px; }
-.up{ color:var(--green); } .down{ color:var(--red); }
+  /* calc-table */
+  .calc-table { width:100%; border-collapse:separate; border-spacing:0; font-size:10.5px; margin-bottom:8px; }
+  /* ===== 이미지 화살표 두 곳 간격 30px ===== */
+  #center-panel .calc-table { margin-bottom:0; }
+  #center-panel .chk-label { margin-top:6; }
+  #center-panel #sec-air { margin-bottom:30px; }            /* 화살표1: 교환효율 분석 앞 (30->33, +10%) */
+  #center-panel #sec-eff .calc-table + .tbl-cap { margin-top:30px; } /* 화살표2: 회수 열량 앞 */
+  .calc-table th, .calc-table td { padding:11px 8px; border-bottom:1px solid #e2e2e2; text-align:center; vertical-align:middle; }
+  .calc-table th { background:#e8e8e8; color:#555; font-weight:600; font-size:10.5px; }
+  .calc-table tr:first-child th:first-child { border-top-left-radius:6px; }
+  .calc-table tr:first-child th:last-child { border-top-right-radius:6px; }
+  .calc-table td.fx { color:#777; font-size:9.5px; }
+  .calc-table td.num { text-align:center; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+  .calc-table tr.sub td { background:#ececec; font-weight:800; border-top:1.5px solid #c9c9c9; }
+  .calc-table tr.out td { background:#f2f2f2; font-weight:700; }
+  .calc-table tr.eff td { background:#e2e2e2; font-weight:800; border-top:1.5px solid #c9c9c9; }
+  .tbl-cap { font-size:10.5px; font-weight:700; color:#333; margin:6px 0 4px; display:flex; align-items:center; gap:6px; }
+  .tbl-cap .src { font-size:9px; font-weight:400; color:#808080; background:transparent; border:none; padding:1px 6px; border-radius:4px; }
 
-.temp-cols{ display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; flex-shrink:0; }
-.tcol h4{ font-size:10px; color:#666; font-weight:600; margin-bottom:8px; }
-.tline{ display:grid; grid-template-columns:28px 1fr 44px; align-items:center; gap:4px; margin-bottom:8px; font-size:10px; }
-.tline .tl{ color:#777; } .tline .tv{ text-align:right; font-weight:700; }
-.track{ height:6px; background:#eee; border-radius:4px; overflow:hidden; }
-.fill-chw{ background:linear-gradient(90deg,#7fb3e6,#2f6fb0); height:100%; }
-.fill-cw{ background:linear-gradient(90deg,#87ceeb,#38bdf8); height:100%; }
-.dtl{ font-size:10.5px; color:#888; }
-.val-b{ color:var(--blue); } .val-r{ color:var(--red); }
-.press{ margin-top:0; }
-.kv{ display:flex; justify-content:space-between; font-size:10.5px; margin-bottom:6px; }
-.kv .k{ color:#777; }
+  .residual { font-size:8px; color:#555; background:#f2f2f2; border:0.5px solid #ddd;
+    border-radius:6px; padding:8px 10px; margin-top:8px; flex-shrink:0; line-height:1.45; }
 
-.ops-wrap{ flex:1; display:flex; flex-direction:column; min-height:0; padding-bottom:0; }
-.chart-section{ flex:2; display:flex; flex-direction:column; min-height:0; margin-top:40px;}
-.chart-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; flex-shrink:0; }
-.ctoggle{ display:flex; gap:4px; }
-.ctoggle button{ border:1px solid var(--line); background:#fff; padding:5px 8px; border-radius:5px; font-size:10.5px; font-weight:600; color:#555; cursor:pointer; }
-.ctoggle button.on{ border-color:var(--orange); color:var(--orange); box-shadow:0 0 0 1px var(--orange) inset; }
-.legend{ display:flex; gap:14px; font-size:10.5px; color:#666; margin-bottom:2px; flex-shrink:0; }
-.legend span{ display:inline-flex; align-items:center; gap:4px; }
-.lg-dash{ width:16px; height:0; border-top:3px solid var(--blue); }
-.lg-dot{ width:10px; height:10px; border-radius:50%; background:var(--red); }
-.chart-wrap{ flex:1; min-height:120px; position:relative; }
-#chartCanvas{ width:100%; height:100%; display:block; }
-.eqbox{ background:#f7faf9; border:1px solid #d9e7e4; border-radius:6px; padding:6px 10px; margin-top:5px; font-size:10px; flex-shrink:0; }
-.eqbox .f{ font-family:'Consolas','Courier New',monospace; color:#1a6b60; font-weight:700; word-break:break-all; }
-.eqbox .now{ margin-top:3px; color:#555; } .eqbox .now b{ color:var(--orange); }
+  /* metric cards */
+  .metrics-area { display:flex; flex-direction:column; gap:10px; flex-shrink:0; }
+  .metric-card {
+    background:transparent; border:none; border-bottom:1.5px solid #ccc; border-radius:5px;
+    padding:5.5px 1px 2px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;
+  }
+  .metric-card .ml { flex:1; }
+  .metric-label { font-size:11px; color:#00838f; line-height:1.2; font-weight:bold; }
+  .metric-sub { font-size:8.5px; color:#999; font-weight:500; margin-top:2px; }
+  .metric-value { font-size:26px; font-weight:700; color:#ff8c00; min-width:45px; text-align:right; }
+  .metric-unit { font-size:12px; color:#888; margin-left:2px; vertical-align:super; }
 
-.an-card{ border:1px solid var(--line2); border-radius:8px; padding:8px 10px; flex-shrink:0; }
-.an-tab{ display:inline-block; background:var(--teal); color:#fff; font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:4px; margin-right:6px; }
-.an-head{ display:flex; align-items:center; margin-bottom:6px; font-size:11px; color:#555; }
-.bars{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.bc{ text-align:center; }
-.bc h5{ font-size:11px; color:#444; font-weight:600; margin-bottom:6px; }
-.bplot{ height:200px; display:flex; align-items:flex-end; justify-content:center; gap:16px; border-bottom:1px solid var(--line); }
-.bbar{ width:32px; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; }
-.bbar .bv{ font-size:9.5px; font-weight:700; margin-bottom:2px; color:#444; }
-.bbar .f{ width:100%; border-radius:3px 3px 0 0; }
-.fd{ background:#9fb4c9; } .fm{ background:var(--orange); }
-.bx{ display:flex; justify-content:center; gap:16px; margin-top:3px; }
-.bx span{ width:32px; text-align:center; font-size:9.5px; color:#888; }
-.bj{ margin-top:3px; font-size:11px; font-weight:700; }
+  /* donut */
+  .donut-box { display:flex; justify-content:center; align-items:center; padding:0 20px; flex:1; min-height:0; }
+  .donut-box svg { width:100%; height:auto; max-width:440px; max-height:clamp(150px, 38vh, 240px); }
+  .legend { display:flex; flex-direction:column; gap:5px; flex:1; }
+  .legend .li { display:flex; align-items:center; gap:8px; font-size:11px; color:#444; }
+  .legend .sw { width:12px; height:12px; border-radius:3px; flex:none; }
+  .legend .lv { margin-left:auto; font-weight:500; font-variant-numeric:tabular-nums; }
 
-.res-card{ border:1px solid var(--line2); border-radius:8px; padding:8px 10px; margin-top:6px; display:flex; flex-direction:column; flex:1; min-height:0; }
-.res-card textarea{ width:100%; flex:1; min-height:40px; border:1px solid var(--line); border-radius:6px; padding:7px; font-size:11px; resize:none; font-family:inherit; outline:none; }
-.res-card textarea:focus{ border-color:var(--orange); }
-.grade-row{ display:flex; gap:16px; margin-top:6px; padding-top:6px; border-top:1px solid var(--line2); }
-.grade-row label{ display:flex; align-items:center; gap:5px; font-size:11.5px; color:#555; cursor:pointer; }
+  /* diagnosis */
+  .diag { display:flex; flex-direction:column; gap:5px; }
+  .diag .d { display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:6px 10px; border-radius:5px; border:none; border-left:3px solid #ccc;
+    background:#fafafa; line-height:1.35; }
+  .diag .d .dhead { font-size:11.5px; font-weight:700; color:#333; white-space:nowrap; flex:none; }
+  .diag .d .dhead .dstat { font-weight:800; margin-left:2px; }
+  .diag .d .dbody { text-align:right; font-size:10px; color:#555; min-width:0; }
+  .diag .d .dsrc { display:block; font-size:8.5px; color:#999; font-weight:600; margin-top:1px;
+    cursor:pointer; }
 
-.footer{ flex-shrink:0; background:#f8fafc; padding:3px 26px; text-align:center; }
-.footer .in{ font-size:9.5px; color:#c4c4c4; }
-@media (max-width:1200px){ .grid3{ grid-template-columns:1fr 1fr; } }
-@media (max-width:820px){ .grid3{ grid-template-columns:1fr; } html,body{ overflow:auto; } }
+  /* 설계 총괄계수 : 표준값 기본 + 수정 시 색상 변경 */
+  .urow { display:flex; align-items:center; justify-content:center; gap:4px; flex-wrap:nowrap; }
+  .ustd-sel { flex:1 1 auto; min-width:0; max-width:130px; font-size:10px; padding:1px 2px;
+    border:1px solid #cfd6dc; border-radius:3px; background:#fff; color:#333;
+    white-space:nowrap; text-overflow:ellipsis; }
+  .urow .value-unit { flex:0 0 auto; }
+  #uDesign.ustd-input { color:#00838f; font-weight:700; }      /* 표준값 상태 */
+  #uDesign.ustd-input.edited { color:#d23f3f; font-weight:700; } /* 사용자 수정값 */
+  .ustd-src { display:inline; font-size:9px; color:#1268c3; font-weight:600;
+    cursor:pointer; white-space:nowrap; }
+  .ustd-src:hover { color:#0b4e96; }
+  .uedit-mark { color:#d23f3f; font-size:9px; font-weight:700; white-space:nowrap; }
+
+  /* 출처 기준 요약 팝업 */
+  .src-modal-mask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.42);
+    z-index:9999; align-items:center; justify-content:center; }
+  .src-modal-mask.on { display:flex; }
+  .src-modal { background:#fff; width:380px; max-width:92vw; max-height:82vh; overflow:auto;
+    border-radius:8px; box-shadow:0 10px 36px rgba(0,0,0,.25); }
+  .src-modal .sm-head { display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px; border-bottom:1px solid #eee; background:#00838f; border-radius:8px 8px 0 0; }
+  .src-modal .sm-head h3 { font-size:14px; font-weight:700; color:#fff; }
+  .src-modal .sm-head .sm-close { border:none; background:transparent; color:#fff; font-size:20px;
+    line-height:1; cursor:pointer; padding:0 2px; }
+  .src-modal .sm-body { padding:14px 16px; }
+  .src-modal .sm-std { font-size:11px; font-weight:700; color:#00838f; margin-bottom:8px; }
+  .src-modal .sm-desc { font-size:11px; color:#555; line-height:1.5; margin-bottom:10px; }
+  .src-modal table { width:100%; border-collapse:collapse; font-size:11px; }
+  .src-modal th, .src-modal td { border:1px solid #e3e3e3; padding:5px 8px; text-align:left; }
+  .src-modal th { background:#f4f4f4; font-weight:700; color:#333; }
+  .src-modal td.rng { white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .src-modal .lv-ok { color:#00838f; font-weight:700; }
+  .src-modal .lv-warn { color:#FFDC9F; font-weight:700; }
+  .src-modal .lv-bad { color:#ED7458; font-weight:700; }
+  .src-modal tr.cur td { background:#fff8e1; }
+  .d.ok { background:transparent; border-left-color:#00838f; } .d.ok .dstat { color:#00838f; }
+  .d.warn { background:transparent; border-left-color:#FFDC9F; } .d.warn .dstat { color:#FFDC9F; }
+  .d.bad { background:transparent; border-left-color:#ED7458; } .d.bad .dstat { color:#ED7458; }
+
+  /* refs card */
+  .refs-card { border:none; border-radius:0; background:transparent; padding:0 2px;
+    flex:0 0 auto; min-height:0; overflow:hidden; margin-top:6px; text-align:right; }
+  .refs-card h3 { font-size:10px; font-weight:700; color:#333; margin-bottom:2px; }
+  .refs-sub { font-size:8px; font-weight:400; color:#999; text-transform:uppercase; letter-spacing:.3px;
+    margin:6px 0 0; padding-bottom:0; border-bottom:none; }
+  .refs-clickable { cursor:pointer; transition:background .12s; }
+  .refs-clickable:hover { background:transparent; }
+  .refs-clickable:hover h3 { color:#333; }
+  .refs-more { font-size:8px; font-weight:700; color:#999; margin-left:4px; }
+  .std-list { list-style:none; font-size:8px; font-weight:400; color:#888; }
+  .std-list li { padding:4px 0; border-bottom:1px dashed #e2e2e2; line-height:1.45; font-weight:400; }
+  .std-list li b { color:#555; font-weight:400; }
+
+  .calc-card { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; }
+  .right-scroll { flex:none; overflow:visible; }
+
+  /* Copyright */
+  .copyright {
+    background:#fff; border-top:1px solid #ddd; padding:6px 20px;
+    margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px;
+    text-align:center; font-size:10px; color:#888; flex-shrink:0;
+  }
+
+  @media (max-width:1600px) {
+    .page-container { padding:0 60px; }
+    .header { margin-left:-60px; margin-right:-60px; padding-left:80px; padding-right:80px; }
+    .copyright { padding:6px 80px; margin-left:-60px; margin-right:-60px; }
+  }
+  @media (max-width:1300px) {
+    .page-container { padding:0 30px; }
+    .header { margin-left:-30px; margin-right:-30px; padding-left:50px; padding-right:50px; }
+    .copyright { padding:6px 50px; margin-left:-30px; margin-right:-30px; }
+  }
+  @media (max-width:1100px) {
+    .page-container { padding:0 15px; overflow:auto; }
+    .header { margin-left:-15px; margin-right:-15px; padding-left:35px; padding-right:35px; }
+    .copyright { padding:6px 35px; margin-left:-15px; margin-right:-15px; }
+    .main { grid-template-columns:1fr 1fr; overflow:visible; }
+    .panel { overflow:visible; }
+    .calc-card, .right-scroll, .refs-card { overflow:visible; }
+  }
+  @media (max-width:700px) {
+    .main { grid-template-columns:1fr; }
+  }
+  .info-table input::placeholder { color:#aaa; font-style:italic; font-size:10px; }
+
+  /* === ERV 추가 스타일 === */
+  .chk-label .tagOA { font-size:9px; font-weight:700; color:#1769aa; background:#e8f1fb; border:1px solid #bcd6ef; padding:0 5px; border-radius:3px; margin-left:4px; }
+  .chk-label .tagRA { font-size:9px; font-weight:700; color:#c2691c; background:#fdf3e8; border:1px solid #f1d4b0; padding:0 5px; border-radius:3px; margin-left:4px; }
+  #effStdSrc { display:inline; font-size:9px; color:#808080; font-weight:600; cursor:pointer; white-space:nowrap; }
+  #effStdSrc:hover { color:#0b4e96; }
+  #esDesign.ustd-input { color:#00838f; font-weight:700; }
+  #esDesign.ustd-input.edited { color:#d23f3f; font-weight:700; }
+
 </style>
+<style id="himec-iconbtn-style">
+/* === HIMEC 아이콘 버튼 (첨부 이미지 스타일) === */
+.header-right{ gap:6px !important; }
+.header-right button{
+  width:34px !important; height:34px !important; padding:0 !important;
+  background:#ffffff !important; color:#555 !important;
+  border:1px solid #d0d0d0 !important; border-radius:8px !important;
+  display:inline-flex !important; align-items:center; justify-content:center;
+  box-sizing:border-box;
+}
+.header-right button:hover{ background:#f5f5f5 !important; border-color:#bbb !important; }
+.header-right button svg{ width:18px; height:18px; display:block; stroke:#555; }
+.header-right button.btn-save:hover svg{ stroke:#e85d24; }
+.header-right button.btn-file:hover svg{ stroke:#e85d24; }
+/* 내보내기 드롭다운 메뉴 */
+.himec-menu{ position:absolute; z-index:99999; background:#fff; border:1px solid #ccc;
+  border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.15); padding:4px; min-width:178px; }
+.himec-menu button{ display:flex !important; align-items:center; gap:8px; width:100% !important;
+  height:auto !important; background:none !important; border:none !important; color:#222 !important;
+  padding:9px 12px !important; font-size:13px; text-align:left; cursor:pointer; border-radius:6px !important; }
+.himec-menu button:hover{ background:#f1f1f1 !important; }
+.himec-menu button svg{ width:16px; height:16px; stroke:#555; flex:0 0 auto; }
+@media print{ .header-right{ display:none !important; } .himec-menu{ display:none !important; } }
+</style>
+
+<style id="himec-unify-portrait">
+
+/* ===== [TABLE UNIFY → Tool-09 .info-table 규격] .calc-table
+   헤더색/테두리/라운드/폰트만 통일. 숫자정렬·의미색(빨강·파랑·합계행 등)은 보존 ===== */
+.calc-table { border-collapse:separate !important; border-spacing:0 !important; }
+.calc-table th, .calc-table td { border:1px solid #ffffff !important; border-bottom:1.5px solid #ccc !important; padding:5.94px 5px !important; text-align:center !important; }
+.calc-table th { background:#e8e8e8 !important; color:#555 !important; font-weight:600 !important; font-size:11px !important; }
+.calc-table tr:first-child th:first-child { border-top-left-radius:8px !important; }
+.calc-table tr:first-child th:last-child { border-top-right-radius:8px !important; }
+.calc-table input { font-size:12px !important; }
+.calc-table select { font-size:11px !important; }
+/* ===== [TABLE UNIFY] end ===== */
+
+/* ===== [PORTRAIT FIX] 세로형(portrait)일 때 단 단일컬럼 + 좌→중→우(DOM순서) 스택 =====
+   - landscape(가로) 디자인은 일절 변경하지 않음 (orientation 쿼리 내부에서만 적용) */
+@media (orientation: portrait){
+  html, body{ height:auto !important; min-height:100vh !important; overflow:visible !important; width:auto !important; }
+  body .page-container{ height:auto !important; overflow:visible !important; }
+  body .main{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    grid-template-rows:auto !important;
+    grid-auto-flow:row !important;
+    align-items:start !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+  body .main > .panel{
+    width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    overflow:visible !important;
+  }
+  /* 차트/그래프가 height:100% 부모 붕괴로 사라지지 않도록 최소 높이 확보 */
+  body .main canvas, body .main svg{ height:auto !important; min-height:240px !important; }
+  body .main .chart-wrapper, body .main .chart-canvas-container, body .main .bar-chart-container,
+  body .main .donut-container, body .main .hbar-chart, body .main .chart-area, body .main .graph-box{
+    height:auto !important; min-height:240px !important;
+  }
+  body .main, body .main *{ overflow-wrap:anywhere; word-break:keep-all; }
+}
+/* ===== [PORTRAIT FIX] end ===== */
+
+</style>
+
+<style id="chiller-extra-style">
+  /* ===== Chiller 전용 (Tool-12 톤 유지) ===== */
+  .cdt{ width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; margin-bottom:6px; font-size:10px; flex-shrink:0; }
+  .cdt th, .cdt td{ border:1px solid #fff; padding:3.75px 4px; border-bottom:1.5px solid #ccc; text-align:center; }
+  .cdt th{ background:rgba(108,122,137,0.2); color:#3A4A57; font-weight:600; font-size:10.5px; }
+  .cdt tr:first-child th:first-child{ border-top-left-radius:8px; }
+  .cdt tr:first-child th:last-child{ border-top-right-radius:8px; }
+  .cdt td{ background:#fff; }
+  .cdt td.grp{ background:#f3f5f6; color:#3A4A57; font-weight:700; width:34px; }
+  .cdt td.nm{ text-align:left; padding-left:6px; color:#444; }
+  .cdt td.calc{ background:#e0f7fa; color:#00838f; font-weight:700; }
+  .cdt input{ width:100%; border:none; text-align:center; font-size:11px; background:transparent; outline:none; padding:2px 1px; font-family:inherit; color:#1a4f8b; font-weight:600; }
+  .cdt input:focus{ background:#fff7ee; }
+  #left-panel .cdt th:first-child, #left-panel .cdt td:first-child{ border-left-color:transparent; }
+  #left-panel .cdt th:last-child, #left-panel .cdt td:last-child{ border-right-color:transparent; }
+
+  /* 차트 */
+  .curve-head{ display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #d8dde1; padding-bottom:5px; }
+  .curve-head .tbl-cap{ margin:0; }
+  .chart-legend{ display:flex; justify-content:flex-end; gap:12px; font-size:9.5px; color:#666; margin-bottom:2px; flex-shrink:0; }
+  .chart-legend span{ display:inline-flex; align-items:center; gap:4px; }
+  .lg-dash{ width:15px; height:0; border-top:1.5px dashed #ED7458; }
+  .lg-dot{ width:9px; height:9px; border-radius:50%; background:#00838f; }
+  .chart-wrap{ flex:1; min-height:150px; position:relative; background:#fafafa; }
+  #chartCanvas{ width:100%; height:100%; display:block; }
+  .eqbox{ position:absolute; left:50%; top:30%; transform:translateX(-50%); text-align:center; background:none; border:0; padding:0; font-size:9.5px; line-height:1.45; pointer-events:none; white-space:nowrap; }
+  .eqbox .f{ font-family:'Consolas','Courier New',monospace; color:#888; font-weight:700; word-break:break-all; }
+  .eqbox .now{ margin-top:1px; color:#555; } .eqbox .now b{ color:#ff8c00; }
+
+  /* 모드 출처/직접입력 모달 테이블 */
+  .src-modal td.ed input{ width:70px; border:1px solid #cfd6dc; border-radius:3px; text-align:center; font-size:11px; padding:3px 2px; color:#1a4f8b; font-weight:600; outline:none; }
+  .src-modal td.ed input:focus{ border-color:#e85d24; }
+  .src-modal .mdel{ cursor:pointer; color:#d23f3f; font-weight:700; }
+  .src-modal .madd{ display:inline-block; margin-top:8px; cursor:pointer; color:#00838f; font-weight:700; font-size:11px; }
+  .src-modal .mnote{ font-size:10px; color:#999; line-height:1.5; margin-top:8px; }
+  .plr-modechip{ display:inline-block; font-size:9px; font-weight:700; color:#00838f; background:#e0f7fa; border:1px solid #b8e3e8; padding:0 5px; border-radius:3px; margin-left:4px; }
+
+  /* 형식 자동/수동 표시 */
+  #plrSrc.ustd-src{ color:#1268c3; }
+  .seg-pill{ font-size:8.5px; font-weight:700; padding:0 5px; border-radius:3px; margin-left:4px; }
+  .seg-auto{ color:#00838f; background:#e0f7fa; border:1px solid #b8e3e8; }
+  .seg-user{ color:#d64545; background:#fdf3f3; border:1px solid #f3c9c9; }
+</style>
+
 </head>
 <body>
 <div class="page-container">
-  <div class="header">
-    <h1>HIMEC − Mechanical Facility Aging Diagnosis System</h1>
-    <div class="sub">(주)하이멕 − 기계설비 노후화 진단</div>
-    <h2><span id="projectLabel" style="font-size:13.5px;color:#333;font-weight:600;"></span>냉동기 · 냉온수기 성능 분석 (Chiller Performance Analysis Tool)</h2>
-    <div class="header-right">
-      <button class="btn-save" id="btnSave" onclick="saveData()">Save</button>
-      <button class="btn-file" onclick="exportFile()">File Trans</button>
-      <button class="btn-main" onclick="goMain()">Main</button>
-    </div>
-  </div>
-
-  <div class="main-content">
-    <div class="eq-tabs" id="eqTabs"></div>
-    <div class="grid3">
-      <!-- ===== 좌 : 입력 ===== -->
-      <div class="col" style="display:flex;flex-direction:column;">
-        <div class="sec">장비 개요</div>
-        <div class="ov-grid">
-          <div class="ov-field"><div class="lbl-bar">장비명</div><input id="f_name" oninput="onField('name',this.value)"></div>
-          <div class="ov-field"><div class="lbl-bar">용도</div><input id="f_use" oninput="onField('use',this.value)"></div>
-          <div class="ov-field"><div class="lbl-bar">제조사</div><select id="f_maker" onchange="onField('maker',this.value)"></select></div>
-          <div class="ov-field"><div class="lbl-bar">Type</div><select id="f_type" onchange="onField('type',this.value)"></select></div>
-        </div>
-        <div class="fuel-field" id="fuelField">
-          <div class="lbl">연료발열량 [kcal/N㎥]</div>
-          <input id="f_gas" type="number" oninput="onRoot('gasKcal',this.value)">
-        </div>
-		<div class="row2">
-          <div class="kind-toggle">
-            <button id="kind_chiller" onclick="onKind('냉동기')">냉동기</button>
-            <button id="kind_abs" onclick="onKind('냉온수기')">냉온수기</button>
-          </div>
-          <div class="plr-select">
-            <select id="f_plrmode" onchange="onField('plrMode',this.value)">
-              <option value="rated">정격 COP 분석</option>
-              <option value="general">일반 부분부하 데이터</option>
-              <option value="manual">데이터 직접 입력</option>
-            </select>
-          </div>
-        </div>
-		<div class="plr-panel" id="plrPanel"></div>
-
-        <div class="sec mt">설계 및 운전Data</div>
-        <div class="dt-wrap"><table class="dt"><thead><tr><th colspan="2">구분</th><th>설계</th><th>운전</th><th>비고</th></tr></thead>
-          <tbody id="dataBody"></tbody></table></div>
-      </div>
-
-      <!-- ===== 중 : 운전현황 + 성능곡선 ===== -->
-      <div class="col" id="col_mid" style="display:flex;flex-direction:column;height:750px">
-
-        <!-- 운전 현황 (1/3) -->
-        <div class="ops-wrap">
-          <div class="sec">운전 현황</div>
-          <div class="cards" id="cards"></div>
-          <div class="temp-cols" style="margin-top:10px;">
-            <div class="tcol"><h4>냉수 (CHW)</h4>
-              <div class="tline"><span class="tl">공급</span><div class="track"><div class="fill-chw" id="bar_chw_s"></div></div><span class="tv val-b" id="v_chw_s"></span></div>
-              <div class="tline"><span class="tl">환수</span><div class="track"><div class="fill-chw" id="bar_chw_r"></div></div><span class="tv val-b" id="v_chw_r"></span></div>
-              <div class="dtl" id="dt_chw"></div>
-              <div class="dtl" style="font-size:9px;color:#bbb;margin-top:2px;">기준: 0~20℃</div></div>
-            <div class="tcol" id="tcol_hw"><h4>온수 (HW)</h4>
-              <div class="tline"><span class="tl">공급</span><div class="track"><div style="background:linear-gradient(90deg,#f7c59f,#e87820);height:100%;" id="bar_hw_s"></div></div><span class="tv" style="color:#e87820;font-weight:700;" id="v_hw_s"></span></div>
-              <div class="tline"><span class="tl">환수</span><div class="track"><div style="background:linear-gradient(90deg,#f7c59f,#e87820);height:100%;" id="bar_hw_r"></div></div><span class="tv" style="color:#e87820;font-weight:700;" id="v_hw_r"></span></div>
-              <div class="dtl" id="dt_hw"></div>
-              <div class="dtl" style="font-size:9px;color:#bbb;margin-top:2px;">기준: 40~80℃</div></div>
-            <div class="tcol"><h4>냉각수 (CW)</h4>
-              <div class="tline"><span class="tl">입구</span><div class="track"><div class="fill-cw" id="bar_cw_s"></div></div><span class="tv val-r" id="v_cw_s"></span></div>
-              <div class="tline"><span class="tl">출구</span><div class="track"><div class="fill-cw" id="bar_cw_r"></div></div><span class="tv val-r" id="v_cw_r"></span></div>
-              <div class="dtl" id="dt_cw"></div>
-              <div class="dtl" style="font-size:9px;color:#bbb;margin-top:2px;">기준: 20~42℃</div></div>
-            <div class="tcol"><h4>압력 (bar)</h4>
-              <div class="kv"><span class="k">증발</span><span class="val-b" id="v_evap" style="font-weight:700;"></span></div>
-              <div class="kv"><span class="k">응축</span><span class="val-r" id="v_cond" style="font-weight:700;"></span></div>
-              <div class="kv"><span class="k">압력비</span><span id="v_pratio" style="font-weight:700;color:#333;"></span></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 성능 곡선 (2/3) -->
-        <div class="chart-section">
-          <div class="chart-head" style="margin-top:0;">
-            <span class="sec" style="margin:0;">성능 곡선</span>
-            <div class="ctoggle">
-              <button id="cv_cop" class="on" onclick="setChart('cop')">COP 곡선</button>
-              <button id="cv_plr" onclick="setChart('plr')">부분부하 특성</button>
-              <button id="cv_cw" onclick="setChart('cw')">냉각수 온도</button>
-            </div>
-          </div>
-          <div class="legend" id="chartLegend"></div>
-          <div class="chart-wrap"><canvas id="chartCanvas"></canvas></div>
-          <div class="eqbox" id="eqBox"></div>
-        </div>
-
-      </div>
-
-      <!-- ===== 우 : 분석 결과 ===== -->
-      <div class="col" style="display:flex;flex-direction:column;height:750px;">
-        <div class="sec">분석 결과</div>
-        <div class="an-card">
-          <div class="an-head"><span class="an-tab">비교</span> COP, 냉수 온도 차</div>
-          <div class="bars">
-            <div class="bc"><h5>COP</h5>
-              <div class="bplot">
-                <div class="bbar"><span class="bv" id="cop_d_v"></span><div class="f fd" id="cop_d_b"></div></div>
-                <div class="bbar"><span class="bv" id="cop_m_v"></span><div class="f fm" id="cop_m_b"></div></div>
-              </div>
-              <div class="bx"><span>설계</span><span>측정</span></div>
-              <div class="bj" id="cop_judge"></div>
-            </div>
-            <div class="bc"><h5>냉수 온도차</h5>
-              <div class="bplot">
-                <div class="bbar"><span class="bv" id="dt_d_v"></span><div class="f fd" id="dt_d_b"></div></div>
-                <div class="bbar"><span class="bv" id="dt_m_v"></span><div class="f fm" id="dt_m_b"></div></div>
-              </div>
-              <div class="bx"><span>설계</span><span>측정</span></div>
-              <div class="bj" id="dt_judge"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="res-card">
-          <div class="an-head"><span class="an-tab">결과</span> 성능측정 결과</div>
-          <textarea id="resultText" placeholder="성능측정 결과를 입력하세요..." oninput="onField('resultText',this.value)"></textarea>
-          <div class="grade-row">
-            <label><input type="radio" name="grade" value="양호" onclick="onGrade('양호')"> 양호</label>
-            <label><input type="radio" name="grade" value="보통" onclick="onGrade('보통')"> 보통</label>
-            <label><input type="radio" name="grade" value="불량" onclick="onGrade('불량')"> 불량</label>
-          </div>
-        </div>
-      </div>
-    </div>
+<!-- Header -->
+<div class="header" style="position:relative;">
+  <h1>HIMEC &minus; Mechanical Facility Aging Diagnosis System</h1>
+  <div class="sub">(주)하이멕 &minus; 기계설비 노후화 진단</div>
+  <h2>Chiller &middot; Absorption Chiller-Heater (냉동기&middot;냉온수기) Performance Analysis Tool</h2>
+  <div class="header-right">
+    <button class="btn-main" onclick="himecMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+    <button class="btn-save" onclick="himecSave()" title="저장(화면 입력값 저장)" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+    <button class="btn-file" onclick="himecExport(this)" title="파일 내보내기 (PDF / Excel)" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
   </div>
 </div>
-<footer class="footer"><div class="in">© 2026 HIMEC (주)하이멕. All rights reserved. Made by 성재호, 최승연, 신동민</div></footer>
+
+<!-- Tabs -->
+<div class="tab-bar" id="eqTabs"></div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- LEFT -->
+  <div class="panel" id="left-panel">
+    <div class="section-title">&#9632; 장비 개요</div>
+    <table class="info-table">
+      <tr><th>장비명</th><th>종류</th><th>제조사</th><th id="th-type">형식(Type)</th></tr>
+      <tr>
+        <td><input id="f_name" placeholder="입력 해주세요" onchange="onField('name',this.value)"></td>
+        <td><select id="f_kind" onchange="onKindSel(this.value)">
+          <option value="냉동기">냉동기(전기식)</option>
+          <option value="냉온수기">냉온수기(흡수식)</option>
+        </select></td>
+        <td><select id="f_maker" onchange="onField('maker',this.value)"></select></td>
+        <td><select id="f_type" onchange="onField('type',this.value)"></select></td>
+      </tr>
+    </table>
+
+    <div class="section-title mt">&#9632; 용도 &middot; 부분부하 분석 모드</div>
+    <table class="info-table">
+      <tr><th>용도</th><th>부분부하 분석 모드</th><th id="th-fuel" style="display:none">연료 발열량</th></tr>
+      <tr>
+        <td><input id="f_use" placeholder="예) 사무실 냉방용" style="text-align:center" onchange="onField('use',this.value)"></td>
+        <td>
+          <select id="f_plrmode" class="ustd-sel" style="max-width:none;width:100%;font-size:11px;padding:3px 4px;text-align:center;text-align-last:center" onchange="onPlrMode(this.value)">
+            <option value="rated">정격 COP (수평)</option>
+            <option value="general">일반 부분부하</option>
+            <option value="manual">데이터 직접 입력</option>
+          </select>
+        </td>
+        <td id="td-fuel" style="display:none"><span class="value-unit"><input id="f_gas" type="number" step="any" placeholder="10430" onchange="onRoot('gasKcal',this.value)"><span class="unit">kcal/N&#13221;</span></span></td>
+      </tr>
+    </table>
+    <div class="note-s"><span id="plrSrc" class="ustd-src" onclick="showPlrSrc()" title="클릭하면 적용 곡선의 출처&middot;기준 / 직접입력 데이터 수정">&#9432; 출처&middot;기준 / 데이터 보기&middot;수정</span><span id="plrSeg" class="seg-pill seg-auto">표준곡선</span></div>
+
+    <div class="section-title mt">&#9632; 설계 &middot; 운전 데이터</div>
+    <table class="cdt">
+      <thead><tr><th colspan="2">구분</th><th style="width:23%">설계</th><th style="width:23%">운전</th></tr></thead>
+      <tbody id="dataBody"></tbody>
+    </table>
+
+    <div class="refs-card refs-clickable" onclick="showRefsSrc()" title="클릭하면 적용 표준&middot;상세 출처를 팝업으로 봅니다">
+      <h3>기준 및 출처 <span class="refs-more">&#9432; 상세 보기</span></h3>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="panel" id="center-panel">
+    <div class="section-title">&#9632; 운전 성능 분석표</div>
+    <div class="calc-card">
+      <div class="tbl-cap">냉동&middot;난방 성능 <span class="src">Q = m&middot;c&middot;&Delta;T &middot; 1 usRT = 3.51685 kW = 3,024 kcal/h</span></div>
+      <table class="calc-table" id="perfTable"></table>
+
+      <div class="tbl-cap" id="tempCap" style="margin-top:14px">온도 &middot; 압력 상태 <span class="src">현장 측정</span></div>
+      <table class="calc-table" id="tempTable"></table>
+
+      <div class="curve-head" id="curveCap" style="margin-top:14px">
+        <span class="tbl-cap">성능 곡선 <span class="src" id="curveSrc">부분부하 곡선</span></span>
+      </div>
+      <div class="chart-legend" id="chartLegend"></div>
+      <div class="chart-wrap"><canvas id="chartCanvas"></canvas><div class="eqbox" id="eqBox"></div></div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="panel" id="right-panel">
+    <div class="section-title">&#9632; 성능 산정 결과</div>
+    <div class="metrics-area" id="metricsArea"></div>
+
+    <div id="sec-donut">
+      <div class="section-title mt" id="donut-title">&#9632; 성능 비교 (설계 / 측정)</div>
+      <div class="donut-box">
+        <svg id="donut" viewBox="0 8 320 144" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+    </div>
+
+    <div id="sec-diag">
+      <div class="section-title mt">&nbsp;</div>
+      <div class="right-scroll">
+        <div class="diag" id="diag"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- Copyright -->
+<div class="copyright">
+  &copy;HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
+</div>
 
 <script>
-const _u=new URLSearchParams(location.search);
-const _projectId=_u.get('projectId')||'', _projectName=_u.get('projectName')||'';
-const _key=()=> _projectId?'tool_chiller_'+_projectId:'tool_chiller_local';
-function _showLabel(){ const e=document.getElementById('projectLabel'); if(e&&_projectName)e.textContent='['+decodeURIComponent(_projectName)+'] '; }
-
-const RT_KCAL=3024, RT_KW=3.51685, GAS_DEFAULT=10430;
-const MAKERS=['트레인(Trane)','캐리어(Carrier)','요크(York)','LG전자','삼성전자','신성엔지니어링','센추리','월드에너지','기타'];
-const TYPES={ '냉동기':['저부하 인버터 원심식','정속 원심식','스크류','스크롤','왕복동'],
-              '냉온수기':['직화식 흡수식','증기 흡수식','온수 흡수식'] };
-const PLR_GRID=[100,90,80,70,60,50,40,30,20];
 /* ============================================================
-   제조사별 카탈로그 기반 부분부하 데이터 (PLR: 100~20%, 9개 구간)
-   출처: 각 제조사 카탈로그 및 AHRI 550/590 인증 데이터
-   * 트레인(Trane): Series R CenTraVac / CVHE 인버터 카탈로그 (2022)
-   * 캐리어(Carrier): AquaEdge 19XR / 19XRV AHRI 인증 데이터 (2023)
-   * 요크(York): YK 인버터 원심식 카탈로그 (Johnson Controls, 2021)
-   * LG전자: 인버터 스크류 냉동기 카탈로그 (2022)
-   * 삼성전자: 인버터 스크롤 냉동기 카탈로그 (2022)
-   * 신성엔지니어링: 2단 직화식 흡수식 냉온수기 카탈로그 (2023)
-   * 센추리: 정속 원심식 냉동기 사양서 (2020)
-   * 월드에너지: 흡수식 냉온수기 카탈로그 (2021)
-   * 기타(전기식): AHRI 550/590 Type별 대표곡선
+   HIMEC 냉동기·냉온수기 성능 분석 (Tool-12 디자인 틀 / Tool-201 로직 이식)
+   단위환산: 1 usRT = 3.51685 kW = 3,024 kcal/h
    ============================================================ */
+const $=id=>document.getElementById(id);
+const RT_KCAL=3024, RT_KW=3.51685, GAS_DEFAULT=10430;
 
-/* 전기식 — 제조사별 카탈로그 정규화 부분부하 효율비 (PLR: 100→20%) */
-const MAKER_PLR_ELEC = {
-  /* 트레인 CenTraVac CVHE 인버터 원심식 (Trane CVHE Catalog 2022, AHRI IPLV 6.1 인증기준) */
-  '트레인(Trane)_저부하 인버터 원심식':  [1.00,1.10,1.18,1.27,1.32,1.35,1.29,1.17,0.97],
-  '트레인(Trane)_정속 원심식':           [1.00,1.01,1.02,1.01,0.97,0.92,0.84,0.73,0.59],
-  /* 캐리어 AquaEdge 19XRV 가변속 원심식 (Carrier 19XRV AHRI 2023) */
-  '캐리어(Carrier)_저부하 인버터 원심식':[1.00,1.11,1.20,1.28,1.33,1.34,1.27,1.14,0.95],
-  '캐리어(Carrier)_정속 원심식':         [1.00,1.01,1.02,1.00,0.97,0.92,0.84,0.73,0.60],
-  '캐리어(Carrier)_스크류':              [1.00,1.05,1.09,1.12,1.13,1.10,1.04,0.93,0.78],
-  /* 요크 YK 인버터 원심식 (Johnson Controls York YK Catalog 2021) */
-  '요크(York)_저부하 인버터 원심식':     [1.00,1.09,1.17,1.25,1.30,1.32,1.27,1.14,0.95],
-  '요크(York)_정속 원심식':              [1.00,1.00,1.01,1.01,0.98,0.92,0.85,0.74,0.60],
-  '요크(York)_스크류':                   [1.00,1.04,1.08,1.11,1.12,1.09,1.03,0.92,0.77],
-  /* LG전자 인버터 스크류 (LG Electronics Inverter Screw Chiller 2022) */
-  'LG전자_스크류':                        [1.00,1.06,1.11,1.14,1.15,1.12,1.06,0.95,0.80],
-  'LG전자_스크롤':                        [1.00,1.04,1.07,1.08,1.07,1.03,0.96,0.85,0.71],
-  /* 삼성전자 인버터 스크롤 (Samsung Inverter Scroll Chiller 2022) */
-  '삼성전자_스크롤':                      [1.00,1.03,1.06,1.07,1.06,1.02,0.95,0.84,0.70],
-  '삼성전자_스크류':                      [1.00,1.05,1.09,1.12,1.13,1.10,1.03,0.93,0.78],
-  /* 센추리 정속 원심식 */
-  '센추리_정속 원심식':                   [1.00,1.00,1.01,1.00,0.97,0.92,0.84,0.73,0.59],
-  '센추리_스크류':                        [1.00,1.04,1.08,1.10,1.11,1.08,1.02,0.91,0.76],
+/* 제조사(명판 정보) · 형식(곡선 선택 기준) — 종류별 자동 전환 */
+const MAKERS={
+  '냉동기' :['트레인(Trane)','캐리어(Carrier)','요크(York)','LG전자','삼성전자','센추리','기타'],
+  '냉온수기':['신성엔지니어링','월드에너지','LG전자','센추리','기타']
 };
-
-/* 흡수식 — 제조사별 카탈로그 정규화 부분부하 COP비 */
-const MAKER_PLR_ABS = {
-  /* 신성엔지니어링 2단 직화식 (SC-BH 시리즈, 신성 카탈로그 2023) */
-  '신성엔지니어링_직화식 흡수식': [1.00,1.04,1.07,1.09,1.09,1.06,1.01,0.92,0.79],
-  /* 월드에너지 2단 직화식 */
-  '월드에너지_직화식 흡수식':     [1.00,1.03,1.06,1.08,1.08,1.05,1.00,0.91,0.78],
-  /* 증기/온수 흡수식 공통 (제조사 무관, ASHRAE 흡수식 성능곡선 기반) */
-  '_증기 흡수식':                 [1.00,1.02,1.04,1.06,1.07,1.05,0.99,0.90,0.76],
-  '_온수 흡수식':                 [1.00,1.02,1.03,1.05,1.06,1.04,0.98,0.89,0.75],
+const TYPES={
+  '냉동기' :['원심식(인버터/VSD)','원심식(정속)','스크류','스크롤','왕복동'],
+  '냉온수기':['직화식 2단 흡수식','증기 2단 흡수식','온수 1단 흡수식']
 };
+const PLR_GRID=[100,90,80,70,60,50,40,30,20];
 
-/* 기존 호환: Type별 일반 대표곡선 (제조사 카탈로그 없을 때 fallback) */
-const TYPE_MULT={
-  '저부하 인버터 원심식':[1.00,1.09,1.17,1.25,1.31,1.33,1.28,1.15,0.96],
-  '정속 원심식'        :[1.00,1.01,1.02,1.01,0.98,0.93,0.85,0.74,0.60],
-  '스크류'             :[1.00,1.05,1.10,1.13,1.14,1.11,1.05,0.94,0.79],
-  '스크롤'             :[1.00,1.03,1.06,1.07,1.06,1.02,0.95,0.84,0.70],
-  '왕복동'             :[1.00,1.02,1.03,1.02,0.99,0.94,0.87,0.77,0.64] };
+/* === 형식별 표준 부분부하 곡선 (COP_part / COP_100, 정규화) ===
+   전기식: AHRI 550/590 IPLV 가중(1·42·45·12%) + ASHRAE 90.1 App.G / DOE-2.2 형식별 대표곡선
+   흡수식: ASHRAE Handbook(HVAC S&E) + KS B 6270 + DOE-2/EnergyPlus 흡수식 모델          */
+const ELEC_CURVE={
+  '원심식(인버터/VSD)':[1.00,1.09,1.17,1.25,1.31,1.33,1.28,1.15,0.96],
+  '원심식(정속)'      :[1.00,1.01,1.02,1.01,0.98,0.93,0.85,0.74,0.60],
+  '스크류'            :[1.00,1.05,1.10,1.13,1.14,1.11,1.05,0.94,0.79],
+  '스크롤'            :[1.00,1.03,1.06,1.07,1.06,1.02,0.95,0.84,0.70],
+  '왕복동'            :[1.00,1.02,1.03,1.02,0.99,0.94,0.87,0.77,0.64]
+};
+const ABS_CURVE={
+  '직화식 2단 흡수식':[1.00,1.04,1.07,1.09,1.09,1.06,1.01,0.92,0.79],
+  '증기 2단 흡수식'  :[1.00,1.02,1.04,1.06,1.07,1.05,0.99,0.90,0.76],
+  '온수 1단 흡수식'  :[1.00,1.02,1.03,1.05,1.06,1.04,0.98,0.89,0.75]
+};
+const SRC_GEN_ELEC='AHRI 550/590 IPLV 가중(100·75·50·25% = 1·42·45·12%) · ASHRAE 90.1 App.G / DOE-2.2 형식별 대표 부분부하 곡선';
+const SRC_GEN_ABS ='ASHRAE Handbook—HVAC Systems &amp; Equipment(흡수식) · KS B 6270 · DOE-2/EnergyPlus 흡수식 부분부하 모델';
 
-/* 흡수식(2단 직화식) fallback */
-const ABS_MULT=[1.00,1.03,1.06,1.08,1.08,1.05,1.00,0.91,0.78];
+function curveOf(e){
+  if(e.kind==='냉동기'){
+    const m=ELEC_CURVE[e.type]||ELEC_CURVE['원심식(인버터/VSD)'];
+    return {mult:m, src:SRC_GEN_ELEC};
+  }
+  const m=ABS_CURVE[e.type]||ABS_CURVE['직화식 2단 흡수식'];
+  return {mult:m, src:SRC_GEN_ABS};
+}
+/* 10% 그리드에서 임의 부하율(%) 효율비 선형보간 (AHRI 75·25% 산출용) */
+function interpMult(mult,plr){
+  if(plr>=100) return mult[0];
+  if(plr<=20)  return mult[mult.length-1];
+  for(let i=0;i<PLR_GRID.length-1;i++){
+    const a=PLR_GRID[i], b=PLR_GRID[i+1];
+    if(plr<=a && plr>=b){ const t=(a-plr)/(a-b); return mult[i]+(mult[i+1]-mult[i])*t; }
+  }
+  return mult[0];
+}
 
+/* ===== polyfit / polyval ===== */
 function polyfit(xs,ys,deg){
   const n=xs.length; deg=Math.min(deg,n-1);
   if(deg<1) return [ys.reduce((a,b)=>a+b,0)/Math.max(1,n)];
@@ -368,26 +553,34 @@ function polyfit(xs,ys,deg){
   return A.map(r=>r[m]);
 }
 function polyval(c,x){ let s=0,xp=1; for(let i=0;i<c.length;i++){ s+=c[i]*xp; xp*=x; } return s; }
+function fmt(n,d){ if(n===''||n==null||isNaN(n))return '-'; return (+n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+const supT={1:'',2:'²',3:'³'};
+function eqString(c){ const parts=[];
+  for(let i=c.length-1;i>=0;i--){ const v=c[i]; if(Math.abs(v)<1e-9&&i!==0&&parts.length)continue;
+    const a=Math.abs(v).toPrecision(4).replace(/\.?0+$/,''); const sign=v<0?'&minus; ':(parts.length?'+ ':'');
+    parts.push(sign+a+(i>1?('x'+(supT[i]||'^'+i)):(i===1?'x':''))); }
+  return 'COP = '+(parts.join(' ')||'0'); }
 
-function defaultEq(name,kind){ kind=kind||'냉온수기';
+/* ===== 데이터 모델 ===== */
+function defaultEq(name,kind){ kind=kind||'냉동기';
   return { id:'CH-'+Date.now().toString().slice(-5)+Math.floor(Math.random()*90+10),
-    name:name||'CH-01', use:'사무실 냉방용',
+    name:name||'CH-01', use: kind==='냉동기'?'사무실 냉방용':'사무실 냉난방용',
     maker: kind==='냉동기'?'트레인(Trane)':'신성엔지니어링',
-    type: kind==='냉동기'?'저부하 인버터 원심식':'직화식 흡수식', kind,
+    type: kind==='냉동기'?'원심식(인버터/VSD)':'직화식 2단 흡수식', kind,
     plrMode:'general', gasKcal:GAS_DEFAULT, ratedCOP:'',
     chw:{sD:7,rD:12,fD:3240,sO:8.7,rO:11.4,fO:2900,set:7},
-    hw:{sD:60,rD:55,fD:3240,sO:0,rO:0,fO:0},
-    cw:{sD:37.4,rD:32,fD:5550,sO:34,rO:32,fO:6045},
-    powD:122, powO: kind==='냉동기'?112:'',
-    fcD:88, fcO:56, fhD:94, fhO:'', pEvap:3.42, pCond:9.87,
-    manual:[{plr:100,cop:''},{plr:75,cop:''},{plr:50,cop:''},{plr:25,cop:''}],
-    resultText:'', grade:'' };
+    hw:{sD:60,rD:55,fD:3240,sO:58,rO:53,fO:3000},
+    cw:{sD:32,rD:37.4,fD:5550,sO:32,rO:36.5,fO:6045},
+    powD:122, powO: kind==='냉동기'?112:18,
+    fcD:88, fcO:56, fhD:94, fhO:60, pEvap:3.42, pCond:9.87,
+    manual:[{plr:100,cop:5.2},{plr:75,cop:6.1},{plr:50,cop:6.4},{plr:25,cop:5.0}],
+    grade:'' };
 }
-let equips=[], curIdx=0, chartMode='cop';
+let equips=[], curIdx=0;
 const curEq=()=>equips[curIdx];
 
-const coolRT=(s,r,f)=>(r-s)*f*60/RT_KCAL;
-const heatKcal=(s,r,f)=>(s-r)*f*60;
+const coolRT=(s,r,f)=>(r-s)*f*60/RT_KCAL;      /* 냉수 (환수-공급) */
+const heatKcal=(s,r,f)=>(s-r)*f*60;            /* 온수 (공급-환수) */
 
 function calc(eq){
   const o={};
@@ -404,7 +597,7 @@ function calc(eq){
     o.copD=(eq.fcD>0)?(o.coolD*RT_KCAL)/(eq.fcD*gas):0;
     o.copO=(eq.fcO>0)?(o.coolO*RT_KCAL)/(eq.fcO*gas):0;
   }
-  if(eq.plrMode==='rated'){                      // 정격: 전 부하구간 일정(수평)
+  if(eq.plrMode==='rated'){
     o.copRef=(eq.ratedCOP!==''&&eq.ratedCOP!=null)?+eq.ratedCOP:o.copD;
     o.coeffs=[o.copRef]; o.pts=[];
   }else{
@@ -412,197 +605,205 @@ function calc(eq){
     o.coeffs=polyfit(pts.map(p=>p.x),pts.map(p=>p.cop), pts.length>=4?3:(pts.length>=3?2:1));
     o.copRef=polyval(o.coeffs,o.loadO);
   }
-  o.grade=o.copO>=o.copRef?'양호':(o.copO>=o.copRef*0.6?'점검 필요':'불량');
+  /* 노후화 진단 등급: 운전 COP / 기준(부하보정) COP */
+  const r=o.copRef>0?o.copO/o.copRef:0;
+  o.grade=(r>=0.95)?'양호':(r>=0.85?'점검 필요':'불량'); o.ratio=r;
   o.dtD=eq.chw.rD-eq.chw.sD; o.dtO=eq.chw.rO-eq.chw.sO;
+  o.cwDtD=eq.cw.rD-eq.cw.sD; o.cwDtO=eq.cw.rO-eq.cw.sO;
+  /* IPLV (전기식 일반곡선 기준 참고치) */
+  if(eq.plrMode==='general'){
+    const cv=curveOf(eq), b=o.copD||1;
+    const A=b*interpMult(cv.mult,100),B=b*interpMult(cv.mult,75),C=b*interpMult(cv.mult,50),D=b*interpMult(cv.mult,25);
+    o.iplv=(A>0&&B>0&&C>0&&D>0)?1/(0.01/A+0.42/B+0.45/C+0.12/D):0;
+  }else o.iplv=0;
   return o;
 }
 function curvePoints(eq,o){
   const pts=[];
   if(eq.plrMode==='manual'){
-    eq.manual.filter(m=>m.cop!==''&&m.cop!=null&&m.plr!=='').forEach(m=>pts.push({x:(+m.plr)/100,cop:+m.cop}));
+    eq.manual.filter(m=>m.cop!==''&&m.cop!=null&&m.plr!==''&&m.plr!=null).forEach(m=>pts.push({x:(+m.plr)/100,cop:+m.cop}));
     pts.sort((a,b)=>a.x-b.x); return pts.length?pts:[{x:o.loadO||0.5,cop:o.copD||1}];
   }
-  // general — 제조사별 카탈로그 우선, 없으면 type별 fallback
-  let mult;
-  if(eq.kind==='냉동기'){
-    const makerKey = eq.maker+'_'+eq.type;
-    mult = MAKER_PLR_ELEC[makerKey] || TYPE_MULT[eq.type] || TYPE_MULT['저부하 인버터 원심식'];
-  } else {
-    const makerKey = eq.maker+'_'+eq.type;
-    const typeKey = '_'+eq.type;
-    mult = MAKER_PLR_ABS[makerKey] || MAKER_PLR_ABS[typeKey] || ABS_MULT;
-  }
-  const b=o.copD||1; PLR_GRID.forEach((p,i)=>pts.push({x:p/100,cop:b*mult[i]})); pts.sort((a,b)=>a.x-b.x); return pts;
+  const cv=curveOf(eq), b=o.copD||1;
+  PLR_GRID.forEach((p,i)=>pts.push({x:p/100,cop:b*cv.mult[i]})); pts.sort((a,b)=>a.x-b.x); return pts;
 }
+</script>
 
-function fmt(n,d){ if(n===''||n==null||isNaN(n))return '-'; return (+n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}); }
-const sup={1:'',2:'²',3:'³'};
-function eqString(c){ const parts=[];
-  for(let i=c.length-1;i>=0;i--){ const v=c[i]; if(Math.abs(v)<1e-9&&i!==0&&parts.length)continue;
-    const a=Math.abs(v).toPrecision(4).replace(/\.?0+$/,''); const sign=v<0?'− ':(parts.length?'+ ':'');
-    parts.push(sign+a+(i>1?('x'+(sup[i]||'^'+i)):(i===1?'x':''))); }
-  return 'COP = '+(parts.join(' ')||'0'); }
-
-/* ===== 렌더 ===== */
-function renderTabs(){ const w=document.getElementById('eqTabs'); w.innerHTML='';
-  equips.forEach((e,i)=>{ const t=document.createElement('div'); t.className='eq-tab'+(i===curIdx?' active':'');
-    t.innerHTML='<span onclick="selTab('+i+')">'+(e.name||('CH #'+(i+1)))+'</span>'+(equips.length>1?'<span class="x" onclick="delTab('+i+',event)">×</span>':''); w.appendChild(t); });
-  const a=document.createElement('button'); a.className='eq-add'; a.textContent='+'; a.onclick=addTab; w.appendChild(a);
+<script>
+/* ===== 탭 (Tool-12 스타일) ===== */
+function renderTabs(){
+  const bar=$('eqTabs'); bar.innerHTML='';
+  equips.forEach((e,i)=>{
+    const b=document.createElement('button');
+    b.className='tab'+(i===curIdx?' active':''); b.id='tab-'+i;
+    b.textContent=(e.name||('CH-'+String(i+1).padStart(2,'0')));
+    b.onclick=()=>selTab(i);
+    if(equips.length>1){ const c=document.createElement('span'); c.className='tab-close'; c.innerHTML='&#10005;';
+      c.onclick=ev=>{ev.stopPropagation();delTab(i);}; b.appendChild(c); }
+    bar.appendChild(b);
+  });
+  const a=document.createElement('button'); a.className='tab add'; a.textContent='+'; a.onclick=addTab; bar.appendChild(a);
 }
 function selTab(i){ curIdx=i; renderAll(); }
 function addTab(){ equips.push(defaultEq('CH-'+String(equips.length+1).padStart(2,'0'),curEq().kind)); curIdx=equips.length-1; renderAll(); }
-function delTab(i,ev){ ev.stopPropagation(); if(equips.length<=1)return; equips.splice(i,1); if(curIdx>=equips.length)curIdx=equips.length-1; renderAll(); }
+function delTab(i){ if(equips.length<=1){ alert('최소 1개의 장비는 유지해야 합니다.'); return; }
+  const nm=equips[i].name||'장비'; if(!confirm('"'+nm+'" 장비를 삭제하시겠습니까?'))return;
+  equips.splice(i,1); if(curIdx>=equips.length)curIdx=equips.length-1; renderAll(); }
 
+/* ===== 장비 개요 (종류별 자동 전환) ===== */
 function renderOverview(){ const e=curEq();
-  document.getElementById('f_name').value=e.name; document.getElementById('f_use').value=e.use;
-  const mk=document.getElementById('f_maker'); mk.innerHTML=''; MAKERS.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;if(m===e.maker)o.selected=true;mk.appendChild(o);});
-  const tp=document.getElementById('f_type'); tp.innerHTML=''; (TYPES[e.kind]||[]).forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;if(m===e.type)o.selected=true;tp.appendChild(o);});
-  document.getElementById('kind_chiller').className=e.kind==='냉동기'?'on':'';
-  document.getElementById('kind_abs').className=e.kind==='냉온수기'?'on':'';
-  document.getElementById('f_plrmode').value=e.plrMode;
-  const ff=document.getElementById('fuelField');
-  if(e.kind==='냉온수기'){ ff.style.display='flex'; document.getElementById('f_gas').value=e.gasKcal; } else ff.style.display='none';
+  $('f_name').value=e.name; $('f_use').value=e.use; $('f_kind').value=e.kind;
+  const mk=$('f_maker'); mk.innerHTML=''; (MAKERS[e.kind]||[]).forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;if(m===e.maker)o.selected=true;mk.appendChild(o);});
+  const tp=$('f_type'); tp.innerHTML=''; (TYPES[e.kind]||[]).forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;if(m===e.type)o.selected=true;tp.appendChild(o);});
+  $('f_plrmode').value=e.plrMode;
+  /* 연료 발열량: 냉온수기(흡수식)만 노출 */
+  const abs=e.kind==='냉온수기';
+  $('th-fuel').style.display=abs?'':'none'; $('td-fuel').style.display=abs?'':'none';
+  if(abs) $('f_gas').value=e.gasKcal;
+  /* 모드 표시 chip */
+  const seg=$('plrSeg');
+  if(e.plrMode==='rated'){ seg.textContent='정격(수평)'; seg.className='seg-pill seg-auto'; }
+  else if(e.plrMode==='general'){ seg.textContent='표준곡선'; seg.className='seg-pill seg-auto'; }
+  else { seg.textContent='사용자 입력'; seg.className='seg-pill seg-user'; }
 }
 
-function renderPLRPanel(){ const e=curEq(),o=calc(e),box=document.getElementById('plrPanel');
-  if(e.plrMode==='rated'){
-    box.innerHTML='<h4>정격 COP 분석 (0~100% 일정)</h4>'+
-      '<div class="plr-rated"><span class="lbl">정격 COP</span><input value="'+(e.ratedCOP||'')+'" placeholder="'+fmt(o.copD,2)+'" oninput="onRated(this.value)"></div>'+
-      '<div class="plr-note">정격 COP를 전 부하구간에 동일하게 적용(수평선). 미입력 시 설계 COP('+fmt(o.copD,2)+') 사용.</div>';
-  }else if(e.plrMode==='general'){
-    let mult, srcLabel;
-    if(e.kind==='냉동기'){
-      const makerKey = e.maker+'_'+e.type;
-      if(MAKER_PLR_ELEC[makerKey]){ mult=MAKER_PLR_ELEC[makerKey]; srcLabel='제조사 카탈로그 ('+e.maker+')'; }
-      else { mult=TYPE_MULT[e.type]||TYPE_MULT['저부하 인버터 원심식']; srcLabel='AHRI 550/590·ASHRAE 90.1 기반 대표곡선 ('+e.maker+' 카탈로그 미등록)'; }
-    } else {
-      const makerKey = e.maker+'_'+e.type;
-      const typeKey = '_'+e.type;
-      if(MAKER_PLR_ABS[makerKey]){ mult=MAKER_PLR_ABS[makerKey]; srcLabel='제조사 카탈로그 ('+e.maker+')'; }
-      else if(MAKER_PLR_ABS[typeKey]){ mult=MAKER_PLR_ABS[typeKey]; srcLabel='ASHRAE 흡수식 Type별 대표곡선'; }
-      else { mult=ABS_MULT; srcLabel='DOE-2.1/EnergyPlus 흡수식 모델 (fallback)'; }
-    }
-    const b=o.copD||1;
-    // 표시는 20% 단위 (100,80,60,40,20) — 내부 데이터는 PLR_GRID(10% 단위) 그대로 유지
-    const PLR_SHOW=[100,80,60,40,20];
-    let tRows=PLR_SHOW.map(p=>{
-      const idx=PLR_GRID.indexOf(p);
-      const m=(idx>=0)?mult[idx]:(mult[0]||1);
-      const cop=(b*m).toFixed(2);
-      const eff=(m*100).toFixed(1);
-      return '<tr><td>'+p+'%</td><td>'+cop+'</td><td>'+eff+'%</td></tr>';
-    }).join('');
-    box.innerHTML='<h4>일반 부분부하 데이터 — '+e.type+'<span style="font-size:9.5px;color:#888;font-weight:400;margin-left:6px;">출처: '+srcLabel+'</span></h4>'+
-      '<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-top:4px;">'+
-      '<thead><tr style="background:#eef0f0;"><th style="border:1px solid #ddd;padding:2px 4px;">부하율</th><th style="border:1px solid #ddd;padding:2px 4px;">COP</th><th style="border:1px solid #ddd;padding:2px 4px;">효율비</th></tr></thead>'+
-      '<tbody>'+tRows+'</tbody></table>'+
-      '<div class="plr-note" style="margin-top:4px;">설계 COP('+fmt(o.copD,2)+') 기준 정규화. 곡선식 피팅 후 현재 부하율 COP 산출.</div>';
-  }else{
-    let rows=e.manual.map((m,i)=>'<tr><td><input value="'+m.plr+'" oninput="onManual('+i+',\'plr\',this.value)"></td><td><input value="'+m.cop+'" oninput="onManual('+i+',\'cop\',this.value)"></td><td><span style="cursor:pointer;color:#c00" onclick="delManual('+i+')">×</span></td></tr>').join('');
-    box.innerHTML='<h4>데이터 직접 입력 (부하율%→COP)</h4><table><tr><th>부하율</th><th>COP</th><th></th></tr>'+rows+'</table>'+
-      '<div style="text-align:center;margin-top:5px;"><span style="cursor:pointer;color:var(--orange);font-weight:700;" onclick="addManual()">+ 행 추가</span></div>'+
-      '<div class="plr-note">입력 데이터에 곡선식을 피팅하여 현재 부하율의 COP를 산출.</div>';
-  }
-}
-
-function renderTable(){ const e=curEq(),o=calc(e),b=document.getElementById('dataBody'); const abs=e.kind==='냉온수기'; let h='';
-  h+=cr('냉방능력 [usRT]','coolD','coolO',o,'int');
-  if(abs) h+=cr('난방능력 [kcal/h]','heatD','heatO',o,'int');
-  h+=cr('부하율','loadD','loadO',o,'pct');
-  h+=cr('COP','copD','copO',o,'cop');
-  h+=grp('냉수','공급온도 [℃]',sub('chw','sD'),sub('chw','sO'),3);
-  h+=ln('환수온도 [℃]',sub('chw','rD'),sub('chw','rO'));
-  h+=ln('유량 [LPM]',sub('chw','fD'),sub('chw','fO'));
-  if(abs){ h+=grp('온수','공급온도 [℃]',sub('hw','sD'),sub('hw','sO'),3);
-    h+=ln('환수온도 [℃]',sub('hw','rD'),sub('hw','rO')); h+=ln('유량 [LPM]',sub('hw','fD'),sub('hw','fO')); }
-  h+=grp('냉각수','공급온도 [℃]',sub('cw','sD'),sub('cw','sO'),3);
-  h+=ln('환수온도 [℃]',sub('cw','rD'),sub('cw','rO')); h+=ln('유량 [LPM]',sub('cw','fD'),sub('cw','fO'));
-  if(abs){
-    h+=rw('소비전력 [kW]',root('powD'),root('powO'));                 // 입력 가능
-    h+=rw('냉방 연료사용량 [N·㎥/h]',root('fcD'),root('fcO'));
-    h+=rw('난방 연료사용량 [N·㎥/h]',root('fhD'),root('fhO'));        // 입력 가능
-  }else{ h+=rw('소비전력 [kW]',root('powD'),root('powO')); }
+/* ===== 좌측 설계·운전 데이터표 (종류별 행 자동 변화) ===== */
+function renderDataTable(){ const e=curEq(),o=calc(e),b=$('dataBody'); const abs=e.kind==='냉온수기'; let h='';
+  h+=grp('냉수','공급온도 [℃]',inp('chw','sD'),inp('chw','sO'),3);
+  h+=ln('환수온도 [℃]',inp('chw','rD'),inp('chw','rO'));
+  h+=ln('유량 [LPM]',inp('chw','fD'),inp('chw','fO'));
+  if(abs){ h+=grp('온수','공급온도 [℃]',inp('hw','sD'),inp('hw','sO'),3);
+    h+=ln('환수온도 [℃]',inp('hw','rD'),inp('hw','rO')); h+=ln('유량 [LPM]',inp('hw','fD'),inp('hw','fO')); }
+  h+=grp('냉각수','입구온도 [℃]',inp('cw','sD'),inp('cw','sO'),3);
+  h+=ln('출구온도 [℃]',inp('cw','rD'),inp('cw','rO')); h+=ln('유량 [LPM]',inp('cw','fD'),inp('cw','fO'));
+  h+=rw('소비전력 [kW]',rinp('powD'),rinp('powO'));
+  if(abs){ h+=rw('냉방 연료 [N㎥/h]',rinp('fcD'),rinp('fcO'));
+           h+=rw('난방 연료 [N㎥/h]',rinp('fhD'),rinp('fhO')); }
+  h+=grp('압력','증발 [bar]','<span style="color:#bbb">-</span>',rinp('pEvap'),2);
+  h+=ln('응축 [bar]','<span style="color:#bbb">-</span>',rinp('pCond'));
   b.innerHTML=h;
-  function cr(n,kd,ko,o,mode){ mode=mode||(kd==='copD'?'cop':(kd==='loadD'?'pct':'int')); return '<tr><td class="name" colspan="2">'+n+'</td><td class="calc" id="c_'+kd+'">'+fmtCalc(o[kd],mode)+'</td><td class="calc" id="c_'+ko+'">'+fmtCalc(o[ko],mode)+'</td><td></td></tr>'; }
-  function grp(g,n,c1,c2,s){ return '<tr><td class="grp" rowspan="'+s+'">'+g+'</td><td class="name">'+n+'</td><td>'+c1+'</td><td>'+c2+'</td><td></td></tr>'; }
-  function ln(n,c1,c2){ return '<tr><td class="name">'+n+'</td><td>'+c1+'</td><td>'+c2+'</td><td></td></tr>'; }
-  function rw(n,c1,c2){ return '<tr><td class="name" colspan="2">'+n+'</td><td>'+c1+'</td><td>'+c2+'</td><td></td></tr>'; }
+  function cr(n,kd,ko,o,mode){ return '<tr><td class="nm" colspan="2">'+n+'</td><td class="calc" id="c_'+kd+'">'+fmtCalc(o[kd],mode)+'</td><td class="calc" id="c_'+ko+'">'+fmtCalc(o[ko],mode)+'</td></tr>'; }
+  function grp(g,n,c1,c2,s){ return '<tr><td class="grp" rowspan="'+s+'">'+g+'</td><td class="nm">'+n+'</td><td>'+c1+'</td><td>'+c2+'</td></tr>'; }
+  function ln(n,c1,c2){ return '<tr><td class="nm">'+n+'</td><td>'+c1+'</td><td>'+c2+'</td></tr>'; }
+  function rw(n,c1,c2){ return '<tr><td class="nm" colspan="2">'+n+'</td><td>'+c1+'</td><td>'+c2+'</td></tr>'; }
 }
 function fmtCalc(v,mode){ return mode==='pct'?(fmt(v*100,0)+'%'):(mode==='cop'?fmt(v,2):fmt(v,0)); }
-const sub=(g,k)=>{const v=curEq()[g][k];return '<input value="'+v+'" oninput="onSub(\''+g+'\',\''+k+'\',this.value)">';};
-const root=(k)=>{const v=curEq()[k];return '<input value="'+(v===''?'':v)+'" oninput="onRoot(\''+k+'\',this.value)">';};
+const inp=(g,k)=>{const v=curEq()[g][k];return '<input value="'+v+'" oninput="onSub(\''+g+'\',\''+k+'\',this.value)">';};
+const rinp=(k)=>{const v=curEq()[k];return '<input value="'+(v===''?'':v)+'" oninput="onRoot(\''+k+'\',this.value)">';};
 
-/* 계산셀만 in-place 갱신 (입력 포커스 유지) */
-function updateCalc(o){ const abs=curEq().kind==='냉온수기';
-  set('c_coolD',fmtCalc(o.coolD,'int')); set('c_coolO',fmtCalc(o.coolO,'int'));
-  if(abs){ set('c_heatD',fmtCalc(o.heatD,'int')); set('c_heatO',fmtCalc(o.heatO,'int')); }
-  set('c_loadD',fmtCalc(o.loadD,'pct')); set('c_loadO',fmtCalc(o.loadO,'pct'));
-  set('c_copD',fmtCalc(o.copD,'cop')); set('c_copO',fmtCalc(o.copO,'cop'));
-  function set(id,v){ const el=document.getElementById(id); if(el)el.textContent=v; }
+/* ===== 중앙 : 성능표 / 온도·압력표 ===== */
+function renderPerf(){ const e=curEq(),o=calc(e),abs=e.kind==='냉온수기';
+  let h='<tr><th style="width:40%">항목</th><th style="text-align:right">설계</th><th style="text-align:right">운전</th></tr>';
+  h+=row('냉방능력 [usRT]',fmt(o.coolD,0),fmt(o.coolO,0));
+  if(abs) h+=row('난방능력 [Mcal/h]',fmt(o.heatD/1000,0),fmt(o.heatO/1000,0));
+  h+=row('부하율 [%]',fmt(o.loadD*100,0),fmt(o.loadO*100,1));
+  h+='<tr class="sub"><td>COP</td><td class="num" style="text-align:right">'+fmt(o.copD,2)+'</td><td class="num" style="text-align:right">'+fmt(o.copO,2)+'</td></tr>';
+  h+=row('기준 COP (부하보정)','-',fmt(o.copRef,2));
+  $('perfTable').innerHTML=h;
+  function row(n,a,b){ return '<tr><td>'+n+'</td><td class="num" style="text-align:right">'+a+'</td><td class="num" style="text-align:right">'+b+'</td></tr>'; }
+}
+function renderTemp(){ const e=curEq(),o=calc(e),abs=e.kind==='냉온수기';
+  let h='<tr><th style="width:28%">계통</th><th style="text-align:right">①</th><th style="text-align:right">②</th><th style="text-align:right">차이/비</th></tr>';
+  h+=tr('냉수 CHW [℃]','공급 '+fmt(e.chw.sO,1),'환수 '+fmt(e.chw.rO,1),'ΔT '+fmt(o.dtO,1));
+  if(abs) h+=tr('온수 HW [℃]','공급 '+fmt(e.hw.sO,1),'환수 '+fmt(e.hw.rO,1),'ΔT '+fmt(e.hw.sO-e.hw.rO,1));
+  h+=tr('냉각수 CW [℃]','입구 '+fmt(e.cw.sO,1),'출구 '+fmt(e.cw.rO,1),'ΔT '+fmt(o.cwDtO,1));
+  if(e.kind==='냉동기') h+=tr('압력 [bar]','증발 '+fmt(e.pEvap,2),'응축 '+fmt(e.pCond,2),'비 '+(e.pEvap>0?fmt(e.pCond/e.pEvap,2):'-'));
+  $('tempTable').innerHTML=h;
+  function tr(n,a,b,c){ return '<tr><td>'+n+'</td><td class="num" style="text-align:right">'+a+'</td><td class="num" style="text-align:right">'+b+'</td><td class="num" style="text-align:right">'+c+'</td></tr>'; }
 }
 
-function renderCards(){ const e=curEq(),o=calc(e),w=document.getElementById('cards');
-  const cd=o.copD>0?(o.copO/o.copD-1)*100:0, sd=e.chw.sO-e.chw.set; let c=[];
-  c.push(card('❄ 현재 COP',fmt(o.copO,2),'',(cd>=0?'▲':'▼')+' 설계대비 '+(cd>=0?'+':'')+fmt(cd,1)+'%',cd>=0?'up':'down'));
-  c.push(card('✷ 냉동 능력',fmt(o.coolO,0),'RT','부하율 '+fmt(o.loadO*100,1)+'%',''));
-  if(e.kind==='냉온수기') c.push(card('♨ 난방 능력',fmt(o.heatO/1000,0),'Mcal/h','설계 '+fmt(o.heatD/1000,0),''));
-  else c.push(card('⚡ 소비 전력',fmt(e.powO,0),'kW','설계 '+fmt(e.powD,0)+'kW',''));
-  c.push(card('🌡 냉수 공급',fmt(e.chw.sO,1),'℃',(sd>=0?'▲':'▼')+' 설정 '+(sd>=0?'+':'')+fmt(sd,1)+'℃',Math.abs(sd)<=0.5?'up':'down'));
-  w.innerHTML=c.join('');
-  function card(t,v,u,s,cls){ return '<div class="card"><div class="t">'+t+'</div><div class="v">'+v+(u?'<small>'+u+'</small>':'')+'</div><div class="s '+cls+'">'+s+'</div></div>'; }
+/* ===== 우측 : 결과 카드 ===== */
+function renderMetrics(){ const e=curEq(),o=calc(e),abs=e.kind==='냉온수기';
+  const cd=o.copD>0?(o.copO/o.copD-1)*100:0;
+  let c='';
+  c+=mc('현재 COP', fmt(o.copO,2),'', (cd>=0?'▲':'▼')+' 설계대비 '+(cd>=0?'+':'')+fmt(cd,1)+'%', e.kind==='냉동기'?'AHRI 550/590':'KS B 6270');
+  c+=mc('냉방능력', fmt(o.coolO,0),'RT','부하율 '+fmt(o.loadO*100,1)+'%','Q=m·c·ΔT');
+  if(abs) c+=mc('난방능력', fmt(o.heatO/1000,0),'Mcal/h','설계 '+fmt(o.heatD/1000,0),'온수 공급-환수');
+  else    c+=mc('소비전력', fmt(e.powO,0),'kW','설계 '+fmt(e.powD,0)+'kW','현장 계측');
+  c+=mc('기준 COP', fmt(o.copRef,2),'','부하보정 산출', e.plrMode==='rated'?'정격(수평)':e.plrMode==='general'?'표준곡선':'직접입력');
+  $('metricsArea').innerHTML=c;
+  function mc(lbl,v,u,sub,src){ return '<div class="metric-card"><div class="ml"><div class="metric-label">&#10003; '+lbl+'</div><div class="metric-sub">'+src+' · '+sub+'</div></div><div><span class="metric-value">'+v+'</span><span class="metric-unit">'+u+'</span></div></div>'; }
 }
-function renderTemps(){ const e=curEq();
-  // 각 계통별 개별 최고온도 기준
-  const pctChw=v=>Math.max(2,Math.min(100,((v-0)/(20-0))*100));    // 냉수: 0~20℃
-  const pctCw =v=>Math.max(2,Math.min(100,((v-20)/(42-20))*100));  // 냉각수: 20~42℃
-  const pctHw =v=>Math.max(2,Math.min(100,((v-40)/(80-40))*100));  // 온수: 40~80℃
-  S('v_chw_s',fmt(e.chw.sO,1)+'℃'); S('v_chw_r',fmt(e.chw.rO,1)+'℃');
-  S('v_cw_s',fmt(e.cw.sO,1)+'℃'); S('v_cw_r',fmt(e.cw.rO,1)+'℃');
-  W('bar_chw_s',pctChw(e.chw.sO)); W('bar_chw_r',pctChw(e.chw.rO));
-  W('bar_cw_s',pctCw(e.cw.sO)); W('bar_cw_r',pctCw(e.cw.rO));
-  S('dt_chw','ΔT = '+fmt(e.chw.rO-e.chw.sO,1)+'℃'); S('dt_cw','ΔT = '+fmt(e.cw.rO-e.cw.sO,1)+'℃');
-  // 온수 (흡수식) 표시 + 그리드 분할 반응형
-  const hwCol=document.getElementById('tcol_hw');
-  const tempGrid=document.querySelector('.temp-cols');
-  if(e.kind==='냉온수기'){
-    if(hwCol)hwCol.style.display='';
-    if(tempGrid)tempGrid.style.gridTemplateColumns='1fr 1fr 1fr 1fr';
-    S('v_hw_s',fmt(e.hw.sO,1)+'℃'); S('v_hw_r',fmt(e.hw.rO,1)+'℃');
-    W('bar_hw_s',pctHw(e.hw.sO)); W('bar_hw_r',pctHw(e.hw.rO));
-    S('dt_hw','ΔT = '+fmt(e.hw.sO-e.hw.rO,1)+'℃');
-  } else {
-    if(hwCol)hwCol.style.display='none';
-    if(tempGrid)tempGrid.style.gridTemplateColumns='1fr 1fr 1fr';
+
+/* ===== 우측 : COP 달성률 게이지 ===== */
+function renderGauge(){ const e=curEq(),o=calc(e);
+  const groups=[
+    {t:'COP', d:o.copD, m:o.copO, dec:2},
+    {t:'냉수 온도차', d:o.dtD, m:o.dtO, dec:1}
+  ];
+  const base=132, top=44, maxH=base-top, bw=30;
+  const colD='#9fb4c9', colM='#00838f';
+  let svg='';
+  groups.forEach((g,gi)=>{
+    const cx=80+gi*160;
+    const mx=Math.max(g.d,g.m,1e-6);
+    const xd=cx-38, xm=cx+8;
+    const hd=Math.max(2,(g.d>0?g.d/mx*maxH:0)), hm=Math.max(2,(g.m>0?g.m/mx*maxH:0));
+    svg+='<text x="'+cx+'" y="22" text-anchor="middle" font-size="10" font-weight="500" fill="#2f6f86">'+g.t+'</text>';
+    svg+='<line x1="'+(cx-54)+'" y1="'+base+'" x2="'+(cx+54)+'" y2="'+base+'" stroke="#cfd6dc" stroke-width="1"/>';
+    /* 설계 */
+    svg+='<rect x="'+xd+'" y="'+(base-hd)+'" width="'+bw+'" height="'+hd+'" fill="'+colD+'"/>';
+    svg+='<text x="'+(xd+bw/2)+'" y="'+(base-hd-6)+'" text-anchor="middle" font-size="10" font-weight="400" fill="#666">'+fmt(g.d,g.dec)+'</text>';
+    svg+='<text x="'+(xd+bw/2)+'" y="'+(base+15)+'" text-anchor="middle" font-size="9" font-weight="400" fill="#888">설계</text>';
+    /* 측정 */
+    svg+='<rect x="'+xm+'" y="'+(base-hm)+'" width="'+bw+'" height="'+hm+'" fill="'+colM+'"/>';
+    svg+='<text x="'+(xm+bw/2)+'" y="'+(base-hm-6)+'" text-anchor="middle" font-size="10" font-weight="400" fill="'+colM+'">'+fmt(g.m,g.dec)+'</text>';
+    svg+='<text x="'+(xm+bw/2)+'" y="'+(base+15)+'" text-anchor="middle" font-size="9" font-weight="400" fill="#888">측정</text>';
+  });
+  $('donut').innerHTML=svg;
+}
+
+/* ===== 우측 : 진단 ===== */
+function renderDiag(){ const e=curEq(),o=calc(e); const D=[];
+  /* COP 성능 */
+  { const lv=o.ratio>=0.95?'ok':(o.ratio>=0.85?'warn':'bad');
+    const st={ok:'양호',warn:'점검 필요',bad:'불량'}[lv];
+    const msg={ok:'운전 COP가 기준 대비 95% 이상 — 정상.',warn:'기준 대비 85~95% — 응축기·냉각수·냉매 점검.',bad:'기준 대비 85% 미만 — 노후·오염·냉매부족 의심.'}[lv];
+    D.push([lv,'COP성능',st,'운전 '+fmt(o.copO,2)+' / 기준 '+fmt(o.copRef,2)+' ('+fmt(o.ratio*100,0)+'%) &mdash; '+msg,'출처: AHRI 550/590 · 고효율기자재']); }
+  /* 냉수 온도차 */
+  { const d=Math.abs(o.dtO-o.dtD); const lv=d<=1?'ok':(d<=2?'warn':'bad');
+    const st={ok:'양호',warn:'점검 필요',bad:'불량'}[lv];
+    const msg={ok:'설계 ΔT에 근접 — 유량·부하 정상.',warn:'설계 대비 1~2℃ 차 — 유량/밸런싱 점검.',bad:'설계 대비 2℃ 초과 — Low ΔT 증후, 유량과다 의심.'}[lv];
+    D.push([lv,'냉수온도차',st,'운전 ΔT '+fmt(o.dtO,1)+'℃ / 설계 '+fmt(o.dtD,1)+'℃ &mdash; '+msg,'출처: 설계기준 · ASHRAE']); }
+  /* 냉각수 온도차 (냉동기) */
+  if(e.kind==='냉동기'){ const d=Math.abs(o.cwDtO-o.cwDtD); const lv=d<=1?'ok':(d<=2.5?'warn':'bad');
+    const st={ok:'양호',warn:'점검 필요',bad:'불량'}[lv];
+    const msg={ok:'냉각수 ΔT 정상 — 응축 방열 양호.',warn:'설계 대비 차 발생 — 냉각탑·유량 점검.',bad:'편차 과대 — 스케일·냉각능력 저하 의심.'}[lv];
+    D.push([lv,'냉각수온도차',st,'운전 ΔT '+fmt(o.cwDtO,1)+'℃ / 설계 '+fmt(o.cwDtD,1)+'℃ &mdash; '+msg,'출처: 냉각탑 설계 · ASHRAE']);
+    /* 압력비 */
+    const pr=e.pEvap>0?e.pCond/e.pEvap:0; const lv2=(pr>=2.0&&pr<=3.5)?'ok':((pr>3.5&&pr<=4.2)?'warn':'bad');
+    const st2={ok:'양호',warn:'점검 필요',bad:'불량'}[lv2];
+    const msg2={ok:'압축비 정상 범위.',warn:'압축비 상승 — 응축압력·오염 점검.',bad:'압축비 과대/과소 — 냉매·응축기 진단.'}[lv2];
+    D.push([lv2,'압력비',st2,'P비 '+fmt(pr,2)+' (응축 '+fmt(e.pCond,2)+'/증발 '+fmt(e.pEvap,2)+' bar) &mdash; '+msg2,'출처: 압축기 운전기준']);
+  } else { /* 흡수식: 연료효율(COP) 기준 */
+    const lv=o.copO>=1.2?'ok':(o.copO>=1.0?'warn':'bad'); const st={ok:'양호',warn:'점검 필요',bad:'불량'}[lv];
+    const msg={ok:'2단 흡수식 COP 기준(≥1.2) 만족.',warn:'COP 1.0~1.2 — 연소·진공도 점검.',bad:'COP 1.0 미만 — 결정·진공저하 의심.'}[lv];
+    D.push([lv,'연료효율',st,'운전 COP '+fmt(o.copO,2)+' &mdash; '+msg,'출처: KS B 6270 · 고효율기자재']);
   }
-  S('v_evap',fmt(e.pEvap,2)+' bar'); S('v_cond',fmt(e.pCond,2)+' bar'); S('v_pratio',e.pEvap>0?fmt(e.pCond/e.pEvap,2):'-');
-  function S(id,v){const el=document.getElementById(id);if(el)el.textContent=v;} function W(id,p){const el=document.getElementById(id);if(el)el.style.width=p+'%';}
-}
-function renderAnalysis(){ const e=curEq(),o=calc(e);
-  const cMax=Math.max(o.copD,o.copO,o.copRef,0.1)*1.15; bar('cop_d',o.copD,cMax,2); bar('cop_m',o.copO,cMax,2);
-  const dMax=Math.max(o.dtD,o.dtO,0.1)*1.2; bar('dt_d',o.dtD,dMax,1); bar('dt_m',o.dtO,dMax,1);
-  col('cop_judge',o.grade);
-  const dtg=Math.abs(o.dtO-o.dtD)<=1?'양호':(Math.abs(o.dtO-o.dtD)<=2?'점검 필요':'불량'); col('dt_judge',dtg);
-  document.getElementById('resultText').value=e.resultText||'';
-  document.querySelectorAll('input[name=grade]').forEach(r=>r.checked=(r.value===e.grade));
-  function bar(id,v,mx,d){ document.getElementById(id+'_b').style.height=Math.max(2,(v/mx)*195)+'px'; document.getElementById(id+'_v').textContent=fmt(v,d); }
-  function col(id,g){ const el=document.getElementById(id); el.textContent=g; el.style.color=(g==='양호'?'#27ae60':g==='점검 필요'?'#f39c12':'#e74c3c'); }
-}
-function renderEqBox(){ const e=curEq(),o=calc(e),box=document.getElementById('eqBox');
-  const lbl = e.plrMode==='rated'?'정격 COP(전 부하 일정)':'부분부하 데이터 피팅 곡선식 (x = 부하율 0~1)';
-  box.innerHTML='<div style="font-size:10px;color:#888;margin-bottom:2px;">'+lbl+'</div>'+
-    '<div class="f">'+eqString(o.coeffs)+'</div>'+
-    '<div class="now">현재 부하율 <b>'+fmt(o.loadO*100,1)+'%</b> → 산출 COP <b>'+fmt(o.copRef,2)+'</b> &nbsp;|&nbsp; 측정 COP '+fmt(o.copO,2)+' → '+o.grade+'</div>';
+  /* 부하율 */
+  { const L=o.loadO*100; const lv=(L>=40&&L<=100)?'ok':(L>=25?'warn':'bad'); const st={ok:'양호',warn:'점검 필요',bad:'불량'}[lv];
+    const msg={ok:'적정 부하대 운전.',warn:'저부하 운전 — 효율저하·대수제어 검토.',bad:'과저부하/과부하 — 용량 적정성 재검토.'}[lv];
+    D.push([lv,'부하율',st,'운전 부하율 '+fmt(L,1)+'% &mdash; '+msg,'출처: AHRI 부분부하 가중']); }
+  $('diag').innerHTML=D.map(d=>'<div class="d '+d[0]+'"><div class="dhead">'+d[1]+' : <span class="dstat">'+d[2]+'</span></div><div class="dbody">'+d[3]+'<span class="dsrc" onclick="showSrcPopup(\''+d[1]+'\',\''+d[0]+'\')" title="클릭하면 판정 기준 요약 보기">'+d[4]+'</span></div></div>').join('');
 }
 
-/* ===== 차트 ===== */
-function setChart(m){ chartMode=m; ['cop','plr','cw'].forEach(k=>document.getElementById('cv_'+k).className=(k===m?'on':'')); drawChart(); }
-function legend(){ const l=document.getElementById('chartLegend');
-  if(chartMode==='cop') l.innerHTML='<span><i class="lg-dash"></i> 부분부하 곡선식</span><span><i class="lg-dot"></i> 현재 운전점</span>';
-  else if(chartMode==='plr') l.innerHTML='<span><i class="lg-dash"></i> 효율비(%)</span><span><i class="lg-dot"></i> 현재 운전점</span>';
-  else l.innerHTML='<span><i class="lg-dash"></i> COP–냉각수 입구온도</span><span><i class="lg-dot"></i> 현재 운전점</span>';
+/* ===== 수식 박스 ===== */
+function renderEqBox(){ const e=curEq(),o=calc(e);
+  const lbl=e.plrMode==='rated'?'정격 COP (전 부하 일정)':(e.plrMode==='manual'?'직접입력 데이터 피팅 곡선식 (x=부하율 0~1)':'표준 부분부하 곡선식 (x=부하율 0~1)');
+  $('eqBox').innerHTML='<div style="font-size:9.5px;color:#888;margin-bottom:2px;">'+lbl+'</div>'+
+    '<div class="f">'+eqString(o.coeffs)+'</div>';
+  $('curveSrc').innerHTML=(e.kind==='냉동기'?'AHRI 550/590 · ASHRAE 90.1':'ASHRAE Handbook · KS B 6270');
 }
-function drawChart(){ legend();
-  const cv=document.getElementById('chartCanvas'), dpr=devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight;
+</script>
+
+<script>
+/* ===== 차트 (canvas) ===== */
+function chartLegend(){ const l=$('chartLegend');
+  l.innerHTML='<span><i class="lg-dash"></i> 부분부하 곡선식</span><span><i class="lg-dot"></i> 현재 운전점</span>';
+}
+function drawChart(){ chartLegend();
+  const cv=$('chartCanvas'); if(!cv)return; const dpr=devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight;
+  if(W<=0||H<=0)return;
   cv.width=W*dpr; cv.height=H*dpr; const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
   const e=curEq(),o=calc(e), pad={l:42,r:12,t:10,b:26};
   const px=(t,a,b)=>pad.l+(t-a)/(b-a)*(W-pad.l-pad.r);
@@ -613,69 +814,175 @@ function drawChart(){ legend();
     for(let t=xa;t<=xb+1e-6;t+=xs){const x=px(t,xa,xb);ctx.textAlign='center';ctx.fillText(t,x,H-pad.b+13);}
     ctx.fillStyle='#888';ctx.textAlign='center';ctx.fillText(xl,pad.l+(W-pad.l-pad.r)/2,H-2);
     ctx.save();ctx.translate(10,pad.t+(H-pad.t-pad.b)/2);ctx.rotate(-Math.PI/2);ctx.fillText(yl,0,0);ctx.restore(); }
-  function curve(fn,xa,xb,ya,yb,color){ ctx.strokeStyle=color;ctx.lineWidth=2.2;ctx.beginPath();let f=true;
-    for(let t=xa;t<=xb+1e-6;t+=(xb-xa)/80){const v=fn(t),x=px(t,xa,xb),y=py(v,ya,yb);f?ctx.moveTo(x,y):ctx.lineTo(x,y);f=false;}ctx.stroke(); }
+  function curve(fn,xa,xb,ya,yb,color){ ctx.save();ctx.strokeStyle=color;ctx.lineWidth=0.5;ctx.setLineDash([5,3]);ctx.beginPath();let f=true;
+    for(let t=xa;t<=xb+1e-6;t+=(xb-xa)/80){const v=fn(t),x=px(t,xa,xb),y=py(v,ya,yb);f?ctx.moveTo(x,y):ctx.lineTo(x,y);f=false;}ctx.stroke();ctx.restore(); }
   function dots(arr,xa,xb,ya,yb,color){ ctx.fillStyle=color; arr.forEach(p=>{ctx.beginPath();ctx.arc(px(p.x,xa,xb),py(p.y,ya,yb),2.4,0,7);ctx.fill();}); }
-  function dot(x,y,xa,xb,ya,yb){const cx=px(x,xa,xb),cy=py(y,ya,yb);ctx.fillStyle='rgba(224,101,80,.32)';ctx.beginPath();ctx.arc(cx,cy,8,0,7);ctx.fill();ctx.fillStyle='#e0654f';ctx.beginPath();ctx.arc(cx,cy,5,0,7);ctx.fill();}
+  function dot(x,y,xa,xb,ya,yb){const cx=px(x,xa,xb),cy=py(y,ya,yb);
+    ctx.save();ctx.strokeStyle='#00838f';ctx.lineWidth=0.8;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(pad.l,cy);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx,H-pad.b);ctx.stroke();ctx.restore();
+    ctx.fillStyle='rgba(0,131,143,.28)';ctx.beginPath();ctx.arc(cx,cy,8,0,7);ctx.fill();
+    ctx.fillStyle='#00838f';ctx.beginPath();ctx.arc(cx,cy,5,0,7);ctx.fill();}
   function rng(vals){ let a=Math.min(...vals),b=Math.max(...vals); const pd=(b-a)*0.2||0.5; a=Math.max(0,a-pd);b+=pd; const st=nice((b-a)/5); return [Math.floor(a/st)*st,Math.ceil(b/st)*st,st]; }
-
-  if(chartMode==='cop'){
-    const samp=[]; for(let t=0.2;t<=1.0001;t+=0.1) samp.push(polyval(o.coeffs,t));
-    const [ya,yb,st]=rng(samp.concat([o.copO,o.copRef]));
-    axes(20,100,10,ya,yb,st,'부하율 (%)','COP');
-    curve(t=>polyval(o.coeffs,t/100),20,100,ya,yb,'#2f6fb0');
-    if(o.pts.length) dots(o.pts.map(p=>({x:p.x*100,y:p.cop})),20,100,ya,yb,'#2f6fb0');
-    if(o.loadO>0) dot(o.loadO*100,o.copO,20,100,ya,yb);
-  }else if(chartMode==='plr'){
-    const c100=polyval(o.coeffs,1.0)||1;
-    const samp=[]; for(let t=0.2;t<=1.0001;t+=0.1) samp.push(polyval(o.coeffs,t)/c100*100);
-    let ya=Math.min(...samp)-8,yb=Math.max(...samp)+8; ya=Math.floor(ya/10)*10;yb=Math.ceil(yb/10)*10;
-    axes(20,100,10,ya,yb,10,'부하율 (%)','효율비 (%)');
-    curve(t=>polyval(o.coeffs,t/100)/c100*100,20,100,ya,yb,'#2f6fb0');
-    if(o.pts.length) dots(o.pts.map(p=>({x:p.x*100,y:p.cop/c100*100})),20,100,ya,yb,'#2f6fb0');
-    if(o.loadO>0) dot(o.loadO*100,polyval(o.coeffs,o.loadO)/c100*100,20,100,ya,yb);
-  }else{
-    const base=o.copD||o.copO||1, Td=e.cw.sD, k=0.025, fn=T=>base*(1-k*(T-Td));
-    const samp=[]; for(let T=24;T<=38;T+=2)samp.push(fn(T)); const [ya,yb,st]=rng(samp.concat([o.copO]));
-    axes(24,38,2,ya,yb,st,'냉각수 입구온도 (℃)','COP'); curve(fn,24,38,ya,yb,'#2f6fb0'); dot(e.cw.sO,o.copO,24,38,ya,yb);
-  }
+  const samp=[]; for(let t=0.2;t<=1.0001;t+=0.1) samp.push(polyval(o.coeffs,t));
+  const [ya,yb,st]=rng(samp.concat([o.copO,o.copRef]));
+  axes(20,100,10,ya,yb,st,'부하율 (%)','COP');
+  curve(t=>polyval(o.coeffs,t/100),20,100,ya,yb,'#ED7458');
+  if(o.pts.length) dots(o.pts.map(p=>({x:p.x*100,y:p.cop})),20,100,ya,yb,'#ED7458');
+  if(o.loadO>0) dot(o.loadO*100,o.copO,20,100,ya,yb);
 }
+
+/* ===== 모드 출처·기준 / 직접입력 팝업 ===== */
+function showPlrSrc(){ const e=curEq(),o=calc(e);
+  let body='';
+  if(e.plrMode==='rated'){
+    body='<div class="sm-std">정격 COP 분석 — 전 부하구간 일정(수평)</div>'+
+      '<div class="sm-desc">정격 COP는 <b>AHRI 550/590 표준 정격조건</b>(냉수 출구 6.7℃ · 냉각수 입구 29.4℃ · 부하 100%)에서의 명판/시험성적서 값입니다. 부분부하 보정 없이 전 부하구간에 동일 적용합니다.</div>'+
+      '<table><thead><tr><th>구분</th><th>값</th><th>비고</th></tr></thead><tbody>'+
+      '<tr><td>설계 COP (산출)</td><td class="rng">'+fmt(o.copD,2)+'</td><td>능력/입력에너지</td></tr>'+
+      '<tr class="cur"><td>정격 COP (적용)</td><td class="ed"><input id="m_rated" value="'+(e.ratedCOP||'')+'" placeholder="'+fmt(o.copD,2)+'" oninput="onRated(this.value);$(\'m_ref\').textContent=fmt(calc(curEq()).copRef,2);"></td><td>미입력 시 설계값</td></tr>'+
+      '<tr><td>기준 COP (현재)</td><td class="rng" id="m_ref">'+fmt(o.copRef,2)+'</td><td>판정 기준</td></tr>'+
+      '</tbody></table>'+
+      '<div class="mnote">출처: AHRI 550/590 정격조건 · 고효율에너지기자재 보급촉진 규정(최소 COP). 정격 COP 칸을 직접 수정할 수 있습니다.</div>';
+  }else if(e.plrMode==='general'){
+    const cv=curveOf(e), b=o.copD||1;
+    let rows='';
+    PLR_GRID.forEach((p,i)=>{ const m=cv.mult[i]; const cur=Math.abs(p-o.loadO*100)<5;
+      rows+='<tr class="'+(cur?'cur':'')+'"><td class="rng">'+p+'%</td><td class="rng">'+(m*100).toFixed(1)+'%</td><td class="rng">'+(b*m).toFixed(2)+'</td></tr>'; });
+    body='<div class="sm-std">일반 부분부하 — '+e.type+'</div>'+
+      '<div class="sm-desc"><b>출처:</b> '+cv.src+'<br>설계 COP('+fmt(o.copD,2)+') 기준으로 형식별 표준 효율비를 정규화하여 곡선 피팅 후 현재 부하율 COP를 산출합니다.</div>'+
+      '<table><thead><tr><th>부하율</th><th>효율비</th><th>COP</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+      '<div class="mnote">IPLV(참고) = '+fmt(o.iplv,2)+' &nbsp;|&nbsp; AHRI 550/590 가중: 100%×1% + 75%×42% + 50%×45% + 25%×12%. 음영 행은 현재 운전 부하율 구간입니다.</div>';
+  }else{
+    let rows=e.manual.map((m,i)=>'<tr><td class="ed"><input value="'+(m.plr===''?'':m.plr)+'" placeholder="%" oninput="onManual('+i+',\'plr\',this.value)"></td><td class="ed"><input value="'+(m.cop===''?'':m.cop)+'" placeholder="COP" oninput="onManual('+i+',\'cop\',this.value)"></td><td><span class="mdel" onclick="delManual('+i+')">&#10005; 삭제</span></td></tr>').join('');
+    body='<div class="sm-std">데이터 직접 입력 (부하율% → COP)</div>'+
+      '<div class="sm-desc">현장 시험·제조사 성적서 등에서 측정한 <b>부하율–COP</b> 데이터를 직접 입력합니다. 최소 2점 이상 입력 시 2~3차 곡선으로 피팅하여 현재 부하율 COP를 산출합니다.</div>'+
+      '<table><thead><tr><th>부하율 [%]</th><th>COP</th><th>관리</th></tr></thead><tbody id="m_manualBody">'+rows+'</tbody></table>'+
+      '<span class="madd" onclick="addManual()">+ 행 추가</span>'+
+      '<div class="mnote">출처: 현장 성능시험 / 제조사 시험성적서(사용자 입력). 입력값은 즉시 곡선식·판정에 반영됩니다.</div>';
+  }
+  $('srcModalTitle').textContent='부분부하 분석 — 출처·기준 / 데이터';
+  $('srcModalBody').innerHTML=body;
+  $('srcModalMask').classList.add('on');
+}
+
+/* ===== 진단 출처 팝업 ===== */
+const SRC_INFO={
+  'COP성능':{ std:'AHRI 550/590 · 고효율에너지기자재', unit:'운전/기준 COP비',
+    desc:'운전 COP를 부분부하 보정 기준 COP로 나눈 비율. 노후화·오염·냉매상태를 반영합니다.',
+    rows:[['ok','≥ 95%','양호 — 정상'],['warn','85 ~ 95%','점검 — 응축계통 확인'],['bad','< 85%','불량 — 노후·냉매부족 의심']] },
+  '냉수온도차':{ std:'설계기준 · ASHRAE', unit:'|운전ΔT−설계ΔT|',
+    desc:'냉수 공급/환수 온도차의 설계 대비 편차. Low ΔT 증후를 진단합니다.',
+    rows:[['ok','≤ 1℃','양호 — 유량·부하 정상'],['warn','1 ~ 2℃','점검 — 밸런싱 확인'],['bad','> 2℃','불량 — 유량과다 의심']] },
+  '냉각수온도차':{ std:'냉각탑 설계 · ASHRAE', unit:'|운전ΔT−설계ΔT|',
+    desc:'냉각수 입출구 온도차의 설계 대비 편차. 응축 방열·냉각탑 성능을 진단합니다.',
+    rows:[['ok','≤ 1℃','양호 — 방열 정상'],['warn','1 ~ 2.5℃','점검 — 냉각탑·유량'],['bad','> 2.5℃','불량 — 스케일·능력저하']] },
+  '압력비':{ std:'압축기 운전기준', unit:'응축/증발 압력비',
+    desc:'응축압력을 증발압력으로 나눈 압축비. 응축기 오염·냉매상태 지표입니다.',
+    rows:[['ok','2.0 ~ 3.5','양호 — 정상 압축비'],['warn','3.5 ~ 4.2','점검 — 응축압력 상승'],['bad','> 4.2 또는 < 2.0','불량 — 냉매·응축기 진단']] },
+  '연료효율':{ std:'KS B 6270 · 고효율에너지기자재', unit:'흡수식 COP',
+    desc:'흡수식 냉온수기의 입력열량 대비 냉방출력 비(COP). 연소·진공도를 반영합니다.',
+    rows:[['ok','≥ 1.2','양호 — 2단 흡수식 기준'],['warn','1.0 ~ 1.2','점검 — 연소·진공'],['bad','< 1.0','불량 — 결정·진공저하']] },
+  '부하율':{ std:'AHRI 550/590 부분부하 가중', unit:'운전 부하율',
+    desc:'냉방능력 대비 운전 부하율. 과저부하 운전은 효율저하·대수제어 검토 대상입니다.',
+    rows:[['ok','40 ~ 100%','양호 — 적정 부하대'],['warn','25 ~ 40%','점검 — 저부하 효율저하'],['bad','< 25%','불량 — 용량 적정성 재검토']] }
+};
+function showSrcPopup(cat,curLv){ const info=SRC_INFO[cat]; if(!info)return;
+  const lvName={ok:'양호',warn:'점검 필요',bad:'불량'};
+  const rows=info.rows.map(r=>'<tr class="'+(r[0]===curLv?'cur':'')+'"><td class="rng">'+r[1]+'</td><td><span class="lv-'+r[0]+'">'+lvName[r[0]]+'</span></td><td>'+(r[2].split('—')[1]?r[2].split('—')[1].trim():r[2])+'</td></tr>').join('');
+  $('srcModalTitle').textContent=cat+' 판정 기준';
+  $('srcModalBody').innerHTML='<div class="sm-std">출처: '+info.std+'</div><div class="sm-desc">'+info.desc+'</div>'+
+    '<table><thead><tr><th>'+info.unit+'</th><th>판정</th><th>의미</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="sm-desc" style="margin-top:8px;color:#999;">※ 음영 행은 현재 측정값의 판정 구간입니다.</div>';
+  $('srcModalMask').classList.add('on');
+}
+function showRefsSrc(){
+  const stds=[
+    ['AHRI 550/590','Water-Chilling Packages 성능정격 (IPLV/NPLV · 부분부하 가중)'],
+    ['ASHRAE 90.1','Energy Standard — Table 6.8.1 최소효율(FL·IPLV) · App.G 곡선'],
+    ['KS B 6270','흡수식 냉온수기 (성능·시험방법)'],
+    ['고효율에너지기자재','한국에너지공단 보급촉진 규정 (냉동기·흡수식 최소 COP)'],
+    ['ASHRAE Handbook','HVAC Systems &amp; Equipment (흡수식·압축식 부분부하 성능)'],
+    ['단위환산','1 usRT = 3.51685 kW = 3,024 kcal/h']
+  ];
+  const rows=stds.map(s=>'<tr><td class="rng" style="font-weight:700;color:#00838f;">'+s[0]+'</td><td>'+s[1]+'</td></tr>').join('');
+  $('srcModalTitle').textContent='기준 및 출처 — 적용 표준 (상세)';
+  $('srcModalBody').innerHTML='<div class="sm-desc">본 도구의 COP·부분부하·판정에 적용된 표준 및 상세 출처 목록입니다.</div>'+
+    '<table><thead><tr><th>적용 표준</th><th>내용</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  $('srcModalMask').classList.add('on');
+}
+function closeSrcPopup(){ $('srcModalMask').classList.remove('on'); }
 
 /* ===== 핸들러 ===== */
+function update(){ const o=calc(curEq()); renderDataTable(); renderPerf(); renderTemp(); renderMetrics(); renderGauge(); renderDiag(); renderEqBox(); drawChart(); }
 function onField(k,v){ const e=curEq(); e[k]=v;
-  if(k==='resultText') return;
   if(k==='name'){ renderTabs(); return; }
   if(k==='use') return;
-  renderAll();   // maker / type / plrMode (select 변경)
-}
-function onKind(kind){ const e=curEq(); if(e.kind===kind)return; e.kind=kind; e.type=(TYPES[kind]||[])[0];
-  e.maker=kind==='냉동기'?'트레인(Trane)':'신성엔지니어링';
-  if(kind==='냉동기'){ const cD=coolRT(e.chw.sD,e.chw.rD,e.chw.fD),cO=coolRT(e.chw.sO,e.chw.rO,e.chw.fO);
-    if(cD>0)e.powD=Math.round(cD*RT_KW/5.5); if(cO>0)e.powO=Math.round(cO*RT_KW/6.0); else e.powO=''; }
-  else { e.powD=122; e.powO=''; e.fcD=88; e.fcO=56; e.fhD=94; e.gasKcal=e.gasKcal||GAS_DEFAULT; }
+  if(k==='type'){ update(); if($('srcModalMask').classList.contains('on'))showPlrSrc(); return; }
   renderAll();
 }
-function update(){ const o=calc(curEq()); updateCalc(o); renderCards(); renderTemps(); renderAnalysis(); renderEqBox(); drawChart(); }
+function onKindSel(kind){ const e=curEq(); if(e.kind===kind)return; e.kind=kind;
+  e.type=(TYPES[kind]||[])[0]; e.maker=(MAKERS[kind]||[])[0];
+  if(kind==='냉동기'){ const cD=coolRT(e.chw.sD,e.chw.rD,e.chw.fD),cO=coolRT(e.chw.sO,e.chw.rO,e.chw.fO);
+    if(cD>0)e.powD=Math.round(cD*RT_KW/5.5); if(cO>0)e.powO=Math.round(cO*RT_KW/6.0); }
+  else { e.gasKcal=e.gasKcal||GAS_DEFAULT; if(e.fcO===''||e.fcO==null)e.fcO=56; if(e.fcD===''||e.fcD==null)e.fcD=88; }
+  renderAll();
+}
+function onPlrMode(v){ curEq().plrMode=v; renderAll(); }
 function onSub(g,k,v){ curEq()[g][k]= v===''?'':(+v); update(); }
 function onRoot(k,v){ curEq()[k]= v===''?'':(+v); update(); }
 function onRated(v){ curEq().ratedCOP= v===''?'':(+v); update(); }
 function onManual(i,k,v){ curEq().manual[i][k]= v===''?'':(+v); update(); }
-function addManual(){ curEq().manual.push({plr:'',cop:''}); renderPLRPanel(); update(); }
-function delManual(i){ curEq().manual.splice(i,1); renderPLRPanel(); update(); }
-function onGrade(g){ curEq().grade=g; }
+function addManual(){ curEq().manual.push({plr:'',cop:''}); update(); showPlrSrc(); }
+function delManual(i){ curEq().manual.splice(i,1); update(); showPlrSrc(); }
 
-function renderAll(){ renderTabs(); renderOverview(); renderPLRPanel(); renderTable(); renderCards(); renderTemps(); renderAnalysis(); renderEqBox(); drawChart(); }
+function renderAll(){ renderTabs(); renderOverview(); renderDataTable(); renderPerf(); renderTemp(); renderMetrics(); renderGauge(); renderDiag(); renderEqBox(); drawChart(); }
 
-/* ===== 저장/내보내기 ===== */
-function saveData(){ try{ localStorage.setItem(_key(),JSON.stringify({projectId:_projectId,projectName:decodeURIComponent(_projectName||''),savedAt:new Date().toISOString(),curIdx,equips})); toast('저장되었습니다.','success'); flash(); }catch(e){ toast('저장 실패: '+e.message,'error'); } }
-function loadData(){ try{ const r=localStorage.getItem(_key()); if(r){const d=JSON.parse(r); if(d.equips&&d.equips.length){equips=d.equips;curIdx=d.curIdx||0;return true;}} }catch(e){} return false; }
-function exportFile(){ const b=new Blob([JSON.stringify({equips,curIdx},null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='냉동기_성능분석_'+(decodeURIComponent(_projectName)||'data')+'.json'; a.click(); toast('데이터를 내보냈습니다.','success'); }
-function goMain(){ location.href='../dashboard.html'; }
-function toast(m,t){ let el=document.getElementById('saveToast'); if(!el){el=document.createElement('div');el.id='saveToast';el.style.cssText='position:fixed;top:18px;left:50%;transform:translateX(-50%);padding:9px 26px;border-radius:8px;color:#fff;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;';document.body.appendChild(el);} el.textContent=m; el.style.background=t==='success'?'#27ae60':t==='warn'?'#f39c12':'#e74c3c'; el.style.opacity='1'; setTimeout(()=>el.style.opacity='0',2100); }
-function flash(){ const b=document.getElementById('btnSave'); if(!b)return; b.textContent='Saved!'; setTimeout(()=>b.textContent='Save',1200); }
-addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveData();} });
-addEventListener('resize',drawChart);
-addEventListener('DOMContentLoaded',()=>{ _showLabel(); if(!loadData()) equips=[defaultEq('CH-01','냉온수기')]; renderAll(); });
+/* ===== 저장 / 내보내기 / 메인 ===== */
+const STORE_KEY='HIMEC_CHILLER_SAVE';
+function himecSave(){ try{ localStorage.setItem(STORE_KEY,JSON.stringify({curIdx,equips})); alert('현재 화면의 입력값이 저장되었습니다.'); }catch(e){ alert('저장 실패: '+e.message); } }
+function loadSaved(){ try{ const r=localStorage.getItem(STORE_KEY); if(r){const d=JSON.parse(r); if(d.equips&&d.equips.length){equips=d.equips;curIdx=d.curIdx||0;return true;}} }catch(e){} return false; }
+function himecMain(){ location.href='../dashboard.html'; }
+window.himecSave=himecSave; window.himecMain=himecMain;
+
+window.addEventListener('DOMContentLoaded',function(){
+  if(!loadSaved()) equips=[defaultEq('CH-01','냉동기')];
+  renderAll(); setTimeout(drawChart,80);
+});
+window.addEventListener('resize',drawChart);
+</script>
+
+<div class="src-modal-mask" id="srcModalMask" onclick="if(event.target===this)closeSrcPopup()">
+  <div class="src-modal">
+    <div class="sm-head"><h3 id="srcModalTitle">판정 기준</h3><button class="sm-close" onclick="closeSrcPopup()">&times;</button></div>
+    <div class="sm-body" id="srcModalBody"></div>
+  </div>
+</div>
+<script>
+/* === HIMEC 헤더 내보내기 (Tool-12 드롭다운 디자인 유지) === */
+(function(){
+  function closeMenu(){ var m=document.getElementById('himecExportMenu'); if(m) m.parentNode.removeChild(m); document.removeEventListener('click', outside, true); }
+  function outside(e){ var m=document.getElementById('himecExportMenu'); if(m && !m.contains(e.target)) closeMenu(); }
+  function himecExport(btn){
+    if(document.getElementById('himecExportMenu')){ closeMenu(); return; }
+    var m=document.createElement('div'); m.className='himec-menu'; m.id='himecExportMenu';
+    m.innerHTML =
+      '<button data-x="pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF로 저장</button>'+
+      '<button data-x="xls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>JSON 내보내기</button>';
+    document.body.appendChild(m);
+    var r=btn.getBoundingClientRect();
+    var left=window.scrollX+r.right-m.offsetWidth; if(left<6) left=6;
+    m.style.top=(window.scrollY+r.bottom+6)+'px'; m.style.left=left+'px';
+    m.addEventListener('click', function(e){
+      var t=e.target.closest('button'); if(!t) return;
+      var x=t.getAttribute('data-x'); closeMenu();
+      if(x==='pdf') window.print();
+      else { try{ var b=new Blob([JSON.stringify({curIdx:curIdx,equips:equips},null,2)],{type:'application/json'}); var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='냉동기_성능분석.json'; a.click(); }catch(err){ alert('내보내기 오류: '+err.message); } }
+    });
+    setTimeout(function(){ document.addEventListener('click', outside, true); }, 0);
+  }
+  window.himecExport=himecExport;
+})();
 </script>
 </body>
 </html>
