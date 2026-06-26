@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIMEC - Energy Recovery Ventilator Performance Analysis Tool</title>
+<link rel="icon" href="data:,">
+<link rel="shortcut icon" href="data:,">
+<style>
+  * { margin:0; padding:20; box-sizing:border-box; }
+  html, body {
+    font-family:'Noto Sans KR', sans-serif;
+    background:#f5f5f5; color:#333;
+    overflow:hidden; height:100vh; width:100vw;
+  }
+  body { display:flex; flex-direction:column; }
+
+  .page-container {
+    padding:0 100px; flex:1; display:flex; flex-direction:column;
+    overflow:hidden; min-height:0; background:#fff;
+  }
+
+  /* Header */
+  .header {
+    background:#fff; padding:8px 20px; border-bottom:1px solid #ddd; flex-shrink:0;
+    margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px;
+  }
+  .header h1 { font-size:20px; font-weight:700; color:#222; }
+  .header .sub { font-size:11px; color:#888; margin-top:2px; }
+  .header h2 { font-size:15px; font-weight:600; color:#333; margin-top:4px; }
+  .header-right { position:absolute; bottom:8px; right:20px; display:flex; gap:8px; }
+  .header-right button {
+    padding:8px 0; width:90px; border:none; border-radius:4px;
+    font-size:10px; font-weight:600; cursor:pointer; text-align:center;
+  }
+  .btn-save, .btn-file { background:#e85d24; color:#fff; }
+  .btn-main { background:#555f; color:#fff; }
+  .btn-save:hover, .btn-file:hover, .btn-main:hover { opacity:.85; }
+
+  /* Tabs */
+  .tab-bar { display:flex; padding:4px 20px 0; background:#fff; gap:4px; flex-shrink:0; }
+  .tab {
+    padding:5px 20px; border-radius:6px 6px 0 0; font-size:12px; font-weight:600;
+    cursor:pointer; border:none; background:#bbb; color:#fff; position:relative;
+    padding-right:28px !important;
+  }
+  .tab.active { background:#00838f; color:#fff; }
+  .tab.add { background:#999; color:#fff; font-size:14px; padding:5px 16px; padding-right:16px !important; }
+  .tab .tab-close {
+    position:absolute; right:6px; top:50%; transform:translateY(-50%);
+    width:16px; height:16px; border-radius:50%; border:none; background:transparent;
+    color:rgba(255,255,255,.7); font-size:13px; line-height:16px; text-align:center; cursor:pointer; padding:0;
+  }
+  .tab .tab-close:hover { background:rgba(255,0,0,.6); color:#fff; }
+
+  /* Main 3-column */
+  .main {
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:0;
+    padding:0 0 30px 0; flex:1; min-height:0; overflow:hidden;
+  }
+  .panel {
+    background:#fff; padding:10px 12px; display:flex; flex-direction:column;
+    overflow:hidden; min-height:0;
+  }
+  .panel + .panel { border-left:1px solid #eee; }
+  /* 좌측 패널 오토사이즈(하단 클리핑) 제거: 내용 높이 기준, 넘치면 스크롤 */
+  #left-panel{ overflow-y:auto; overflow-x:hidden; justify-content:flex-start; }
+
+  .section-title { font-size:12px; font-weight:700; margin-bottom:4px; color:#222; flex-shrink:0; }
+  .section-title.mt { margin-top:6px; }
+  #sec-donut .section-title.mt { margin-top:20px; }  /* 전열 회수량 카드 -> 회수 열량 분포 제목 간격 */
+
+  .chk-label { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600;
+    color:#444; margin:6px 0 3px; flex-shrink:0; }
+  .chk-label .box { width:11px; height:11px; border:1.5px solid #00838f; border-radius:2px;
+    display:inline-block; position:relative; flex:none; }
+  .chk-label input { display:none; }
+  .chk-label .box.on::after { content:""; position:absolute; left:2px; top:-1px; width:4px; height:8px;
+    border:solid #00838f; border-width:0 2px 2px 0; transform:rotate(45deg); }
+  .chk-label .src { font-size:9px; font-weight:600; color:#888; margin-left:4px; }
+  .chk-label .tag1 { font-size:9px; font-weight:700; color:#d64545; background:#fdf3f3; border:1px solid #f3c9c9; padding:0 5px; border-radius:3px; margin-left:4px; }
+  .chk-label .tag2 { font-size:9px; font-weight:700; color:#00838f; background:#e0f7fa; border:1px solid #b8e3e8; padding:0 5px; border-radius:3px; margin-left:4px; }
+
+  /* info-table */
+  .info-table {
+    width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed;
+    margin-bottom:6px; font-size:10px; flex-shrink:0;
+  }
+  .info-table th, .info-table td {
+    border:1px solid #fff; padding:6px 5px; border-bottom:1.5px solid #ccc; text-align:center;
+  }
+  .info-table th { background:rgba(108,122,137,0.2); color:#3A4A57; font-weight:600; font-size:11px; }
+  .info-table tr:first-child th:first-child { border-top-left-radius:8px; }
+  .info-table tr:first-child th:last-child { border-top-right-radius:8px; }
+  .info-table td { background:#fff; }
+  .info-table input, .info-table select {
+    width:100%; border:none; text-align:center; font-size:12px; background:transparent;
+    outline:none; padding:4px 2px; font-family:inherit; color:#333;
+  }
+  .info-table select { text-align:left; cursor:pointer; }
+  .value-unit { display:inline-flex; align-items:center; justify-content:center; gap:3px; }
+  .value-unit input { width:auto; min-width:30px; max-width:62px; text-align:center; padding-right:0; }
+  .value-unit .unit { font-size:11px; color:#888; white-space:nowrap; }
+  .info-table .highlight-cell { background:#e0f7fa; color:#00838f; font-weight:700; }
+  #left-panel .info-table th:first-child, #left-panel .info-table td:first-child { border-left-color:transparent; }
+  #left-panel .info-table th:last-child, #left-panel .info-table td:last-child { border-right-color:transparent; }
+  .note-s { font-size:9px; color:#888; margin:2px 0 4px; text-align:right; flex-shrink:0; }
+
+  /* calc-table */
+  .calc-table { width:100%; border-collapse:separate; border-spacing:0; font-size:10.5px; margin-bottom:8px; }
+  /* ===== 이미지 화살표 두 곳 간격 30px ===== */
+  #center-panel .calc-table { margin-bottom:0; }
+  #center-panel .chk-label { margin-top:6; }
+  #center-panel #sec-air { margin-bottom:30px; }            /* 화살표1: 교환효율 분석 앞 (30->33, +10%) */
+  #center-panel #sec-eff .calc-table + .tbl-cap { margin-top:30px; } /* 화살표2: 회수 열량 앞 */
+  .calc-table th, .calc-table td { padding:11px 8px; border-bottom:1px solid #e2e2e2; text-align:center; vertical-align:middle; }
+  .calc-table th { background:#e8e8e8; color:#555; font-weight:600; font-size:10.5px; }
+  .calc-table tr:first-child th:first-child { border-top-left-radius:6px; }
+  .calc-table tr:first-child th:last-child { border-top-right-radius:6px; }
+  .calc-table td.fx { color:#777; font-size:9.5px; }
+  .calc-table td.num { text-align:center; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+  .calc-table tr.sub td { background:#ececec; font-weight:800; border-top:1.5px solid #c9c9c9; }
+  .calc-table tr.out td { background:#f2f2f2; font-weight:700; }
+  .calc-table tr.eff td { background:#e2e2e2; font-weight:800; border-top:1.5px solid #c9c9c9; }
+  .tbl-cap { font-size:10.5px; font-weight:700; color:#333; margin:6px 0 4px; display:flex; align-items:center; gap:6px; }
+  .tbl-cap .src { font-size:9px; font-weight:400; color:#808080; background:transparent; border:none; padding:1px 6px; border-radius:4px; }
+
+  .residual { font-size:8px; color:#555; background:#f2f2f2; border:0.5px solid #ddd;
+    border-radius:6px; padding:8px 10px; margin-top:8px; flex-shrink:0; line-height:1.45; }
+
+  /* metric cards */
+  .metrics-area { display:flex; flex-direction:column; gap:10px; flex-shrink:0; }
+  .metric-card {
+    background:transparent; border:none; border-bottom:1.5px solid #ccc; border-radius:5px;
+    padding:5.5px 1px 2px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;
+  }
+  .metric-card .ml { flex:1; }
+  .metric-label { font-size:11px; color:#00838f; line-height:1.2; font-weight:bold; }
+  .metric-sub { font-size:8.5px; color:#999; font-weight:500; margin-top:2px; }
+  .metric-value { font-size:26px; font-weight:700; color:#ff8c00; min-width:45px; text-align:right; }
+  .metric-unit { font-size:12px; color:#888; margin-left:2px; vertical-align:super; }
+
+  /* donut */
+  .donut-box { display:flex; gap:18px; align-items:center; padding:10px 50px; flex:1; min-height:0; }
+  .donut-box svg { width:auto; height:clamp(150px, 38vh, 240px); aspect-ratio:1/1; max-width:55%; flex:none; }
+  .legend { display:flex; flex-direction:column; gap:5px; flex:1; }
+  .legend .li { display:flex; align-items:center; gap:8px; font-size:11px; color:#444; }
+  .legend .sw { width:12px; height:12px; border-radius:3px; flex:none; }
+  .legend .lv { margin-left:auto; font-weight:500; font-variant-numeric:tabular-nums; }
+
+  /* diagnosis */
+  .diag { display:flex; flex-direction:column; gap:5px; }
+  .diag .d { display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:6px 10px; border-radius:5px; border:none; border-left:3px solid #ccc;
+    background:#fafafa; line-height:1.35; }
+  .diag .d .dhead { font-size:11.5px; font-weight:700; color:#333; white-space:nowrap; flex:none; }
+  .diag .d .dhead .dstat { font-weight:800; margin-left:2px; }
+  .diag .d .dbody { text-align:right; font-size:10px; color:#555; min-width:0; }
+  .diag .d .dsrc { display:block; font-size:8.5px; color:#999; font-weight:600; margin-top:1px;
+    cursor:pointer; }
+
+  /* 설계 총괄계수 : 표준값 기본 + 수정 시 색상 변경 */
+  .urow { display:flex; align-items:center; justify-content:center; gap:4px; flex-wrap:nowrap; }
+  .ustd-sel { flex:1 1 auto; min-width:0; max-width:130px; font-size:10px; padding:1px 2px;
+    border:1px solid #cfd6dc; border-radius:3px; background:#fff; color:#333;
+    white-space:nowrap; text-overflow:ellipsis; }
+  .urow .value-unit { flex:0 0 auto; }
+  #uDesign.ustd-input { color:#00838f; font-weight:700; }      /* 표준값 상태 */
+  #uDesign.ustd-input.edited { color:#d23f3f; font-weight:700; } /* 사용자 수정값 */
+  .ustd-src { display:inline; font-size:9px; color:#1268c3; font-weight:600;
+    cursor:pointer; white-space:nowrap; }
+  .ustd-src:hover { color:#0b4e96; }
+  .uedit-mark { color:#d23f3f; font-size:9px; font-weight:700; white-space:nowrap; }
+
+  /* 출처 기준 요약 팝업 */
+  .src-modal-mask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.42);
+    z-index:9999; align-items:center; justify-content:center; }
+  .src-modal-mask.on { display:flex; }
+  .src-modal { background:#fff; width:380px; max-width:92vw; max-height:82vh; overflow:auto;
+    border-radius:8px; box-shadow:0 10px 36px rgba(0,0,0,.25); }
+  .src-modal .sm-head { display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px; border-bottom:1px solid #eee; background:#00838f; border-radius:8px 8px 0 0; }
+  .src-modal .sm-head h3 { font-size:14px; font-weight:700; color:#fff; }
+  .src-modal .sm-head .sm-close { border:none; background:transparent; color:#fff; font-size:20px;
+    line-height:1; cursor:pointer; padding:0 2px; }
+  .src-modal .sm-body { padding:14px 16px; }
+  .src-modal .sm-std { font-size:11px; font-weight:700; color:#00838f; margin-bottom:8px; }
+  .src-modal .sm-desc { font-size:11px; color:#555; line-height:1.5; margin-bottom:10px; }
+  .src-modal table { width:100%; border-collapse:collapse; font-size:11px; }
+  .src-modal th, .src-modal td { border:1px solid #e3e3e3; padding:5px 8px; text-align:left; }
+  .src-modal th { background:#f4f4f4; font-weight:700; color:#333; }
+  .src-modal td.rng { white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .src-modal .lv-ok { color:#00838f; font-weight:700; }
+  .src-modal .lv-warn { color:#FFDC9F; font-weight:700; }
+  .src-modal .lv-bad { color:#ED7458; font-weight:700; }
+  .src-modal tr.cur td { background:#fff8e1; }
+  .d.ok { background:transparent; border-left-color:#00838f; } .d.ok .dstat { color:#00838f; }
+  .d.warn { background:transparent; border-left-color:#FFDC9F; } .d.warn .dstat { color:#FFDC9F; }
+  .d.bad { background:transparent; border-left-color:#ED7458; } .d.bad .dstat { color:#ED7458; }
+
+  /* refs card */
+  .refs-card { border:none; border-radius:0; background:transparent; padding:0 2px;
+    flex:0 0 auto; min-height:0; overflow:hidden; margin-top:30px; text-align:right; }
+  .refs-card h3 { font-size:10px; font-weight:700; color:#333; margin-bottom:6px; }
+  .refs-sub { font-size:8px; font-weight:400; color:#999; text-transform:uppercase; letter-spacing:.3px;
+    margin:6px 0 0; padding-bottom:0; border-bottom:none; }
+  .refs-clickable { cursor:pointer; transition:background .12s; }
+  .refs-clickable:hover { background:transparent; }
+  .refs-clickable:hover h3 { color:#333; }
+  .refs-more { font-size:8px; font-weight:700; color:#999; margin-left:4px; }
+  .std-list { list-style:none; font-size:8px; font-weight:400; color:#888; }
+  .std-list li { padding:4px 0; border-bottom:1px dashed #e2e2e2; line-height:1.45; font-weight:400; }
+  .std-list li b { color:#555; font-weight:400; }
+
+  .calc-card { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; }
+  .right-scroll { flex:none; overflow:visible; }
+
+  /* Copyright */
+  .copyright {
+    background:#fff; border-top:1px solid #ddd; padding:6px 20px;
+    margin-left:-100px; margin-right:-100px; padding-left:120px; padding-right:120px;
+    text-align:center; font-size:10px; color:#888; flex-shrink:0;
+  }
+
+  @media (max-width:1600px) {
+    .page-container { padding:0 60px; }
+    .header { margin-left:-60px; margin-right:-60px; padding-left:80px; padding-right:80px; }
+    .copyright { padding:6px 80px; margin-left:-60px; margin-right:-60px; }
+  }
+  @media (max-width:1300px) {
+    .page-container { padding:0 30px; }
+    .header { margin-left:-30px; margin-right:-30px; padding-left:50px; padding-right:50px; }
+    .copyright { padding:6px 50px; margin-left:-30px; margin-right:-30px; }
+  }
+  @media (max-width:1100px) {
+    .page-container { padding:0 15px; overflow:auto; }
+    .header { margin-left:-15px; margin-right:-15px; padding-left:35px; padding-right:35px; }
+    .copyright { padding:6px 35px; margin-left:-15px; margin-right:-15px; }
+    .main { grid-template-columns:1fr 1fr; overflow:visible; }
+    .panel { overflow:visible; }
+    .calc-card, .right-scroll, .refs-card { overflow:visible; }
+  }
+  @media (max-width:700px) {
+    .main { grid-template-columns:1fr; }
+  }
+  .info-table input::placeholder { color:#aaa; font-style:italic; font-size:10px; }
+
+  /* === ERV 추가 스타일 === */
+  .chk-label .tagOA { font-size:9px; font-weight:700; color:#1769aa; background:#e8f1fb; border:1px solid #bcd6ef; padding:0 5px; border-radius:3px; margin-left:4px; }
+  .chk-label .tagRA { font-size:9px; font-weight:700; color:#c2691c; background:#fdf3e8; border:1px solid #f1d4b0; padding:0 5px; border-radius:3px; margin-left:4px; }
+  #effStdSrc { display:inline; font-size:9px; color:#808080; font-weight:600; cursor:pointer; white-space:nowrap; }
+  #effStdSrc:hover { color:#0b4e96; }
+  #esDesign.ustd-input { color:#00838f; font-weight:700; }
+  #esDesign.ustd-input.edited { color:#d23f3f; font-weight:700; }
+
+</style>
+<style id="himec-iconbtn-style">
+/* === HIMEC 아이콘 버튼 (첨부 이미지 스타일) === */
+.header-right{ gap:6px !important; }
+.header-right button{
+  width:34px !important; height:34px !important; padding:0 !important;
+  background:#ffffff !important; color:#555 !important;
+  border:1px solid #d0d0d0 !important; border-radius:8px !important;
+  display:inline-flex !important; align-items:center; justify-content:center;
+  box-sizing:border-box;
+}
+.header-right button:hover{ background:#f5f5f5 !important; border-color:#bbb !important; }
+.header-right button svg{ width:18px; height:18px; display:block; stroke:#555; }
+.header-right button.btn-save:hover svg{ stroke:#e85d24; }
+.header-right button.btn-file:hover svg{ stroke:#e85d24; }
+/* 내보내기 드롭다운 메뉴 */
+.himec-menu{ position:absolute; z-index:99999; background:#fff; border:1px solid #ccc;
+  border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.15); padding:4px; min-width:178px; }
+.himec-menu button{ display:flex !important; align-items:center; gap:8px; width:100% !important;
+  height:auto !important; background:none !important; border:none !important; color:#222 !important;
+  padding:9px 12px !important; font-size:13px; text-align:left; cursor:pointer; border-radius:6px !important; }
+.himec-menu button:hover{ background:#f1f1f1 !important; }
+.himec-menu button svg{ width:16px; height:16px; stroke:#555; flex:0 0 auto; }
+@media print{ .header-right{ display:none !important; } .himec-menu{ display:none !important; } }
+</style>
+
+<style id="himec-unify-portrait">
+
+/* ===== [TABLE UNIFY → Tool-09 .info-table 규격] .calc-table
+   헤더색/테두리/라운드/폰트만 통일. 숫자정렬·의미색(빨강·파랑·합계행 등)은 보존 ===== */
+.calc-table { border-collapse:separate !important; border-spacing:0 !important; }
+.calc-table th, .calc-table td { border:1px solid #ffffff !important; border-bottom:1.5px solid #ccc !important; padding:6.6px 5px !important; text-align:center !important; }
+.calc-table th { background:#e8e8e8 !important; color:#555 !important; font-weight:600 !important; font-size:11px !important; }
+.calc-table tr:first-child th:first-child { border-top-left-radius:8px !important; }
+.calc-table tr:first-child th:last-child { border-top-right-radius:8px !important; }
+.calc-table input { font-size:12px !important; }
+.calc-table select { font-size:11px !important; }
+/* ===== [TABLE UNIFY] end ===== */
+
+/* ===== [PORTRAIT FIX] 세로형(portrait)일 때 단 단일컬럼 + 좌→중→우(DOM순서) 스택 =====
+   - landscape(가로) 디자인은 일절 변경하지 않음 (orientation 쿼리 내부에서만 적용) */
+@media (orientation: portrait){
+  html, body{ height:auto !important; min-height:100vh !important; overflow:visible !important; width:auto !important; }
+  body .page-container{ height:auto !important; overflow:visible !important; }
+  body .main{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    grid-template-rows:auto !important;
+    grid-auto-flow:row !important;
+    align-items:start !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+  body .main > .panel{
+    width:100% !important;
+    height:auto !important;
+    min-height:0 !important;
+    overflow:visible !important;
+  }
+  /* 차트/그래프가 height:100% 부모 붕괴로 사라지지 않도록 최소 높이 확보 */
+  body .main canvas, body .main svg{ height:auto !important; min-height:240px !important; }
+  body .main .chart-wrapper, body .main .chart-canvas-container, body .main .bar-chart-container,
+  body .main .donut-container, body .main .hbar-chart, body .main .chart-area, body .main .graph-box{
+    height:auto !important; min-height:240px !important;
+  }
+  body .main, body .main *{ overflow-wrap:anywhere; word-break:keep-all; }
+}
+/* ===== [PORTRAIT FIX] end ===== */
+
+</style>
+</head>
+
+<body>
+
+<div class="page-container">
+<!-- Header -->
+<div class="header" style="position:relative;">
+  <h1>HIMEC &minus; Mechanical Facility Aging Diagnosis System</h1>
+  <div class="sub">(주)하이멕 &minus; 기계설비 노후화 진단</div>
+  <h2>Energy Recovery Ventilator (현열&middot;전열교환기) Performance Analysis Tool</h2>
+  <div class="header-right">
+    <button class="btn-main" onclick="himecMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+    <button class="btn-save" onclick="himecSave()" title="저장(화면 입력값 저장)" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+    <button class="btn-file" onclick="himecExport(this)" title="파일 내보내기 (PDF / Excel)" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+  <button class="tab active" id="tab-1" onclick="switchTab(1)">ERV-01 #01<span class="tab-close" onclick="event.stopPropagation();removeTab(1)">&#10005;</span></button>
+  <button class="tab add" onclick="addTab()">+</button>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- LEFT -->
+  <div class="panel" id="left-panel">
+    <div class="section-title">&#9632; 장비 개요</div>
+    <table class="info-table">
+      <tr><th>장비명</th><th>교환기 형식</th><th>운전 모드</th><th>비고</th></tr>
+      <tr>
+        <td><input id="inp-name" placeholder="입력 해주세요" onchange="recalc()"></td>
+        <td><select id="inp-type" onchange="onTypeChange()">
+          <option value="total">전열(엔탈피)형</option>
+          <option value="sensible">현열형</option>
+        </select></td>
+        <td><select id="inp-use" onchange="onUseChange()">
+          <option value="heating">난방(겨울)</option>
+          <option value="cooling">냉방(여름)</option>
+          <option value="mid">중간기</option>
+        </select></td>
+        <td><input id="inp-note" placeholder="입력 해주세요" onchange="recalc()"></td>
+      </tr>
+    </table>
+
+    <div class="section-title mt">&#9632; 설계 기준값</div>
+    <table class="info-table">
+      <tr><th>정격 풍량</th><th>설계 현열효율</th><th id="th-et">설계 전열효율</th></tr>
+      <tr>
+        <td><span class="value-unit"><input id="ratedFlow" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">m&sup3;/h</span></span></td>
+        <td>
+          <div class="urow">
+            <select id="effStd" class="ustd-sel" onchange="applyEffStd()" style="display:none"></select>
+            <span class="value-unit"><input id="esDesign" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">%</span></span>
+          </div>
+        </td>
+        <td><span class="value-unit"><input id="etDesign" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit" id="unit-et">%</span></span></td>
+      </tr>
+    </table>
+    <div class="note-s" id="effStdSrcRow"><span id="effStdSrc" class="ustd-src" onclick="showEffStdSrc()" title="클릭하면 표준값 출처&middot;기준 보기">&#9432; 출처&middot;기준</span><span id="effEditMark" class="uedit-mark" style="display:none"> &middot; 수정값</span></div>
+
+    <div class="section-title mt">&#9632; 현장 측정값 <span style="font-size:8.5px;color:#999;font-weight:500">(건구온도 &middot; 상대습도)</span></div>
+
+    <label class="chk-label">도입 외기 OA<span class="tagOA">OUTDOOR</span></label>
+    <table class="info-table">
+      <tr><th>풍량</th><th>건구온도</th><th>상대습도</th></tr>
+      <tr>
+        <td><span class="value-unit"><input id="Voa" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">m&sup3;/h</span></span></td>
+        <td><span class="value-unit"><input id="toa" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
+        <td><span class="value-unit"><input id="rhoa" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">%</span></span></td>
+      </tr>
+    </table>
+
+    <label class="chk-label">실내 환기 RA<span class="tagRA">RETURN</span></label>
+    <table class="info-table">
+      <tr><th>풍량</th><th>건구온도</th><th>상대습도</th></tr>
+      <tr>
+        <td><span class="value-unit"><input id="Vra" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">m&sup3;/h</span></span></td>
+        <td><span class="value-unit"><input id="tra" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
+        <td><span class="value-unit"><input id="rhra" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">%</span></span></td>
+      </tr>
+    </table>
+
+    <label class="chk-label">급기 SA <span class="src">(외기&rarr;실내, 교환 후)</span></label>
+    <table class="info-table">
+      <tr><th>건구온도</th><th>상대습도</th><th>배기 EA 온도</th><th>배기 EA 습도</th></tr>
+      <tr>
+        <td><span class="value-unit"><input id="tsa" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
+        <td><span class="value-unit"><input id="rhsa" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">%</span></span></td>
+        <td><span class="value-unit"><input id="tea" placeholder="선택" type="number" step="any" onchange="recalc()"><span class="unit">&#8451;</span></span></td>
+        <td><span class="value-unit"><input id="rhea" placeholder="선택" type="number" step="any" onchange="recalc()"><span class="unit">%</span></span></td>
+      </tr>
+    </table>
+
+    <label class="chk-label">압력손실 &middot; 누기<span class="src">(저항&middot;급기오염 평가용)</span></label>
+    <table class="info-table">
+      <tr><th>급기측 &Delta;P&#x209B;&#x2090;</th><th>배기측 &Delta;P&#x2091;&#x2090;</th><th>누기율 EATR</th></tr>
+      <tr>
+        <td><span class="value-unit"><input id="dpsa" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">Pa</span></span></td>
+        <td><span class="value-unit"><input id="dpea" placeholder="입력" type="number" step="any" onchange="recalc()"><span class="unit">Pa</span></span></td>
+        <td><span class="value-unit"><input id="eatr" placeholder="선택" type="number" step="any" onchange="recalc()"><span class="unit">%</span></span></td>
+      </tr>
+    </table>
+
+    <div class="refs-card refs-clickable" onclick="showRefsSrc()" title="클릭하면 적용 표준&middot;상세 출처를 팝업으로 봅니다">
+      <h3>기준 및 출처 <span class="refs-more">&#9432; 상세 보기</span></h3>
+      <div class="refs-sub">적용 표준 (상세 출처) &mdash; 클릭하여 전체 목록 보기</div>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="panel" id="center-panel">
+    <div class="section-title">&#9632; 열교환 성능 분석표</div>
+    <div class="calc-card">
+      <label class="chk-label"><input type="checkbox" id="tg-air" checked onchange="toggleSec()"><span class="box on" id="box-air"></span>습공기 상태량 분석</label>
+      <div id="sec-air">
+        <div class="tbl-cap">습공기 상태량 <span class="src">ASHRAE Psychrometrics</span></div>
+        <table class="calc-table">
+          <tr><th style="width:28%">측정 지점</th><th style="text-align:right">건구온도 &#8451;</th><th style="text-align:right">상대습도 %</th><th style="text-align:right">절대습도 g/kg</th><th style="text-align:right">엔탈피 kJ/kg</th></tr>
+          <tr><td>도입 외기 OA</td><td class="num" id="a-toa">&ndash;</td><td class="num" id="a-rhoa">&ndash;</td><td class="num" id="a-woa">&ndash;</td><td class="num" id="a-hoa">&ndash;</td></tr>
+          <tr><td>실내 환기 RA</td><td class="num" id="a-tra">&ndash;</td><td class="num" id="a-rhra">&ndash;</td><td class="num" id="a-wra">&ndash;</td><td class="num" id="a-hra">&ndash;</td></tr>
+          <tr class="out"><td>급기 SA</td><td class="num" id="a-tsa">&ndash;</td><td class="num" id="a-rhsa">&ndash;</td><td class="num" id="a-wsa">&ndash;</td><td class="num" id="a-hsa">&ndash;</td></tr>
+        </table>
+      </div>
+
+      <label class="chk-label"><input type="checkbox" id="tg-eff" checked onchange="toggleSec()"><span class="box on" id="box-eff"></span>교환효율 &middot; 회수열량 분석</label>
+      <div id="sec-eff">
+        <div class="tbl-cap">교환효율 (Effectiveness) <span class="src">ASHRAE 84 / KS B 6879</span></div>
+        <table class="calc-table">
+          <tr><th style="width:34%">항목</th><th>산식&middot;출처</th><th style="width:18%;text-align:right">값</th></tr>
+          <tr><td>현열(온도)효율 &epsilon;&#x209B;</td><td class="fx">(t&#x209B;&#x2090;&minus;t&#x2092;&#x2090;)/(t&#x1d63;&#x2090;&minus;t&#x2092;&#x2090;) &middot; KS B 6879</td><td class="num" id="v-es">&ndash;</td></tr>
+          <tr id="row-el"><td>잠열(습도)효율 &epsilon;&#x2097;</td><td class="fx">(W&#x209B;&#x2090;&minus;W&#x2092;&#x2090;)/(W&#x1d63;&#x2090;&minus;W&#x2092;&#x2090;) &middot; ASHRAE 84</td><td class="num" id="v-el">&ndash;</td></tr>
+          <tr class="eff" id="row-et"><td>전열(엔탈피)효율 &epsilon;&#x209C;</td><td class="fx">(h&#x209B;&#x2090;&minus;h&#x2092;&#x2090;)/(h&#x1d63;&#x2090;&minus;h&#x2092;&#x2090;) &middot; KS B 6879</td><td class="num" id="v-et">&ndash;</td></tr>
+        </table>
+        <div class="tbl-cap">회수 열량 (Energy Recovery) <span class="src">m&#775;&middot;&Delta;h</span></div>
+        <table class="calc-table">
+          <tr><th style="width:42%">항목</th><th>산식&middot;출처</th><th style="width:20%;text-align:right">kW</th></tr>
+          <tr><td>질량유량 m&#775;</td><td class="fx">V&#x2092;&#x2090;&middot;&rho;(1.2) / 3600 &middot; kg/s</td><td class="num" id="v-mdot">&ndash;</td></tr>
+          <tr><td>현열 회수량 Q&#x209B;</td><td class="fx">m&#775;&middot;cp(1.006)&middot;(t&#x209B;&#x2090;&minus;t&#x2092;&#x2090;)</td><td class="num" id="v-qs">&ndash;</td></tr>
+          <tr id="row-ql"><td>잠열 회수량 Q&#x2097;</td><td class="fx">Q&#x209C; &minus; Q&#x209B;</td><td class="num" id="v-ql">&ndash;</td></tr>
+          <tr class="sub" id="row-qt"><td>전열 회수량 Q&#x209C;</td><td class="fx">m&#775;&middot;(h&#x209B;&#x2090;&minus;h&#x2092;&#x2090;)</td><td class="num" id="v-qt">&ndash;</td></tr>
+        </table>
+      </div>
+      <div class="residual" id="residual">&ndash;</div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="panel" id="right-panel">
+    <div class="section-title">&#9632; 성능 산정 결과</div>
+    <div class="metrics-area">
+      <div class="metric-card" id="mc-es"><div class="ml"><div class="metric-label">&#10003; 현열(온도)효율 &epsilon;&#x209B;</div><div class="metric-sub">KS B 6879 &middot; 급기 기준</div></div><div><span class="metric-value" id="m-es">&ndash;</span><span class="metric-unit">%</span></div></div>
+      <div class="metric-card" id="mc-et"><div class="ml"><div class="metric-label">&#10003; 전열(엔탈피)효율 &epsilon;&#x209C;</div><div class="metric-sub">KS B 6879 &middot; 엔탈피 기준</div></div><div><span class="metric-value" id="m-et">&ndash;</span><span class="metric-unit">%</span></div></div>
+      <div class="metric-card" id="mc-el"><div class="ml"><div class="metric-label">&#10003; 잠열(습도)효율 &epsilon;&#x2097;</div><div class="metric-sub">ASHRAE 84 &middot; 절대습도 기준</div></div><div><span class="metric-value" id="m-el">&ndash;</span><span class="metric-unit">%</span></div></div>
+      <div class="metric-card" id="mc-qt"><div class="ml"><div class="metric-label" id="lbl-qt">&#10003; 전열 회수량 Q&#x209C;</div><div class="metric-sub" id="sub-qt">현열 + 잠열 회수</div></div><div><span class="metric-value" id="m-qt">&ndash;</span><span class="metric-unit">kW</span></div></div>
+      <div class="metric-card" id="mc-none" style="display:none;justify-content:center"><div class="ml"><div class="metric-sub" style="text-align:center">분석 항목을 체크하면<br>성능 산정 결과가 표시됩니다.</div></div></div>
+    </div>
+
+    <div id="sec-donut">
+      <div class="section-title mt" id="donut-title">&#9632; 회수 열량 분포 (현열 &middot; 잠열)</div>
+      <div class="donut-box">
+        <svg id="donut" viewBox="0 0 120 120"></svg>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+
+    <div id="sec-diag">
+      <div class="section-title mt"> </div>
+      <div class="right-scroll">
+        <div class="diag" id="diag"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- Copyright -->
+<div class="copyright">
+  &copy;HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
+</div>
+
+<script>
+/* ===== 운전모드별 프리셋 (현장 측정값 예시) ===== */
+const PRESET = {
+  heating:{ratedFlow:500, Voa:500, toa:0,  rhoa:50, Vra:500, tra:22, rhra:40, tsa:17.5, rhsa:43, tea:4.8, rhea:70, dpsa:120, dpea:125, eatr:3},
+  cooling:{ratedFlow:500, Voa:500, toa:33, rhoa:60, Vra:500, tra:26, rhra:50, tsa:27.5, rhsa:54, tea:31, rhea:62, dpsa:120, dpea:125, eatr:3},
+  mid:    {ratedFlow:500, Voa:500, toa:15, rhoa:60, Vra:500, tra:24, rhra:45, tsa:21,   rhsa:48, tea:18, rhea:57, dpsa:110, dpea:115, eatr:3}
+};
+const $=id=>document.getElementById(id);
+const num=id=>{const e=$(id); if(!e) return NaN; const v=parseFloat(e.value); return isNaN(v)?NaN:v;};
+const n0=id=>{const v=num(id); return isNaN(v)?0:v;};
+const RHO=1.2;        /* 공기밀도 kg/m3 */
+const CP=1.006;       /* 건공기 비열 kJ/kg.K */
+const P_ATM=101.325;  /* 대기압 kPa */
+
+/* === 습공기 상태량 (ASHRAE Fundamentals) === */
+function Pws(T){ return 0.61078*Math.exp(17.27*T/(T+237.3)); }       /* 포화수증기압 kPa */
+function humW(T,RH){ const pw=RH/100*Pws(T); return 0.62198*pw/(P_ATM-pw); } /* 절대습도 kg/kg */
+function enth(T,W){ return 1.006*T + W*(2501+1.86*T); }              /* 엔탈피 kJ/kg */
+
+function applyPreset(t){ const p=PRESET[t]; for(const k in p){ if($(k)) $(k).value=p[k]; } }
+function onUseChange(){ applyPreset($("inp-use").value); buildEffOptions(); applyEffStd(); recalc(); }
+
+function toggleSec(){
+  const a=$("tg-air").checked, e=$("tg-eff").checked;
+  $("sec-air").style.display=a?"":"none";
+  $("sec-eff").style.display=e?"":"none";
+  $("box-air").classList.toggle("on",a);
+  $("box-eff").classList.toggle("on",e);
+  $("sec-diag").style.display=(a||e)?"":"none";
+  applyResultVisibility();
+  fitAll();
+}
+
+/* ===== 교환기 형식(전열형/현열형)별 결과 표시 분기 ===== */
+function applyResultVisibility(){
+  const effOn=$("tg-eff").checked, airOn=$("tg-air").checked;
+  const isSensible=$("inp-type").value==='sensible';
+  /* 성능 산정 결과 카드 */
+  $("mc-es").style.display=(effOn&&isSensible)?"":"none";   /* 현열효율: 현열형만 */
+  $("mc-et").style.display=(effOn&&!isSensible)?"":"none";  /* 전열효율: 전열형만 */
+  $("mc-el").style.display=(effOn&&!isSensible)?"":"none";  /* 잠열효율: 전열형만 */
+  $("mc-qt").style.display=effOn?"":"none";
+  $("mc-none").style.display=(!airOn&&!effOn)?"flex":"none";
+  /* 회수 열량 분포 도넛: 전열형(현열\u00b7잠열) + 현열형(현열만) 모두 표시 */
+  $("sec-donut").style.display=effOn?"":"none";
+  if($("donut-title")) $("donut-title").innerHTML=isSensible
+    ? "\u25a0 \ud68c\uc218 \uc5f4\ub7c9 (\ud604\uc5f4)"
+    : "\u25a0 \ud68c\uc218 \uc5f4\ub7c9 \ubd84\ud3ec (\ud604\uc5f4 \u00b7 \uc7a0\uc5f4)";
+  /* 회수량 카드 라벨 전환 */
+  if(isSensible){
+    if($("lbl-qt")) $("lbl-qt").innerHTML="\u2713 현열 회수량 Q\u209b";
+    if($("sub-qt")) $("sub-qt").textContent="현열(온도) 회수";
+  }else{
+    if($("lbl-qt")) $("lbl-qt").innerHTML="\u2713 전열 회수량 Q\u209c";
+    if($("sub-qt")) $("sub-qt").textContent="현열 + 잠열 회수";
+  }
+  /* 중앙 분석표: 전열\u00b7잠열 관련 행은 현열형에서 숨김 */
+  ["row-el","row-et","row-ql","row-qt"].forEach(id=>{ const el=$(id); if(el) el.style.display=isSensible?"none":""; });
+}
+
+function recalc(){
+  const mode=$("inp-use").value, type=$("inp-type").value;
+  const toa=num("toa"), rhoa=num("rhoa"), tra=num("tra"), rhra=num("rhra");
+  const tsa=num("tsa"), rhsa=num("rhsa"), tea=num("tea"), rhea=num("rhea");
+  const Voa=n0("Voa"), Vra=n0("Vra");
+
+  /* 습공기 상태량 */
+  const ok=v=>!isNaN(v);
+  const Woa=ok(toa)&&ok(rhoa)?humW(toa,rhoa):NaN;
+  const Wra=ok(tra)&&ok(rhra)?humW(tra,rhra):NaN;
+  const Wsa=ok(tsa)&&ok(rhsa)?humW(tsa,rhsa):NaN;
+  const hoa=ok(Woa)?enth(toa,Woa):NaN;
+  const hra=ok(Wra)?enth(tra,Wra):NaN;
+  const hsa=ok(Wsa)?enth(tsa,Wsa):NaN;
+
+  /* 질량유량 (급기=외기 도입측 기준), 보정계수 */
+  const ms=Voa>0?Voa*RHO/3600:NaN;       /* kg/s */
+  const me=Vra>0?Vra*RHO/3600:NaN;
+  const mmin=(Voa>0&&Vra>0)?Math.min(ms,me):ms;
+  const corr=(ms>0&&mmin>0)?ms/mmin:1;
+
+  /* 효율 (%) — 질량유량비 보정 */
+  const es=(ok(tsa)&&ok(tra)&&Math.abs(tra-toa)>1e-6)?corr*(tsa-toa)/(tra-toa)*100:NaN;
+  const el=(ok(Wsa)&&ok(Wra)&&Math.abs(Wra-Woa)>1e-9)?corr*(Wsa-Woa)/(Wra-Woa)*100:NaN;
+  const et=(ok(hsa)&&ok(hra)&&Math.abs(hra-hoa)>1e-6)?corr*(hsa-hoa)/(hra-hoa)*100:NaN;
+
+  /* 회수 열량 (kW) — 절댓값(회수 방향 무관) */
+  const Qs=(ms>0&&ok(tsa))?Math.abs(ms*CP*(tsa-toa)):NaN;
+  const Qt=(ms>0&&ok(hsa))?Math.abs(ms*(hsa-hoa)):NaN;
+  const Ql=(isFinite(Qt)&&isFinite(Qs))?Math.max(Qt-Qs,0):NaN;
+
+  /* 상태량 표 */
+  setN("a-toa",toa,1); setN("a-rhoa",rhoa,0); setN("a-woa",Woa*1000,2); setN("a-hoa",hoa,2);
+  setN("a-tra",tra,1); setN("a-rhra",rhra,0); setN("a-wra",Wra*1000,2); setN("a-hra",hra,2);
+  setN("a-tsa",tsa,1); setN("a-rhsa",rhsa,0); setN("a-wsa",Wsa*1000,2); setN("a-hsa",hsa,2);
+
+  /* 효율 표 */
+  setP("v-es",es); setP("v-el",el); setP("v-et",et);
+  setN("v-mdot",ms,3); setN("v-qs",Qs,2); setN("v-ql",Ql,2); setN("v-qt",Qt,2);
+
+  /* metrics */
+  $("m-es").textContent=isFinite(es)?es.toFixed(1):'\u2013';
+  $("m-et").textContent=isFinite(et)?et.toFixed(1):'\u2013';
+  $("m-el").textContent=isFinite(el)?el.toFixed(1):'\u2013';
+  $("m-qt").textContent=(type==='sensible')?(isFinite(Qs)?Qs.toFixed(2):'\u2013'):(isFinite(Qt)?Qt.toFixed(2):'\u2013');
+  applyResultVisibility();
+
+  /* residual (교환기 형식별 안내) */
+  if(type==='sensible'){
+    if(isFinite(es)){
+      $("residual").innerHTML=`현열(온도)효율 &epsilon;&#x209B;=<b>${es.toFixed(1)}%</b> &mdash; 현열형은 온도(현열)만 교환하며 잠열(수분) 회수는 없습니다. 효율 정의: KS B 6879 (급기측 &middot; 질량유량비 보정).`;
+    }else{
+      $("residual").innerHTML=`\u26a0 외기(OA)&middot;환기(RA)&middot;급기(SA)의 건구온도&middot;상대습도를 입력하면 효율이 산정됩니다. 분모(t&#x1d63;&#x2090;&minus;t&#x2092;&#x2090;)가 0이면 계산 불가.`;
+    }
+  }else if(isFinite(et)&&isFinite(es)){
+    $("residual").innerHTML=`전열효율 &epsilon;&#x209C;=<b>${et.toFixed(1)}%</b> = 현열(&epsilon;&#x209B;=${isFinite(es)?es.toFixed(1):'-'}%) + 잠열(&epsilon;&#x2097;=${isFinite(el)?el.toFixed(1):'-'}%) 종합. 전열형은 수분(잠열)까지 회수하여 제습&middot;가습 부하를 절감합니다. 효율 정의: ASHRAE 84 / KS B 6879 (급기측 &middot; 질량유량비 보정).`;
+  }else{
+    $("residual").innerHTML=`\u26a0 외기(OA)&middot;환기(RA)&middot;급기(SA)의 건구온도&middot;상대습도를 입력하면 효율이 산정됩니다. 분모(t&#x1d63;&#x2090;&minus;t&#x2092;&#x2090;)가 0이면 계산 불가.`;
+  }
+
+  drawDonut(Qs,Ql,et,type,es);
+  diagnose({mode,type,es,el,et,dpsa:num("dpsa"),dpea:num("dpea"),eatr:num("eatr"),
+            esDes:num("esDesign"),etDes:num("etDesign")});
+  fitAll();
+}
+function setN(id,v,d){ const e=$(id); if(e) e.textContent=isFinite(v)?v.toFixed(d):'\u2013'; }
+function setP(id,v){ const e=$(id); if(e) e.textContent=isFinite(v)?v.toFixed(1)+' %':'\u2013'; }
+
+function fitCenter(){
+  /* 오토사이즈 제거: 셀 패딩은 CSS 고정값(11px) 사용 */
+  const card=document.querySelector('#center-panel .calc-card');
+  if(!card) return;
+  card.querySelectorAll('.calc-table td, .calc-table th').forEach(td=>{
+    td.style.paddingTop=''; td.style.paddingBottom='';
+  });
+}
+
+/* ===== 좌/우 패널 높이 자동 채움 (하단 점선까지 표·박스 높이 확장) ===== */
+function fitLeft(){
+  /* 오토사이즈 제거: 셀 패딩은 CSS 고정값(11px) 사용 */
+  const panel=document.querySelector('#left-panel'); if(!panel) return;
+  panel.querySelectorAll('.info-table td, .info-table th').forEach(c=>{
+    c.style.paddingTop=''; c.style.paddingBottom='';
+  });
+}
+function fitRight(){
+  const panel=document.querySelector('#right-panel'); if(!panel) return;
+  const rows=[...panel.querySelectorAll('.metric-card, .diag .d')].filter(el=>el.offsetParent!==null);
+  if(!rows.length) return;
+  rows.forEach(el=>{ el.style.paddingTop=''; el.style.paddingBottom=''; });
+  requestAnimationFrame(()=>{
+    const pTop=panel.getBoundingClientRect().top;
+    let cb=pTop;
+    panel.querySelectorAll(':scope > *').forEach(el=>{ if(el.offsetParent===null) return;
+      const b=el.getBoundingClientRect().bottom; if(b>cb) cb=b; });
+    const free=panel.clientHeight-(cb-pTop);
+    let pad=8+free/rows.length/2;
+    if(pad<2) pad=2; if(pad>40) pad=40;
+    pad=Math.floor(pad*10)/10;
+    rows.forEach(el=>{ const isMc=el.classList.contains('metric-card'); if(isMc){ el.style.paddingTop='2px'; el.style.paddingBottom='2px'; } else { el.style.paddingTop='6px'; el.style.paddingBottom='6px'; } });
+  });
+}
+function fitAll(){ fitCenter(); fitRight(); }  /* fitLeft 제거: 좌측 패널 오토사이즈 비활성 */
+
+function drawDonut(Qs,Ql,et,type,es){
+  const isSensible=(type==='sensible');
+  const qs=Math.max(isFinite(Qs)?Qs:0,0), ql=Math.max(isFinite(Ql)?Ql:0,0);
+  /* 중앙/게이지 기준 효율값: 현열형=현열효율(es), 전열형=전열효율(et) */
+  const cLabel=isSensible?"현열효율":"전열효율";
+  const rawEff=isSensible?es:et;
+  const eff=isFinite(rawEff)?Math.max(0,Math.min(100,rawEff)):0;
+  /* ===== 효율 게이지: 전체 원=100%, 효율값만큼만 색상 채움 / 나머지는 투명(연회색 트랙) ===== */
+  const cx=60,cy=60,r=54,R=Math.PI/180, col="#00838f", track="#e6e9ec";
+  let svg=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${track}"/>`;   /* 100% 기준 트랙(미회수=투명영역) */
+  const ang=eff/100*360;
+  if(ang>=359.99){
+    svg+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${col}"/>`;
+  }else if(ang>0.01){
+    const a=-90, a2=a+ang;
+    const x1=cx+r*Math.cos(a*R),y1=cy+r*Math.sin(a*R);
+    const x2=cx+r*Math.cos(a2*R),y2=cy+r*Math.sin(a2*R);
+    const large=ang>180?1:0;
+    svg+=`<path d="M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2} Z" fill="${col}"/>`;
+  }
+  /* 중앙 % 텍스트: 안쪽 흰 원(지름72)을 넘칠 때만 글자크기 자동 축소 + textLength로 폭 고정 */
+  const effTxt=(isFinite(rawEff)?rawEff.toFixed(1):'-')+'%';
+  const HOLE_W=62, baseFS=20;
+  let fsAttr=`font-size="${baseFS}"`, lenAttr='';
+  const estW=effTxt.length*baseFS*0.6;
+  if(estW>HOLE_W){
+    const effFS=baseFS*HOLE_W/estW;
+    fsAttr=`font-size="${effFS.toFixed(2)}"`;
+    lenAttr=` textLength="${HOLE_W}" lengthAdjust="spacingAndGlyphs"`;
+  }
+  svg+=`<circle cx="60" cy="60" r="36" fill="#fff"/>
+    <text x="60" y="50" text-anchor="middle" font-size="4.6" fill="#888">${cLabel}</text>
+    <text x="60" y="72" text-anchor="middle" ${fsAttr} font-weight="800" fill="${col}"${lenAttr}>${effTxt}</text>`;
+  $("donut").innerHTML=svg;
+  /* 범례: 효율(채움) / 미회수(투명) + 참고용 회수 열량 */
+  const remain=Math.max(0,100-eff);
+  let lg=`<div class="li"><span class="sw" style="background:${col}"></span>${cLabel}<span class="lv">${eff.toFixed(1)} %</span></div>`
+        +`<div class="li"><span class="sw" style="background:#00838f;opacity:.55"></span>현열 회수량<span class="lv">${qs.toFixed(2)} kW</span></div>`;
+  if(!isSensible){
+    lg+=`<div class="li"><span class="sw" style="background:#ff8c00;opacity:.55"></span>잠열 회수량<span class="lv">${ql.toFixed(2)} kW</span></div>`;
+  }
+  $("legend").innerHTML=lg;
+}
+
+/* ===== 진단 (운전모드별 KS 기준 분기) ===== */
+function effRank(val, ok, warn){ /* 큰 값이 우수 */
+  if(val>=ok) return "ok"; if(val>=warn) return "warn"; return "bad"; }
+function diagnose(o){
+  const D=[];
+  const modeName={heating:"난방",cooling:"냉방",mid:"중간기"}[o.mode]||"";
+  /* 현열효율 — KS B 6879: 난방80/냉방60 (현열형에서만 평가) */
+  if(isFinite(o.es)&&o.type==='sensible'){
+    const th=o.mode==='heating'?[80,65]:o.mode==='cooling'?[60,45]:[70,55];
+    const lv=effRank(o.es,th[0],th[1]);
+    const msg={ok:"우수 — KS B 6879 기준 만족.",warn:"보통 — 기준 근접, 필터·전열소자 점검.",bad:"미흡 — 기준 미달, 소자 오염·바이패스 확인."}[lv];
+    D.push([lv,"현열효율",{ok:"우수",warn:"보통",bad:"미흡"}[lv],"&epsilon;&#x209B; "+o.es.toFixed(1)+"% ("+modeName+") &mdash; "+msg,"출처: KS B 6879"]);
+  }
+  /* 전열효율 — KS B 6879: 난방70/냉방45 (전열형만 평가) */
+  if(isFinite(o.et)&&o.type==='total'){
+    const th=o.mode==='heating'?[70,55]:o.mode==='cooling'?[45,35]:[55,45];
+    const lv=effRank(o.et,th[0],th[1]);
+    const msg={ok:"우수 — KS B 6879 전열 기준 만족.",warn:"보통 — 기준 근접, 흡습소자 성능 점검.",bad:"미흡 — 전열소자 노후·흡습저하 의심."}[lv];
+    D.push([lv,"전열효율",{ok:"우수",warn:"보통",bad:"미흡"}[lv],"&epsilon;&#x209C; "+o.et.toFixed(1)+"% ("+modeName+") &mdash; "+msg,"출처: KS B 6879"]);
+  }
+  /* 잠열효율 — 참고(전열형) */
+  if(isFinite(o.el)&&o.type==='total'){
+    const lv=effRank(o.el,50,35);
+    const msg={ok:"양호 — 수분 회수 정상.",warn:"보통 — 흡습소자 점검 권장.",bad:"저조 — 흡습코팅 열화 의심."}[lv];
+    D.push([lv,"잠열효율",{ok:"양호",warn:"보통",bad:"저조"}[lv],"&epsilon;&#x2097; "+o.el.toFixed(1)+"% &mdash; "+msg,"출처: ASHRAE 84"]);
+  }
+  /* 압력손실 — EN 308 / 고효율기자재 (150Pa 이하) */
+  const dpMax=Math.max(o.dpsa||0,o.dpea||0);
+  if(dpMax>0){
+    let lv,st;
+    if(dpMax<=150){lv="ok";st="양호";} else if(dpMax<=250){lv="warn";st="상승";} else {lv="bad";st="과대";}
+    const msg={ok:"유로 정상, 송풍동력 적정.",warn:"필터·소자 오염 진행 가능.",bad:"막힘/오염 심함 — 청소·교체 검토."}[lv];
+    D.push([lv,"압력손실",st,"최대 &Delta;P "+dpMax.toFixed(0)+"Pa &mdash; "+msg,"출처: EN 308 / 고효율기자재"]);
+  }
+  /* 누기율 EATR — AHRI 1060(5%↓) / KS 먼지누설(10%↓) */
+  if(isFinite(o.eatr)){
+    let lv,st;
+    if(o.eatr<=5){lv="ok";st="양호";} else if(o.eatr<=10){lv="warn";st="주의";} else {lv="bad";st="불량";}
+    const msg={ok:"AHRI 1060 인증기준(≤5%) 만족.",warn:"KS 누설 한계(≤10%) 이내, 실링 점검.",bad:"배기 혼입 과다 — 코어·실링 정비."}[lv];
+    D.push([lv,"누기율",st,"EATR "+o.eatr.toFixed(1)+"% &mdash; "+msg,"출처: AHRI 1060 / KS B 6879"]);
+  }
+  $("diag").innerHTML=D.map(d=>`<div class="d ${d[0]}"><div class="dhead">${d[1]} : <span class="dstat">${d[2]}</span></div><div class="dbody">${d[3]}<span class="dsrc" onclick="showSrcPopup('${d[1]}','${d[0]}')" title="클릭하면 판정 기준 요약 보기">${d[4]}</span></div></div>`).join("");
+}
+
+/* ===== 출처/판정 기준 요약 팝업 ===== */
+const SRC_INFO={
+  "현열효율":{ std:"KS B 6879 · ASHRAE Std 84",
+    desc:"급기 온도변화를 환기·외기 온도차로 나눈 온도교환효율. 운전모드별 KS 최소기준이 다릅니다.",
+    unit:"εs(현열)",
+    rows:[["ok","난방 ≥80% / 냉방 ≥60%","우수 — KS 기준 만족"],
+          ["warn","난방 65~80% / 냉방 45~60%","보통 — 소자·필터 점검"],
+          ["bad","난방 <65% / 냉방 <45%","미흡 — 기준 미달"]] },
+  "전열효율":{ std:"KS B 6879 (전열교환효율)",
+    desc:"급기 엔탈피 변화를 환기·외기 엔탈피차로 나눈 전열(엔탈피)교환효율. 전열형에만 적용.",
+    unit:"εt(전열)",
+    rows:[["ok","난방 ≥70% / 냉방 ≥45%","우수 — KS 기준 만족"],
+          ["warn","난방 55~70% / 냉방 35~45%","보통 — 흡습소자 점검"],
+          ["bad","난방 <55% / 냉방 <35%","미흡 — 소자 노후 의심"]] },
+  "잠열효율":{ std:"ASHRAE Std 84 (Latent effectiveness)",
+    desc:"급기 절대습도 변화를 환기·외기 습도차로 나눈 습도교환효율. 수분 회수 성능 지표.",
+    unit:"εl(잠열)",
+    rows:[["ok","≥ 50%","양호 — 수분 회수 정상"],
+          ["warn","35 ~ 50%","보통 — 흡습소자 점검"],
+          ["bad","< 35%","저조 — 흡습코팅 열화"]] },
+  "압력손실":{ std:"EN 308 / ISO 16494 · 고효율에너지기자재",
+    desc:"정격풍량에서 급기·배기측 정압손실 중 최대값. 상승 시 소자·필터 오염을 시사합니다.",
+    unit:"최대 ΔP",
+    rows:[["ok","≤ 150 Pa","양호 — 송풍동력 적정"],
+          ["warn","150 ~ 250 Pa","상승 — 오염 진행 가능"],
+          ["bad","> 250 Pa","과대 — 막힘/오염, 청소·교체"]] },
+  "누기율":{ std:"AHRI 1060 (EATR) · KS B 6879(누설률)",
+    desc:"배기가 급기로 혼입되는 비율(EATR). 환기 품질·실내공기질에 직접 영향을 줍니다.",
+    unit:"EATR",
+    rows:[["ok","≤ 5%","양호 — AHRI 1060 인증기준"],
+          ["warn","5 ~ 10%","주의 — KS 누설 한계 이내"],
+          ["bad","> 10%","불량 — 코어·실링 정비"]] }
+};
+function showSrcPopup(cat,curLv){
+  const info=SRC_INFO[cat]; if(!info) return;
+  const lvName={ok:"양호",warn:"주의",bad:"불량"};
+  const rows=info.rows.map(r=>`<tr class="${r[0]===curLv?'cur':''}"><td class="rng">${r[1]}</td><td><span class="lv-${r[0]}">${lvName[r[0]]}</span></td><td>${r[2].split('—')[1]?r[2].split('—')[1].trim():r[2]}</td></tr>`).join("");
+  $("srcModalTitle").textContent=cat+" 판정 기준";
+  $("srcModalBody").innerHTML=
+    `<div class="sm-std">출처: ${info.std}</div>`+
+    `<div class="sm-desc">${info.desc}</div>`+
+    `<table><thead><tr><th>${info.unit}</th><th>판정</th><th>의미</th></tr></thead><tbody>${rows}</tbody></table>`+
+    `<div class="sm-desc" style="margin-top:8px;color:#999;">※ 음영 행은 현재 측정값의 판정 구간입니다.</div>`;
+  $("srcModalMask").classList.add("on");
+}
+function closeSrcPopup(){ $("srcModalMask").classList.remove("on"); }
+
+/* ===== 설계 효율 표준값 (KS B 6879 / 고효율기자재) ===== */
+const STD_EFF=[
+  {t:"total",   use:"heating", short:"전열·난방(KS)",   es:80, et:70, src:"KS B 6879 — 현열 80%↑ / 전열 70%↑ (난방)"},
+  {t:"total",   use:"heating", short:"전열·난방(고효율)", es:90, et:75, src:"고효율에너지기자재 — 난방 현열 90%↑ / 전열 75%↑"},
+  {t:"total",   use:"cooling", short:"전열·냉방(KS)",   es:60, et:45, src:"KS B 6879 — 현열 60%↑ / 전열 45%↑ (냉방)"},
+  {t:"total",   use:"mid",     short:"전열·중간기",     es:70, et:55, src:"KS B 6879 준용(중간기 참고값)"},
+  {t:"sensible",use:"heating", short:"현열·난방(KS)",   es:80, et:0,  src:"KS B 6879 — 현열 80%↑ (난방)"},
+  {t:"sensible",use:"heating", short:"현열·난방(고효율)", es:90, et:0,  src:"고효율에너지기자재 — 난방 현열 90%↑"},
+  {t:"sensible",use:"cooling", short:"현열·냉방(KS)",   es:60, et:0,  src:"KS B 6879 — 현열 60%↑ (냉방)"},
+  {t:"sensible",use:"mid",     short:"현열·중간기",     es:70, et:0,  src:"KS B 6879 준용(중간기 참고값)"}
+];
+function onTypeChange(){ buildEffOptions(); applyEffStd(); applyTypeUI(); }
+function applyTypeUI(){
+  const sensible = $("inp-type").value === "sensible";
+  const th=$("th-et"), unit=$("unit-et"), et=$("etDesign");
+  if(th)   th.textContent = sensible ? "비고" : "설계 전열효율";
+  if(unit) unit.style.display = sensible ? "none" : "";
+  if(et){
+    if(sensible){ et.type="text";   et.placeholder="비고"; }
+    else        { et.type="number"; et.placeholder="입력"; }
+  }
+}
+function buildEffOptions(keepSel){
+  const type=$("inp-type").value, use=$("inp-use").value;
+  const prev=$("effStd").value;
+  let matched=STD_EFF.filter(s=>s.t===type&&s.use===use);
+  if(!matched.length) matched=STD_EFF.filter(s=>s.t===type);
+  $("effStd").innerHTML=matched.map(s=>`<option value="${STD_EFF.indexOf(s)}">${s.short} (현열 ${s.es}%${s.et?' / 전열 '+s.et+'%':''})</option>`).join("");
+  if(keepSel && [...$("effStd").options].some(o=>o.value===prev)) $("effStd").value=prev;
+}
+function applyEffStd(){
+  const idx=parseInt($("effStd").value); const s=STD_EFF[idx]; if(!s) return;
+  $("esDesign").value=s.es;
+  $("etDesign").value=s.et?s.et:'';
+  $("esDesign").classList.remove("edited");
+  $("effEditMark").style.display="none";
+  recalc();
+}
+function onEffEdit(){
+  const idx=parseInt($("effStd").value); const s=STD_EFF[idx];
+  const raw=$("esDesign").value.trim(); const v=parseFloat(raw);
+  const edited = raw==="" ? false : (!s || isNaN(v) ? true : (v!==s.es));
+  $("esDesign").classList.toggle("edited", edited);
+  $("effEditMark").style.display = edited ? "" : "none";
+}
+function onEffCommit(){ if($("esDesign").value.trim()===""){ applyEffStd(); } else recalc(); }
+function showEffStdSrc(){
+  const idx=parseInt($("effStd").value); const cur=STD_EFF[idx];
+  const rows=STD_EFF.map(s=>`<tr class="${s===cur?'cur':''}"><td>${s.short}</td><td class="rng">${s.es}%</td><td class="rng">${s.et?s.et+'%':'-'}</td></tr>`).join("");
+  $("srcModalTitle").textContent="설계 교환효율 표준값 기준";
+  $("srcModalBody").innerHTML=
+    (cur?`<div class="sm-std">선택: ${cur.short}</div><div class="sm-desc"><b>출처:</b> ${cur.src}</div>`:"")+
+    `<table><thead><tr><th>형식 · 모드</th><th>현열효율</th><th>전열효율</th></tr></thead><tbody>${rows}</tbody></table>`+
+    `<div class="sm-desc" style="margin-top:8px;color:#999;">※ 음영 행이 현재 선택값. KS B 6879는 최소 성능, 고효율에너지기자재(한국에너지공단)는 상향 기준입니다.</div>`+
+    `<div class="sm-desc" style="color:#999;"><b>적용 표준·출처:</b> KS B 6879(열회수형 환기장치), 고효율에너지기자재 보급촉진 규정, ASHRAE Std 84, AHRI Std 1060.</div>`;
+  $("srcModalMask").classList.add("on");
+}
+function showRefsSrc(){
+  const stds=[
+    ["KS B 6879","열회수형 환기장치 (현열&middot;전열교환효율 &middot; 누설률 시험)"],
+    ["ASHRAE Std 84","Method of Testing Air-to-Air Heat/Energy Exchangers (효율 정의)"],
+    ["AHRI Std 1060","Performance Rating of Air-to-Air Exchangers (EATR&middot;OACF 정격)"],
+    ["EN 308 / ISO 16494","Air-to-air heat recovery 시험방법 (효율&middot;압력손실)"],
+    ["ASHRAE Fundamentals","Psychrometrics (습공기 엔탈피&middot;절대습도 산정)"],
+    ["고효율에너지기자재","한국에너지공단 보급촉진 규정 (난방 현열 90%&uarr;)"]
+  ];
+  const rows=stds.map(s=>`<tr><td class="rng" style="font-weight:700;color:#00838f;">${s[0]}</td><td>${s[1]}</td></tr>`).join("");
+  $("srcModalTitle").textContent="기준 및 출처 — 적용 표준 (상세)";
+  $("srcModalBody").innerHTML=
+    `<div class="sm-desc">본 도구의 교환효율&middot;누기율&middot;압력손실 판정에 적용된 표준 및 상세 출처 목록입니다.</div>`+
+    `<table><thead><tr><th>적용 표준</th><th>내용</th></tr></thead><tbody>${rows}</tbody></table>`;
+  $("srcModalMask").classList.add("on");
+}
+
+/* ===== Tab Management ===== */
+let tabCount=1, activeTab=1, nextTabId=2;
+const FIELD_IDS=['inp-name','inp-type','inp-use','inp-note','ratedFlow','esDesign','etDesign',
+  'Voa','toa','rhoa','Vra','tra','rhra','tsa','rhsa','tea','rhea','dpsa','dpea','eatr'];
+const equipStore={};
+function snapshot(){ const o={}; FIELD_IDS.forEach(id=>{const e=$(id); if(e) o[id]=e.value;}); return o; }
+function saveCurrentTab(){ equipStore[activeTab]=snapshot(); }
+function loadTab(id){
+  const d=equipStore[id]||{};
+  FIELD_IDS.forEach(k=>{ const e=$(k); if(e&&d[k]!==undefined) e.value=d[k]; });
+  buildEffOptions(true);
+}
+function updateTabName(){
+  const name=$("inp-name").value||'ERV';
+  const btn=$("tab-"+activeTab);
+  if(btn){ const c=btn.querySelector('.tab-close'); btn.textContent=name+' #'+String(activeTab).padStart(2,'0'); if(c) btn.appendChild(c); }
+}
+function switchTab(id){
+  if(id===activeTab) return;
+  saveCurrentTab(); updateTabName();
+  document.querySelectorAll('.tab:not(.add)').forEach(t=>t.classList.remove('active'));
+  const b=$("tab-"+id); if(b) b.classList.add('active');
+  activeTab=id; loadTab(id); recalc();
+}
+function addTab(){
+  saveCurrentTab(); updateTabName();
+  const id=nextTabId++; tabCount++;
+  equipStore[id]=Object.assign({'inp-name':'ERV-'+String(tabCount).padStart(2,'0'),'inp-type':'total','inp-use':'heating','inp-note':'정격운전','esDesign':80,'etDesign':70},PRESET.heating);
+  const btn=document.createElement('button');
+  btn.className='tab'; btn.id='tab-'+id; btn.textContent='ERV-'+String(id).padStart(2,'0')+' #'+String(id).padStart(2,'0');
+  btn.onclick=()=>switchTab(id);
+  const c=document.createElement('span'); c.className='tab-close'; c.innerHTML='&#10005;';
+  c.onclick=e=>{e.stopPropagation();removeTab(id);}; btn.appendChild(c);
+  const bar=document.querySelector('.tab-bar'); bar.insertBefore(btn,bar.lastElementChild);
+  document.querySelectorAll('.tab:not(.add)').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active'); activeTab=id; loadTab(id); updateTabName(); recalc();
+}
+function removeTab(id){
+  const tabs=document.querySelectorAll('.tab:not(.add)');
+  if(tabs.length<=1){ alert('최소 1개의 장비는 유지해야 합니다.'); return; }
+  const b=$("tab-"+id); const nm=b?b.textContent.replace('\u2715','').trim():'장비';
+  if(!confirm('"'+nm+'" 장비를 삭제하시겠습니까?')) return;
+  if(b) b.remove(); delete equipStore[id];
+  if(activeTab===id){ const r=document.querySelectorAll('.tab:not(.add)')[0]; const fid=parseInt(r.id.replace('tab-','')); r.classList.add('active'); activeTab=fid; loadTab(fid); recalc(); }
+}
+function saveData(){ saveCurrentTab(); updateTabName(); alert('데이터가 저장되었습니다.'); }
+function exportFile(){ alert('파일 변환 기능'); }
+
+window.addEventListener('DOMContentLoaded',function(){
+  $("inp-name").addEventListener('input',updateTabName);
+  applyPreset('heating'); buildEffOptions(); applyEffStd(); applyTypeUI(); toggleSec(); recalc();
+  setTimeout(fitAll,60);
+});
+window.addEventListener('resize',fitAll);
+</script>
+<div class="src-modal-mask" id="srcModalMask" onclick="if(event.target===this)closeSrcPopup()">
+  <div class="src-modal">
+    <div class="sm-head"><h3 id="srcModalTitle">판정 기준</h3><button class="sm-close" onclick="closeSrcPopup()">&times;</button></div>
+    <div class="sm-body" id="srcModalBody"></div>
+  </div>
+</div>
+<script>
+/* === HIMEC 공통 헤더 기능 (Save / Export / Main) === */
+(function(){
+  function fields(){ return Array.prototype.slice.call(document.querySelectorAll('input, select, textarea')); }
+  function fkey(el,i){ return el.id ? ('#'+el.id) : ('@'+i); }
+  function storeKey(){ return 'HIMEC_SAVE::' + (location.pathname || document.title || 'tool'); }
+
+  function himecSave(){
+    try{
+      var data={};
+      fields().forEach(function(el,i){
+        var k=fkey(el,i);
+        if(el.type==='checkbox'||el.type==='radio'){ data[k]={t:'chk', v:el.checked}; }
+        else { data[k]={t:'val', v:el.value}; }
+      });
+      localStorage.setItem(storeKey(), JSON.stringify(data));
+      alert('현재 화면의 입력값이 저장되었습니다.');
+    }catch(e){ alert('저장 중 오류가 발생했습니다: '+e.message); }
+  }
+
+  function himecRestore(){
+    try{
+      var raw=localStorage.getItem(storeKey()); if(!raw) return;
+      var data=JSON.parse(raw);
+      fields().forEach(function(el,i){
+        var rec=data[fkey(el,i)]; if(!rec) return;
+        if(rec.t==='chk'){ el.checked=!!rec.v; el.dispatchEvent(new Event('change',{bubbles:true})); }
+        else { el.value=rec.v; el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }
+      });
+    }catch(e){}
+  }
+
+  function closeMenu(){ var m=document.getElementById('himecExportMenu'); if(m) m.parentNode.removeChild(m); document.removeEventListener('click', outside, true); }
+  function outside(e){ var m=document.getElementById('himecExportMenu'); if(m && !m.contains(e.target)) closeMenu(); }
+
+  function himecExport(btn){
+    if(document.getElementById('himecExportMenu')){ closeMenu(); return; }
+    var m=document.createElement('div'); m.className='himec-menu'; m.id='himecExportMenu';
+    m.innerHTML =
+      '<button data-x="pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF로 저장</button>'+
+      '<button data-x="xls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>Excel로 내보내기</button>';
+    document.body.appendChild(m);
+    var r=btn.getBoundingClientRect();
+    var left=window.scrollX+r.right-m.offsetWidth; if(left<6) left=6;
+    m.style.top=(window.scrollY+r.bottom+6)+'px';
+    m.style.left=left+'px';
+    m.addEventListener('click', function(e){
+      var t=e.target.closest('button'); if(!t) return;
+      var x=t.getAttribute('data-x'); closeMenu();
+      if(x==='pdf') himecPDF(); else himecExcel();
+    });
+    setTimeout(function(){ document.addEventListener('click', outside, true); }, 0);
+  }
+
+  function himecPDF(){
+    /* 화면 비율 그대로 인쇄 → 브라우저 인쇄 대화상자에서 'PDF로 저장' 선택 */
+    window.print();
+  }
+  function himecExcel(){
+    alert('Excel 내보내기는 추후 별도 양식으로 제공될 예정입니다.');
+  }
+
+  function himecMain(){
+    location.href = '../dashboard.html';
+  }
+
+  window.himecMain=himecMain;
+
+  if(document.readyState==='loading'){
+    window.addEventListener('DOMContentLoaded', function(){ setTimeout(himecRestore, 60); });
+  } else { setTimeout(himecRestore, 60); }
+})();
+</script>
+</body>
+</html>
