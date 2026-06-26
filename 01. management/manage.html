@@ -3,8 +3,9 @@
 <head>
   <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
   <script src="/js/supabase-config.js"></script>
+  <!-- ▼ 로그인 가드 + 로그아웃 (설정 파일보다 뒤, sync보다 앞) -->
+  <script src="/js/auth-guard.js"></script>
   <script src="/js/himec-supabase-sync.js"></script>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HIMEC - Performance Management </title>
@@ -195,7 +196,7 @@ table.bgt tr.hl2 td{background:#fdf3ec;font-weight:800;color:var(--orange-d);}
   </div>
 </div>
 <script>
-function GoMain(){ if(window.STD){ STD.goMain((typeof hddSaveData==='function')?hddSaveData:null); } else { window.location.href='../index.html'; } }
+function GoMain(){ if(window.STD){ STD.goMain((typeof hddSaveData==='function')?hddSaveData:null); } else { window.location.href='../main.html'; } }
 
 const MONTHS=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 const z12=()=>Array(12).fill(0);
