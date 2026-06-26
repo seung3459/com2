@@ -3,8 +3,9 @@
 <head>
   <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
   <script src="/js/supabase-config.js"></script>
+  <!-- ▼ 로그인 가드 + 로그아웃 (설정 파일보다 뒤, sync보다 앞) -->
+  <script src="/js/auth-guard.js"></script>
   <script src="/js/himec-supabase-sync.js"></script>
-
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HIMEC - Project Dashboard</title>
@@ -1115,7 +1116,7 @@ body{font-family:'Noto Sans KR',sans-serif;}
 
 <!-- github-api.js: 로컬 모드에서는 불필요 -->
 <script>
-function goToMain(){window.location.href='../index.html';}
+function goToMain(){window.location.href='../main.html';}
 // =====================================
 // 🔐 인증 및 권한 관리 (로컬 모드)
 // =====================================
@@ -1231,7 +1232,7 @@ const CATEGORY_TOOLS = [
       { id: 'psychrometric', name: '✔ 습공기 상태 분석', url: 'tools/Tool-301. Psychart.html' },
 	  { id: 'psy_comfort', name: '✔ 습공기 쾌적 범위 분석', url: 'tools/Tool-302. PMVchart.html' },
 	  { id: 'fan_efficiency', name: '✔ 급배기팬 성능분석', url: 'tools/Tool-303. Fan Efficiency.html' },
-	  { id: 'energy_recovery_performance', name: '✔ 전열교환기 성능 분석', url: 'tools/Tool-304. Energy Recovery Ventilator Performance.html' }
+	  { id: 'energy_recovery_performance', name: '✔ 전열교환기 성능 분석', url: 'tools/Tool-304. Energy Recovery Ventilator Performance.html' },
 	  { id: 'duct-friction', name: '✔ 덕트 적정성 분석', url: 'tools/Tool-305. Duct Friction.html' }
     ]
   },
