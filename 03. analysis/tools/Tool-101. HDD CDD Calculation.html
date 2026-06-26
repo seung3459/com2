@@ -1,489 +1,506 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
-  <script src="/js/supabase-config.js"></script>
-  <script src="/js/himec-supabase-sync.js"></script>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HIMEC - HDD&COOL Analysis </title>
-
-<!-- CSS -->
 <style>
-/* ================================================== */
-/* GLOBAL */
-/* ================================================== */
-/* ===== GLOBAL RESET & BASE ===== */
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body {
-  font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #f5f5f5;
-  color: #333;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-}
-body {
-  display: flex;
-  flex-direction: column;
-}
-
-/* ===== Page container with side margins ===== */
-.page-container {
-  padding: 0 100px;
-  background: #fff;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
-}
-
-
-/* ================================================== */
-/* HEADER */
-/* ================================================== */
-/* ===== HEADER ===== */
-.header {
-  background: #fff;
-  padding: 8px 20px;
-  border-bottom: 1px solid #ddd;
-  flex-shrink: 0;
-  margin-left: -100px;
-  margin-right: -100px;
-  padding-left: 120px;
-  padding-right: 120px;
-}
-.header h1 {
-  font-size: 20px;
-  font-weight: 700;
-  color: #222;
-}
-.header .sub {
-  font-size: 11px;
-  color: #888;
-  margin-top: 2px;
-}
-.header h2 {
-  font-size: 15px;
-  font-weight: 600;
-  color: #333;
-  margin-top: 4px;
-}
-.header-right {
-  position: absolute;
-  bottom: 8px;
-  right: 20px;
-  display: flex;
-  gap: 8px;
-}
-.header-right button {
-  padding: 8px 0;
-  width: 90px;
-  border: none;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: center;
-}
-.btn-save { background: #e85d24; color: #fff; }
-.btn-file { background: #e85d24; color: #fff; }
-.btn-main { background: #555f; color: #fff; }
-.btn-save:hover, .btn-file:hover { opacity: 0.85; }
-.btn-main:hover { opacity: 0.85; }
-
-/* ---- Footer Copyright ---- */
-.footer-copyright {
-    flex-shrink: 0;
-    background: #f8fafc;
-    border-top: none;
-    padding: 8px 100px;
-    text-align: center;
-}
-
-.footer-inner {
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+  }
+  body {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-size: 10px;
-    color: #e0e0e0;
-    letter-spacing: 0.01em;
-}
-
-.footer-divider {
-    color: var(--border);
-}
-
-
-/* ================================================== */
-/* LAYOUT */
-/* ================================================== */
-/* ===== CONTENT AREA ===== */
-.content-area {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: 0;
-  background: #fff;
-}
-
-/* ===== TWO COLUMN LAYOUT ===== */
-.main-layout {
-  display: flex;
-  height: 100%;
-  min-height: 0;
-}
-.left-panel {
-  width: 320px;
-  min-width: 280px;
-  flex-shrink: 0;
-  border-right: 1px solid #e5e7eb;
-  padding: 20px 20px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-.right-panel {
-  flex: 1;
-  padding: 20px 24px;
-  overflow-y: auto;
-  min-width: 0;
-}
-
-/* ===== CHART + SIDE TABLE ROW ===== */
-.chart-table-row {
-  display: flex;
-  gap: 15px;
-  align-items: stretch;
-}
-.chart-col {
-  flex: 3;
-  min-width: 0;
-}
-.side-table-col {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ===== Responsive ===== */
-@media (max-width: 1600px) {
-  .page-container { padding: 0 60px; }
-  .header { margin-left: -60px; margin-right: -60px; padding-left: 80px; padding-right: 80px; }
-  .footer-copyright { padding: 6px 80px; margin-left: -60px; margin-right: -60px; }
-}
-@media (max-width: 1300px) {
-  .page-container { padding: 0 30px; }
-  .header { margin-left: -30px; margin-right: -30px; padding-left: 50px; padding-right: 50px; }
-  .footer-copyright { padding: 6px 50px; margin-left: -30px; margin-right: -30px; }
-}
-@media (max-width: 1100px) {
-  .page-container { padding: 0 15px; }
-  .header { margin-left: -15px; margin-right: -15px; padding-left: 35px; padding-right: 35px; }
-  .footer-copyright { padding: 6px 35px; margin-left: -15px; margin-right: -15px; }
-  .main-layout { flex-direction: column !important; }
-  .left-panel { width: 100% !important; border-right: none !important; border-bottom: 1px solid #e5e7eb; }
-  .right-panel { width: 100% !important; }
-}
-@media (max-width: 900px) {
-  .chart-table-row {
     flex-direction: column;
   }
-}
-@media (max-width: 700px) {
-  .page-container { padding: 0 10px; }
-  .header { margin-left: -10px; margin-right: -10px; padding-left: 30px; padding-right: 30px; }
-  .footer-copyright { padding: 6px 30px; margin-left: -10px; margin-right: -10px; }
-  .input-grid-2x2 { grid-template-columns: 1fr !important; }
-  .metric-row { grid-template-columns: 1fr 1fr !important; }
-}
 
+  /* ===== Page container with side margins (보존) ===== */
+  .page-container {
+    padding: 0 100px;
+    background: #fff;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
 
-/* ================================================== */
-/* COMPONENTS */
-/* ================================================== */
-/* ===== SECTION TITLES ===== */
-.section-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #111;
-  margin-bottom: 15px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.section-title::before {
-  content: "\25A0";
-  color: #111;
-  font-size: 10px;
-}
+  /* ===== HEADER (보존) ===== */
+  .header {
+    background: #fff;
+    padding: 8px 20px;
+    border-bottom: 1px solid #ddd;
+    flex-shrink: 0;
+    margin-left: -100px;
+    margin-right: -100px;
+    padding-left: 120px;
+    padding-right: 120px;
+  }
+  .header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #222;
+  }
+  .header .sub {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+  }
+  .header h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    margin-top: 4px;
+  }
+  .header-right {
+    position: absolute;
+    bottom: 8px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+  }
+  .header-right button {
+    padding: 8px 0;
+    width: 90px;
+    border: none;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+  .btn-save { background: #e85d24; color: #fff; }
+  .btn-file { background: #e85d24; color: #fff; }
+  .btn-main { background: #555f; color: #fff; }
+  .btn-save:hover, .btn-file:hover { opacity: 0.85; }
+  .btn-main:hover { opacity: 0.85; }
 
-/* ===== INPUT FIELDS ===== */
-.input-grid-2x2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.field-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.field-group label {
-  font-size: 11px;
-  font-weight: 500;
-  color: #666;
-}
-.field-group select,
-.field-group input {
-  padding: 7px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font-size: 13px;
-  font-family: inherit;
-  background: #fff;
-  color: #333;
-  appearance: auto;
-}
-.field-group select:focus,
-.field-group input:focus {
-  outline: none;
-  border-color: #2563eb;
-}
-.input-with-unit {
-  position: relative;
-}
-.input-with-unit input {
-  width: 100%;
-  padding-right: 30px;
-}
-.input-with-unit .unit {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 12px;
-  color: #999;
-  pointer-events: none;
-}
-.weather-select {
-  width: 100%;
-}
-.weather-select select {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font-size: 13px;
-  font-family: inherit;
-  background: #fff;
-  color: #333;
-  appearance: auto;
-}
+  /* ===== COPYRIGHT (보존) ===== */
+  .copyright {
+    background: #fff;
+    border-top: 1px solid #ddd;
+    padding: 6px 20px;
+    margin-left: -100px;
+    margin-right: -100px;
+    padding-left: 120px;
+    padding-right: 120px;
+    text-align: center;
+    font-size: 10px;
+    color: #888;
+    flex-shrink: 0;
+  }
+
+  /* ===== Responsive (보존) ===== */
+  @media (max-width: 1600px) {
+    .page-container { padding: 0 60px; }
+    .header { margin-left: -60px; margin-right: -60px; padding-left: 80px; padding-right: 80px; }
+    .copyright { padding: 6px 80px; margin-left: -60px; margin-right: -60px; }
+  }
+  @media (max-width: 1300px) {
+    .page-container { padding: 0 30px; }
+    .header { margin-left: -30px; margin-right: -30px; padding-left: 50px; padding-right: 50px; }
+    .copyright { padding: 6px 50px; margin-left: -30px; margin-right: -30px; }
+  }
+  @media (max-width: 1100px) {
+    .page-container { padding: 0 15px; }
+    .header { margin-left: -15px; margin-right: -15px; padding-left: 35px; padding-right: 35px; }
+    .copyright { padding: 6px 35px; margin-left: -15px; margin-right: -15px; }
+    .main-layout { flex-direction: column !important; }
+    .left-panel { width: 100% !important; border-right: none !important; border-bottom: 1px solid #e5e7eb; }
+    .right-panel { width: 100% !important; }
+  }
+  @media (max-width: 700px) {
+    .page-container { padding: 0 10px; }
+    .header { margin-left: -10px; margin-right: -10px; padding-left: 30px; padding-right: 30px; }
+    .copyright { padding: 6px 30px; margin-left: -10px; margin-right: -10px; }
+    .input-grid-2x2 { grid-template-columns: 1fr !important; }
+    .metric-row { grid-template-columns: 1fr 1fr !important; }
+  }
+
+  /* ===== CONTENT AREA ===== */
+  .content-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    background: #fff;
+  }
+
+  /* ===== TWO COLUMN LAYOUT ===== */
+  .main-layout {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+  }
+  .left-panel {
+    width: 320px;
+    min-width: 280px;
+    flex-shrink: 0;
+    border-right: 1px solid #e5e7eb;
+    padding: 20px 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .right-panel {
+    flex: 1;
+    padding: 20px 24px;
+    overflow-y: auto;
+    min-width: 0;
+  }
+
+  /* ===== SECTION TITLES ===== */
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #111;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-title::before {
+    content: "\25A0";
+    color: #111;
+    font-size: 10px;
+  }
+
+  /* ===== INPUT FIELDS ===== */
+  .input-grid-2x2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .field-group label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #666;
+  }
+  .field-group select,
+  .field-group input {
+    padding: 7px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+    color: #333;
+    appearance: auto;
+  }
+  .field-group select:focus,
+  .field-group input:focus {
+    outline: none;
+    border-color: #2563eb;
+  }
+  .input-with-unit {
+    position: relative;
+  }
+  .input-with-unit input {
+    width: 100%;
+    padding-right: 30px;
+  }
+  .input-with-unit .unit {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: #999;
+    pointer-events: none;
+  }
+  .weather-select {
+    width: 100%;
+  }
+  .weather-select select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+    color: #333;
+    appearance: auto;
+  }
+
+  
+
+  
+  /* ===== CHART + SIDE TABLE ROW ===== */
+  .chart-table-row {
+    display: flex;
+    gap: 15px;
+    align-items: stretch;
+  }
+  .chart-col {
+    flex: 3;
+    min-width: 0;
+  }
+  .side-table-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .side-table-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 6px;
+    padding-left: 2px;
+  }
+  .side-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    flex: 1;
+  }
+  .side-table thead th {
+    background: #f3f4f6;
+    padding: 5px 6px;
+    text-align: right;
+    font-weight: 700;
+    border-bottom: 2px solid #d1d5db;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+  }
+  .side-table thead th:first-child {
+    text-align: center;
+  }
+  .side-table tbody td {
+    padding: 4px 6px;
+    text-align: right;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .side-table tbody td:first-child {
+    text-align: center;
+    font-weight: 600;
+  }
+  .side-table tbody tr:last-child {
+    font-weight: 700;
+    background: #f9fafb;
+    border-top: 2px solid #d1d5db;
+  }
+  .side-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .side-table .val-hdd { color: #dc2626; }
+  .side-table .val-cdd { color: #2563eb; }
+
+  @media (max-width: 900px) {
+    .chart-table-row {
+      flex-direction: column;
+    }
+  }
 
 /* ===== METRIC CARDS ===== */
-.metric-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 15px;
-  margin-bottom: 38px;
-}
-.metric-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 14px 16px;
-  text-align: center;
-}
-.metric-card .m-value {
-  font-size: 24px;
-  font-weight: 800;
-  margin-bottom: 4px;
-}
-.metric-card .m-label {
-  font-size: 10.5px;
-  color: #888;
-  font-weight: 500;
-  line-height: 1.3;
-}
-.metric-card.type-hdd { border-top: 3px solid #ef4444; }
-.metric-card.type-hdd .m-value { color: #ef4444; }
-.metric-card.type-cdd { border-top: 3px solid #3b82f6; }
-.metric-card.type-cdd .m-value { color: #3b82f6; }
-.metric-card.type-avg { border-top: 3px solid #10b981; }
-.metric-card.type-avg .m-value { color: #10b981; }
-.metric-card.type-total { border-top: 3px solid #f97316; }
-.metric-card.type-total .m-value { color: #f97316; }
+  .metric-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin-bottom: 38px;
+  }
+  .metric-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .metric-card .m-value {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .metric-card .m-label {
+    font-size: 10.5px;
+    color: #888;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+  .metric-card.type-hdd { border-top: 3px solid #ef4444; }
+  .metric-card.type-hdd .m-value { color: #ef4444; }
+  .metric-card.type-cdd { border-top: 3px solid #3b82f6; }
+  .metric-card.type-cdd .m-value { color: #3b82f6; }
+  .metric-card.type-avg { border-top: 3px solid #10b981; }
+  .metric-card.type-avg .m-value { color: #10b981; }
+  .metric-card.type-total { border-top: 3px solid #f97316; }
+  .metric-card.type-total .m-value { color: #f97316; }
 
-/* ===== CHART AREA ===== */
-.chart-area {
-  position: relative;
-  width: 100%;
-}
-.chart-area canvas {
-  width: 100% !important;
-}
+  /* ===== TAB BUTTONS ===== */
+  
 
-/* ===== SIDE TABLE ===== */
-.side-table-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 6px;
-  padding-left: 2px;
-}
-.side-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
-  flex: 1;
-}
-.side-table thead th {
-  background: #f3f4f6;
-  padding: 5px 6px;
-  text-align: right;
-  font-weight: 700;
-  border-bottom: 2px solid #d1d5db;
-  white-space: nowrap;
-  position: sticky;
-  top: 0;
-}
-.side-table thead th:first-child {
-  text-align: center;
-}
-.side-table tbody td {
-  padding: 4px 6px;
-  text-align: right;
-  border-bottom: 1px solid #e5e7eb;
-}
-.side-table tbody td:first-child {
-  text-align: center;
-  font-weight: 600;
-}
-.side-table tbody tr:last-child {
-  font-weight: 700;
-  background: #f9fafb;
-  border-top: 2px solid #d1d5db;
-}
-.side-table tbody tr:last-child td {
-  border-bottom: none;
-}
-.side-table .val-hdd { color: #dc2626; }
-.side-table .val-cdd { color: #2563eb; }
+  /* ===== CHART ===== */
+  .chart-area {
+    position: relative;
+    width: 100%;
+  }
+  .chart-area canvas {
+    width: 100% !important;
+  }
 
-/* ===== DATA TABLE ===== */
-.table-wrap { overflow-x: auto; margin-top: 0; }
-.table-wrap table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
-.table-wrap thead th {
-  background: #f3f4f6;
-  padding: 8px 6px;
-  text-align: center;
-  font-weight: 700;
-  border-bottom: 2px solid #e5e7eb;
-  white-space: nowrap;
-  font-size: 11px;
-}
-.table-wrap tbody td {
-  padding: 20px 6px;
-  text-align: center;
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 11.5px;
-}
-.table-wrap tbody tr:hover { background: #f9fafb; }
-.val-hdd { color: #ef4444; font-weight: 600; }
-.val-cdd { color: #3b82f6; font-weight: 600; }
+  /* ===== TABLE ===== */
+  .table-wrap { overflow-x: auto; margin-top: 0; }
+  .table-wrap table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .table-wrap thead th {
+    background: #f3f4f6;
+    padding: 8px 6px;
+    text-align: center;
+    font-weight: 700;
+    border-bottom: 2px solid #e5e7eb;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+  .table-wrap tbody td {
+    padding: 20px 6px;
+    text-align: center;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 11.5px;
+  }
+  .table-wrap tbody tr:hover { background: #f9fafb; }
+  .val-hdd { color: #ef4444; font-weight: 600; }
+  .val-cdd { color: #3b82f6; font-weight: 600; }
 
-/* ===== DAILY CONTROLS ===== */
-.daily-controls {
-  margin-bottom: 12px;
-}
-.daily-controls select {
-  padding: 6px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font-size: 12px;
-  font-family: inherit;
-}
+  /* ===== DAILY TAB ===== */
+  .daily-controls {
+    margin-bottom: 12px;
+  }
+  .daily-controls select {
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: inherit;
+  }
 
-.export-btn:hover {
-  background: #f3f4f6;
-}
+  
+  .export-btn:hover {
+    background: #f3f4f6;
+  }
 
-/* ===== LOADING ===== */
-.hdd-loading { text-align: center; padding: 20px; color: #6b7280; }
-.hdd-spinner {
-  display: inline-block;
-  width: 20px; height: 20px;
-  border: 2px solid #e5e7eb;
-  border-top-color: #3b82f6;
-  border-radius: 50%;
-  animation: hddspin 0.8s linear infinite;
-  margin-right: 6px;
-  vertical-align: middle;
-}
-@keyframes hddspin { to { transform: rotate(360deg); } }
+  /* Loading */
+  .hdd-loading { text-align: center; padding: 20px; color: #6b7280; }
+  .hdd-spinner {
+    display: inline-block;
+    width: 20px; height: 20px;
+    border: 2px solid #e5e7eb;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: hddspin 0.8s linear infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  @keyframes hddspin { to { transform: rotate(360deg); } }
 
-/* ===== API FIELDS ===== */
-.api-hidden-fields {
-  display: none;
-  margin-top: 10px;
-  padding: 10px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-}
-.api-hidden-fields.show {
-  display: block;
-}
-.api-fields-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin-top: 8px;
-}
-.api-fields-grid .field-group input {
-  width: 100%;
-}
-.api-fetch-btn {
-  margin-top: 8px;
-  padding: 6px 14px;
-  border: none;
-  border-radius: 4px;
-  background: #059669;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-}
-.api-fetch-btn:hover {
-  background: #047857;
-}
+  /* API Section hidden fields */
+  .api-hidden-fields {
+    display: none;
+    margin-top: 10px;
+    padding: 10px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+  }
+  .api-hidden-fields.show {
+    display: block;
+  }
+  .api-fields-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .api-fields-grid .field-group input {
+    width: 100%;
+  }
+  .api-fetch-btn {
+    margin-top: 8px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    background: #059669;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .api-fetch-btn:hover {
+    background: #047857;
+  }
 
-/* ===== DISABLED INPUT STYLING ===== */
-.field-group select:disabled,
-.field-group input:disabled {
-  background: #f3f4f6;
-  color: #6b7280;
-  cursor: not-allowed;
-  border-color: #e5e7eb;
+  /* ===== Disabled input styling ===== */
+  .field-group select:disabled,
+  .field-group input:disabled {
+    background: #f3f4f6;
+    color: #6b7280;
+    cursor: not-allowed;
+    border-color: #e5e7eb;
+  }
+  .upload-locked-badge {
+    display: inline-block;
+    font-size: 9px;
+    background: #dbeafe;
+    color: #1d4ed8;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+    font-weight: 600;
+    vertical-align: middle;
+  }
+
+</style>
+
+<style id="himec-iconbtn-style">
+/* === HIMEC 아이콘 버튼 (첨부 이미지 스타일) === */
+.header-right{ gap:6px !important; }
+.header-right button{
+  width:34px !important; height:34px !important; padding:0 !important;
+  background:#ffffff !important; color:#555 !important;
+  border:1px solid #d0d0d0 !important; border-radius:8px !important;
+  display:inline-flex !important; align-items:center; justify-content:center;
+  box-sizing:border-box;
 }
-.upload-locked-badge {
-  display: inline-block;
-  font-size: 9px;
-  background: #dbeafe;
-  color: #1d4ed8;
-  padding: 1px 6px;
-  border-radius: 3px;
-  margin-left: 6px;
-  font-weight: 600;
-  vertical-align: middle;
-}
+.header-right button:hover{ background:#f5f5f5 !important; border-color:#bbb !important; }
+.header-right button svg{ width:18px; height:18px; display:block; stroke:#555; }
+.header-right button.btn-save:hover svg{ stroke:#e85d24; }
+.header-right button.btn-file:hover svg{ stroke:#e85d24; }
+/* 내보내기 드롭다운 메뉴 */
+.himec-menu{ position:absolute; z-index:99999; background:#fff; border:1px solid #ccc;
+  border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.15); padding:4px; min-width:178px; }
+.himec-menu button{ display:flex !important; align-items:center; gap:8px; width:100% !important;
+  height:auto !important; background:none !important; border:none !important; color:#222 !important;
+  padding:9px 12px !important; font-size:13px; text-align:left; cursor:pointer; border-radius:6px !important; }
+.himec-menu button:hover{ background:#f1f1f1 !important; }
+.himec-menu button svg{ width:16px; height:16px; stroke:#555; flex:0 0 auto; }
+@media print{ .header-right{ display:none !important; } .himec-menu{ display:none !important; } }
+</style>
+
+
+<style id="himec-unify-portrait">
+
+/* ===== [TABLE UNIFY → Tool-09 .info-table 규격] .side-table
+   헤더색/테두리/라운드/폰트만 통일. 숫자정렬·의미색(빨강·파랑·합계행 등)은 보존 ===== */
+.side-table { border-collapse:separate !important; border-spacing:0 !important; }
+.side-table th, .side-table td { border:1px solid #ffffff !important; border-bottom:1.5px solid #ccc !important; padding:6px 5px !important; }
+.side-table th { background:#e8e8e8 !important; color:#555 !important; font-weight:600 !important; font-size:11px !important; }
+.side-table tr:first-child th:first-child { border-top-left-radius:8px !important; }
+.side-table tr:first-child th:last-child { border-top-right-radius:8px !important; }
+.side-table input { font-size:12px !important; }
+.side-table select { font-size:11px !important; }
+/* ===== [TABLE UNIFY] end ===== */
 
 </style>
 </head>
@@ -494,11 +511,11 @@ body {
 <div class="header" style="position:relative;">
   <h1>HIMEC − Mechanical Facility Aging Diagnosis System</h1>
   <div class="sub">(주)하이멕 − 기계설비 노후화 진단</div>
-  <h2 id="pageTitle"><span id="projectLabel"></span>HDD&CDD Analysis Tool</h2>
+  <h2>HDD&CDD Analysis Tool</h2>
   <div class="header-right">
-    <button class="btn-save" id="btnSave" onclick="hddSaveData()">Save</button>
-    <button class="btn-file" onclick="hddExportFile()">File Trans</button>
-    <button class="btn-main" onclick="GoMain()">Main</button>
+    <button class="btn-main" onclick="himecMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+    <button class="btn-save" onclick="himecSave()" title="저장(화면 입력값 저장)" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+    <button class="btn-file" onclick="himecExport(this)" title="파일 내보내기 (PDF / Excel)" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
   </div>
 </div>
 
@@ -662,295 +679,20 @@ body {
 </div>
 
 <!-- ===== COPYRIGHT (보존) ===== -->
-<footer class="footer-copyright">
-    <div class="footer-inner">
-        <span>© 2026 HIMEC (주)하이멕. All rights reserved. Made by 성재호, 최승연, 신동민</span>
-    </div>
-</footer>
+<div class="copyright">
+  ©HIMEC (주)하이멕 - Mechanical Facility Aging Diagnosis System. All Rights Reserved.
+</div>
+</div>
 
 <!-- Chart.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-<!-- GitHub API (dashboard 공용) -->
-
-<!-- JS (순서 중요: 의존성 순서대로 로드) -->
-<!-- globals -->
 <script>
-// ====== GLOBAL VARIABLES ======
-let mainChart = null;
-let currentDailyData = null;
-let apiDailyData = null;
-let debounceTimer = null;
-
-const daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
-
-</script>
-<!-- climate-data -->
-<script>
-// ====== CLIMATE DATA ======
-const climateData = {
-  "서울":    [-2.4, -0.4, 5.7, 12.5, 17.8, 22.2, 24.9, 25.7, 21.2, 14.8, 7.2, 0.4],
-  "인천":    [-2.1, -0.3, 5.0, 11.3, 16.6, 21.2, 24.0, 25.2, 21.1, 15.0, 7.5, 0.6],
-  "수원":    [-2.6, -0.5, 5.5, 12.1, 17.5, 22.0, 24.8, 25.5, 20.9, 14.5, 6.9, 0.1],
-  "춘천":    [-4.5, -1.6, 5.1, 12.2, 17.6, 21.8, 24.5, 24.8, 19.6, 12.8, 5.3, -2.0],
-  "강릉":    [0.5, 2.2, 6.7, 12.7, 17.4, 20.8, 24.0, 24.8, 20.4, 15.1, 8.7, 2.8],
-  "청주":    [-1.8, 0.5, 6.4, 13.0, 18.2, 22.5, 25.3, 25.8, 21.0, 14.4, 6.9, 0.3],
-  "대전":    [-1.3, 1.0, 6.5, 13.0, 18.1, 22.3, 25.2, 25.7, 21.0, 14.3, 6.9, 0.6],
-  "세종":    [-1.8, 0.5, 6.2, 12.8, 18.0, 22.2, 25.1, 25.6, 20.8, 14.2, 6.7, 0.2],
-  "전주":    [-0.5, 1.7, 7.0, 13.2, 18.2, 22.4, 25.7, 26.2, 21.5, 15.0, 7.8, 1.4],
-  "광주":    [0.6, 2.6, 7.5, 13.5, 18.4, 22.4, 25.8, 26.4, 22.0, 15.8, 8.8, 2.4],
-  "대구":    [0.6, 3.2, 8.4, 14.6, 19.4, 23.2, 26.1, 26.5, 21.9, 15.8, 8.8, 2.5],
-  "부산":    [3.2, 4.8, 8.9, 13.7, 17.8, 20.8, 24.3, 25.6, 22.0, 17.2, 11.0, 5.2],
-  "울산":    [1.8, 3.8, 8.4, 13.9, 18.3, 21.6, 25.0, 25.8, 21.6, 16.2, 9.7, 3.8],
-  "창원":    [2.2, 4.2, 8.7, 14.0, 18.3, 21.6, 25.1, 26.0, 22.0, 16.6, 10.2, 4.2],
-  "목포":    [1.8, 3.2, 7.3, 12.5, 17.2, 21.4, 25.2, 26.0, 22.0, 16.3, 9.8, 3.8],
-  "여수":    [2.8, 4.2, 8.0, 13.0, 17.3, 20.9, 24.6, 25.8, 22.0, 16.8, 10.5, 4.8],
-  "제주":    [5.6, 6.2, 9.5, 13.8, 17.8, 21.5, 25.8, 26.8, 23.1, 18.0, 12.3, 7.5],
-  "서귀포":  [6.8, 7.5, 10.5, 14.6, 18.4, 21.8, 25.9, 27.0, 23.5, 18.8, 13.3, 8.6],
-  "포항":    [2.2, 3.9, 8.3, 13.8, 18.2, 21.6, 25.0, 25.8, 21.5, 16.0, 9.8, 4.1],
-  "안동":    [-1.7, 1.2, 7.0, 13.5, 18.6, 22.5, 25.1, 25.2, 20.3, 13.8, 6.6, 0.2],
-  "원주":    [-3.2, -0.6, 5.6, 12.5, 17.9, 22.1, 25.0, 25.3, 20.3, 13.6, 5.9, -1.0]
-};
-
-const yearAdjust = {
-  "2024": [1.2, 0.8, 0.5, -0.3, 0.2, 0.7, 1.1, 0.9, 0.4, -0.2, 0.6, 1.5],
-  "2023": [-0.5, 1.2, 0.8, 0.4, -0.6, 0.3, 0.5, 1.3, 0.7, 0.1, -0.4, -1.0],
-  "2022": [0.3, -0.7, 0.2, 0.6, 0.8, 1.0, 0.3, 0.6, -0.5, -0.3, 0.7, 0.9]
-};
-
-</script>
-<!-- header -->
-<script>
-// ====================================================================
-// hcdload_header.js — 헤더 버튼 핸들러, 로컬 저장/로드, 토스트, 단축키
-// ====================================================================
-
-// ========== Dashboard Integration (Local Storage) ==========
-// URL 파라미터에서 프로젝트 정보 가져오기
-const _urlParams = new URLSearchParams(window.location.search);
-const _projectId = _urlParams.get('projectId') || '';
-const _projectName = _urlParams.get('projectName') || '';
-
-// localStorage 저장 키
-function _getStorageKey() {
-  return _projectId ? 'hcdload_' + _projectId : '';
-}
-
-// 프로젝트명 헤더에 표시
-function _showProjectLabel() {
-  var el = document.getElementById('projectLabel');
-  if (el && _projectName) {
-    el.textContent = '[' + decodeURIComponent(_projectName) + '] ';
-  }
-}
-
-// ===== 토스트 알림 =====
-function _showToast(message, type) {
-  var toast = document.getElementById('saveToast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'saveToast';
-    toast.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);padding:10px 28px;border-radius:8px;color:#fff;font-size:14px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;';
-    document.body.appendChild(toast);
-  }
-  toast.textContent = message;
-  toast.style.background = type === 'success' ? '#27ae60' :
-                            type === 'warn' ? '#f39c12' : '#e74c3c';
-  toast.style.opacity = '1';
-  setTimeout(function() { toast.style.opacity = '0'; }, 2500);
-}
-
-// ===== Save 버튼 플래시 =====
-function _flashSaveButton() {
-  var btn = document.getElementById('btnSave');
-  if (!btn) return;
-  var orig = btn.textContent;
-  btn.textContent = 'Saved!';
-  btn.classList.add('saved');
-  setTimeout(function() {
-    btn.classList.remove('saved');
-    btn.textContent = orig;
-  }, 1200);
-}
-
-// ===== 프로젝트별 데이터 저장 (localStorage) =====
-function hddSaveData() {
-  if (!_projectId) {
-    _showToast('프로젝트 정보가 없습니다. 대시보드에서 프로젝트를 선택해주세요.', 'warn');
-    return;
-  }
-
-  var payload = {
-    projectId: _projectId,
-    projectName: decodeURIComponent(_projectName),
-    savedAt: new Date().toISOString(),
-    region: document.getElementById('region').value,
-    yearSelect: document.getElementById('yearSelect').value,
-    hddBase: document.getElementById('hddBase').value,
-    cddBase: document.getElementById('cddBase').value,
-    weatherSource: document.getElementById('weatherSource').value,
-    apiKey: document.getElementById('apiKey').value,
-    apiStart: document.getElementById('apiStart').value,
-    apiEnd: document.getElementById('apiEnd').value,
-    apiDailyData: (typeof apiDailyData !== 'undefined') ? apiDailyData : []
-  };
-
-  try {
-    localStorage.setItem(_getStorageKey(), JSON.stringify(payload));
-    _showToast('저장되었습니다.', 'success');
-    _flashSaveButton();
-  } catch (e) {
-    _showToast('저장 실패: ' + e.message, 'error');
-  }
-}
-
-// ===== 프로젝트별 데이터 로드 (localStorage) =====
-function _loadProjectData() {
-  var key = _getStorageKey();
-  if (!key) return false;
-
-  try {
-    var raw = localStorage.getItem(key);
-    if (!raw) return false;
-    var payload = JSON.parse(raw);
-
-    // 입력값 복원
-    if (payload.region) document.getElementById('region').value = payload.region;
-    if (payload.yearSelect) document.getElementById('yearSelect').value = payload.yearSelect;
-    if (payload.hddBase) document.getElementById('hddBase').value = payload.hddBase;
-    if (payload.cddBase) document.getElementById('cddBase').value = payload.cddBase;
-    if (payload.weatherSource) {
-      document.getElementById('weatherSource').value = payload.weatherSource;
-      toggleApiFields();
-    }
-    if (payload.apiKey) document.getElementById('apiKey').value = payload.apiKey;
-    if (payload.apiStart) document.getElementById('apiStart').value = payload.apiStart;
-    if (payload.apiEnd) document.getElementById('apiEnd').value = payload.apiEnd;
-
-    // API 일별 데이터 복원
-    if (payload.apiDailyData && payload.apiDailyData.length > 0) {
-      apiDailyData = payload.apiDailyData;
-    }
-
-    return true;
-  } catch (e) {
-    console.warn('프로젝트 데이터 로드 실패:', e);
-    return false;
-  }
-}
-
-// ===== Main 화면 이동 =====
-function GoMain(){ if(window.STD){ STD.goMain((typeof hddSaveData==='function')?hddSaveData:null); } else { window.location.href='../dashboard.html'; } }
-
-// ===== File Trans (기존 유지) =====
+// ====== Header Button Handlers ======
+function hddSaveData() { alert('데이터가 저장되었습니다.'); }
 function hddExportFile() { alert('파일 변환 기능'); }
 
-// ===== Ctrl+S / Cmd+S 단축키 저장 =====
-window.addEventListener('keydown', function(e) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-    e.preventDefault();
-    hddSaveData();
-  }
-});
-
-</script>
-<!-- chart -->
-<script>
-// ====== CHART RENDERING ======
-function renderCharts(monthly, region, yearLabel, hddBase, cddBase) {
-  const hddData = monthly.map(m => m.hdd);
-  const cddData = monthly.map(m => m.cdd);
-  const avgData = monthly.map(m => m.avgTemp);
-
-  if (mainChart) mainChart.destroy();
-
-  const ctx1 = document.getElementById('mainChart').getContext('2d');
-  mainChart = new Chart(ctx1, {
-    type: 'bar',
-    data: {
-      labels: monthNames,
-      datasets: [
-        {
-          label: '난방도일 (HDD)',
-          data: hddData,
-          backgroundColor: 'rgba(239, 68, 68, 0.75)',
-          borderColor: 'rgba(239, 68, 68, 1)',
-          borderWidth: 1, borderRadius: 3, order: 2
-        },
-        {
-          label: '냉방도일 (CDD)',
-          data: cddData,
-          backgroundColor: 'rgba(59, 130, 246, 0.75)',
-          borderColor: 'rgba(59, 130, 246, 1)',
-          borderWidth: 1, borderRadius: 3, order: 2
-        },
-        {
-          label: '월평균 기온 (°C)',
-          data: avgData,
-          type: 'line',
-          borderColor: '#10b981',
-          backgroundColor: 'rgba(16, 185, 129, 0.08)',
-          fill: false,
-          tension: 0.4,
-          borderDash: [6, 4],
-          pointRadius: 4,
-          pointBackgroundColor: '#10b981',
-          borderWidth: 2,
-          yAxisID: 'y1',
-          order: 1
-        }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        title: {
-          display: true,
-          text: `${region} ${yearLabel} 월별 냉난방도일`,
-          font: { size: 13, weight: 'bold', family: 'Pretendard' },
-          padding: { bottom: 10 }
-        },
-        legend: { position: 'top', labels: { font: { family: 'Pretendard', size: 11 }, usePointStyle: true, pointStyle: 'rect', boxWidth: 12 } },
-        tooltip: { callbacks: { label: ctx => ctx.dataset.yAxisID === 'y1' ? `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}°C` : `${ctx.dataset.label}: ${ctx.raw.toFixed(1)} °C·일` } }
-      },
-      scales: {
-        y: { beginAtZero: true, position: 'left', title: { display: true, text: '도일 (°C·일)', font: { family: 'Pretendard', size: 11 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
-        y1: { position: 'right', title: { display: true, text: '기온 (°C)', font: { family: 'Pretendard', size: 11 } }, grid: { drawOnChartArea: false } },
-        x: { grid: { display: false } }
-      }
-    }
-  });
-}
-
-</script>
-<!-- table -->
-<script>
-// ====== TABLE RENDERING ======
-function renderMonthlyTable(monthly, totalHDD, totalCDD, avgTemp) {
-  const tbody = document.querySelector('#sideTable tbody');
-  let rows = '';
-  monthly.forEach((m, i) => {
-    rows += `<tr>
-      <td>${monthNames[i]}</td>
-      <td>${m.avgTemp}</td>
-      <td class="val-hdd">${m.hdd}</td>
-      <td class="val-cdd">${m.cdd}</td>
-    </tr>`;
-  });
-  rows += `<tr>
-    <td>합계/평균</td>
-    <td>${avgTemp}</td>
-    <td class="val-hdd">${totalHDD}</td>
-    <td class="val-cdd">${totalCDD}</td>
-  </tr>`;
-  tbody.innerHTML = rows;
-}
-
-</script>
-<!-- weather-source -->
-<script>
-// ====== Toggle API / Upload fields ======
+// ====== Toggle API fields ======
 function toggleApiFields() {
   const v = document.getElementById('weatherSource').value;
   document.getElementById('apiFieldsArea').classList.toggle('show', v === 'api');
@@ -1054,10 +796,45 @@ function removeLockedBadge(selectId) {
   if (badge) badge.remove();
 }
 
-</script>
-<!-- calculate -->
-<script>
-// ====== Auto Calc Debounce ======
+// ====== CLIMATE DATA ======
+const climateData = {
+  "서울":    [-2.4, -0.4, 5.7, 12.5, 17.8, 22.2, 24.9, 25.7, 21.2, 14.8, 7.2, 0.4],
+  "인천":    [-2.1, -0.3, 5.0, 11.3, 16.6, 21.2, 24.0, 25.2, 21.1, 15.0, 7.5, 0.6],
+  "수원":    [-2.6, -0.5, 5.5, 12.1, 17.5, 22.0, 24.8, 25.5, 20.9, 14.5, 6.9, 0.1],
+  "춘천":    [-4.5, -1.6, 5.1, 12.2, 17.6, 21.8, 24.5, 24.8, 19.6, 12.8, 5.3, -2.0],
+  "강릉":    [0.5, 2.2, 6.7, 12.7, 17.4, 20.8, 24.0, 24.8, 20.4, 15.1, 8.7, 2.8],
+  "청주":    [-1.8, 0.5, 6.4, 13.0, 18.2, 22.5, 25.3, 25.8, 21.0, 14.4, 6.9, 0.3],
+  "대전":    [-1.3, 1.0, 6.5, 13.0, 18.1, 22.3, 25.2, 25.7, 21.0, 14.3, 6.9, 0.6],
+  "세종":    [-1.8, 0.5, 6.2, 12.8, 18.0, 22.2, 25.1, 25.6, 20.8, 14.2, 6.7, 0.2],
+  "전주":    [-0.5, 1.7, 7.0, 13.2, 18.2, 22.4, 25.7, 26.2, 21.5, 15.0, 7.8, 1.4],
+  "광주":    [0.6, 2.6, 7.5, 13.5, 18.4, 22.4, 25.8, 26.4, 22.0, 15.8, 8.8, 2.4],
+  "대구":    [0.6, 3.2, 8.4, 14.6, 19.4, 23.2, 26.1, 26.5, 21.9, 15.8, 8.8, 2.5],
+  "부산":    [3.2, 4.8, 8.9, 13.7, 17.8, 20.8, 24.3, 25.6, 22.0, 17.2, 11.0, 5.2],
+  "울산":    [1.8, 3.8, 8.4, 13.9, 18.3, 21.6, 25.0, 25.8, 21.6, 16.2, 9.7, 3.8],
+  "창원":    [2.2, 4.2, 8.7, 14.0, 18.3, 21.6, 25.1, 26.0, 22.0, 16.6, 10.2, 4.2],
+  "목포":    [1.8, 3.2, 7.3, 12.5, 17.2, 21.4, 25.2, 26.0, 22.0, 16.3, 9.8, 3.8],
+  "여수":    [2.8, 4.2, 8.0, 13.0, 17.3, 20.9, 24.6, 25.8, 22.0, 16.8, 10.5, 4.8],
+  "제주":    [5.6, 6.2, 9.5, 13.8, 17.8, 21.5, 25.8, 26.8, 23.1, 18.0, 12.3, 7.5],
+  "서귀포":  [6.8, 7.5, 10.5, 14.6, 18.4, 21.8, 25.9, 27.0, 23.5, 18.8, 13.3, 8.6],
+  "포항":    [2.2, 3.9, 8.3, 13.8, 18.2, 21.6, 25.0, 25.8, 21.5, 16.0, 9.8, 4.1],
+  "안동":    [-1.7, 1.2, 7.0, 13.5, 18.6, 22.5, 25.1, 25.2, 20.3, 13.8, 6.6, 0.2],
+  "원주":    [-3.2, -0.6, 5.6, 12.5, 17.9, 22.1, 25.0, 25.3, 20.3, 13.6, 5.9, -1.0]
+};
+
+const yearAdjust = {
+  "2024": [1.2, 0.8, 0.5, -0.3, 0.2, 0.7, 1.1, 0.9, 0.4, -0.2, 0.6, 1.5],
+  "2023": [-0.5, 1.2, 0.8, 0.4, -0.6, 0.3, 0.5, 1.3, 0.7, 0.1, -0.4, -1.0],
+  "2022": [0.3, -0.7, 0.2, 0.6, 0.8, 1.0, 0.3, 0.6, -0.5, -0.3, 0.7, 0.9]
+};
+
+const daysInMonth = [31,29,31,30,31,30,31,31,30,31,30,31];
+const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+let mainChart = null;
+let currentDailyData = null;
+let apiDailyData = null;
+let debounceTimer = null;
+
 function autoCalcDebounce() {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => calculate(), 300);
@@ -1088,7 +865,7 @@ function generateDailyTemps(monthlyAvgs, year) {
   return daily;
 }
 
-// ====== MAIN CALCULATE ======
+// ====== CALCULATE ======
 function calculate() {
   const region = document.getElementById('region').value;
   const hddBase = parseFloat(document.getElementById('hddBase').value);
@@ -1162,9 +939,97 @@ function calculate() {
   renderMonthlyTable(monthlyResults, totalHDD, totalCDD, avgTemp);
 }
 
-</script>
-<!-- api -->
-<script>
+// ====== CHARTS ======
+function renderCharts(monthly, region, yearLabel, hddBase, cddBase) {
+  const hddData = monthly.map(m => m.hdd);
+  const cddData = monthly.map(m => m.cdd);
+  const avgData = monthly.map(m => m.avgTemp);
+
+  if (mainChart) mainChart.destroy();
+
+  const ctx1 = document.getElementById('mainChart').getContext('2d');
+  mainChart = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: monthNames,
+      datasets: [
+        {
+          label: '난방도일 (HDD)',
+          data: hddData,
+          backgroundColor: 'rgba(239, 68, 68, 0.75)',
+          borderColor: 'rgba(239, 68, 68, 1)',
+          borderWidth: 1, borderRadius: 3, order: 2
+        },
+        {
+          label: '냉방도일 (CDD)',
+          data: cddData,
+          backgroundColor: 'rgba(59, 130, 246, 0.75)',
+          borderColor: 'rgba(59, 130, 246, 1)',
+          borderWidth: 1, borderRadius: 3, order: 2
+        },
+        {
+          label: '월평균 기온 (°C)',
+          data: avgData,
+          type: 'line',
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.08)',
+          fill: false,
+          tension: 0.4,
+          borderDash: [6, 4],
+          pointRadius: 4,
+          pointBackgroundColor: '#10b981',
+          borderWidth: 2,
+          yAxisID: 'y1',
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        title: {
+          display: true,
+          text: `${region} ${yearLabel} 월별 냉난방도일`,
+          font: { size: 13, weight: 'bold', family: 'Pretendard' },
+          padding: { bottom: 10 }
+        },
+        legend: { position: 'top', labels: { font: { family: 'Pretendard', size: 11 }, usePointStyle: true, pointStyle: 'rect', boxWidth: 12 } },
+        tooltip: { callbacks: { label: ctx => ctx.dataset.yAxisID === 'y1' ? `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}°C` : `${ctx.dataset.label}: ${ctx.raw.toFixed(1)} °C·일` } }
+      },
+      scales: {
+        y: { beginAtZero: true, position: 'left', title: { display: true, text: '도일 (°C·일)', font: { family: 'Pretendard', size: 11 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+        y1: { position: 'right', title: { display: true, text: '기온 (°C)', font: { family: 'Pretendard', size: 11 } }, grid: { drawOnChartArea: false } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+
+}
+
+// ====== TABLES ======
+function renderMonthlyTable(monthly, totalHDD, totalCDD, avgTemp) {
+  const tbody = document.querySelector('#sideTable tbody');
+  let rows = '';
+  monthly.forEach((m, i) => {
+    rows += `<tr>
+      <td>${monthNames[i]}</td>
+      <td>${m.avgTemp}</td>
+      <td class="val-hdd">${m.hdd}</td>
+      <td class="val-cdd">${m.cdd}</td>
+    </tr>`;
+  });
+  rows += `<tr>
+    <td>합계/평균</td>
+    <td>${avgTemp}</td>
+    <td class="val-hdd">${totalHDD}</td>
+    <td class="val-cdd">${totalCDD}</td>
+  </tr>`;
+  tbody.innerHTML = rows;
+}
+
+// ====== TABS ======
+
+
 // ====== API FETCH ======
 async function fetchFromAPI() {
   const apiKey = document.getElementById('apiKey').value.trim();
@@ -1179,8 +1044,7 @@ async function fetchFromAPI() {
   status.innerHTML = '<span class="hdd-spinner"></span> 데이터를 불러오는 중...';
 
   try {
-    const kmaUrl = `https://apihub.kma.go.kr/api/typ01/url/kma_sfcdd3.php?tm1=${startDate}&tm2=${endDate}&stn=${stn}&help=0&authKey=${apiKey}`;
-	const url = `https://himec-api.seungyeoun3459.workers.dev/kma-proxy?url=${encodeURIComponent(kmaUrl)}`;
+    const url = `https://apihub.kma.go.kr/api/typ01/url/kma_sfcdd3.php?tm1=${startDate}&tm2=${endDate}&stn=${stn}&help=0&authKey=${apiKey}`;
     const res = await fetch(url);
     const text = await res.text();
 
@@ -1222,9 +1086,10 @@ async function fetchFromAPI() {
   }
 }
 
-</script>
-<!-- csv-upload -->
-<script>
+// ====== CSV EXPORT ======
+
+
+
 // ====== CSV UPLOAD HANDLERS ======
 function handleCsvDrop(e) {
   e.preventDefault();
@@ -1258,6 +1123,7 @@ function processCsvFile(file) {
   const reader = new FileReader();
   reader.onload = function(e) {
     let text = e.target.result;
+    // Try to handle encoding
     parseCsvData(text, file.name);
   };
   // Try UTF-8 first, then EUC-KR
@@ -1276,12 +1142,14 @@ function parseCsvData(text, fileName) {
 
   for (let i = 0; i < Math.min(lines.length, 10); i++) {
     const line = lines[i].trim();
+    // 지역/지점 : 서울
     if (line.includes('지역/지점')) {
       const match = line.match(/지역\/지점\s*:\s*(.+)/);
       if (match) {
         csvRegion = match[1].trim();
       }
     }
+    // 기간 : 20250101~20251231
     if (line.includes('기간')) {
       const match = line.match(/기간\s*:\s*(\d{4})/);
       if (match) {
@@ -1329,6 +1197,7 @@ function parseCsvData(text, fileName) {
     const dateStr = cols[0].trim();
     const avgTemp = parseFloat(cols[avgTempCol].trim());
 
+    // 날짜 파싱 (YYYY-MM-DD)
     const dateMatch = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
     if (dateMatch && !isNaN(avgTemp)) {
       const y = parseInt(dateMatch[1]);
@@ -1368,132 +1237,86 @@ function parseCsvData(text, fileName) {
   calculate();
 }
 
-</script>
-<!-- app -->
-<script>
-// ====================================================================
-// hcdload_app.js — 페이지 초기화 (프로젝트 로드 + 자동 계산)
-// ====================================================================
-
-window.addEventListener('load', function() {
-  // 프로젝트명 헤더에 표시
-  _showProjectLabel();
-
-  // 프로젝트 데이터가 있으면 localStorage에서 로드
-  if (_projectId) {
-    _loadProjectData();
-  }
-
-  // 항상 초기 계산
-  setTimeout(function() { calculate(); }, 200);
+// ====== AUTO CALCULATE ON LOAD ======
+window.addEventListener('load', () => {
+  setTimeout(() => calculate(), 200);
 });
-
 </script>
 
 
-
-
-
-
-
-
-
-
-<script>window.__STD_TOOL='101';</script>
 <script>
-/* ============================================================
-   STD Storage  —  표준 저장 모듈 v1 (전 도구 공통)
-   방식: localStorage 우선 + GitHub 동기화(가능 시)
-        + beforeunload 백업 + 저장 후 이동(GoMain)
-   ============================================================ */
+/* === HIMEC 공통 헤더 기능 (Save / Export / Main) === */
 (function(){
-  if (window.STD) return;                         // 중복 주입 방지
-  var TOOL = window.__STD_TOOL || 'tool';
-  function qp(k){ return new URLSearchParams(location.search).get(k) || ''; }
-  function pid(){ return qp('projectId') || qp('project') || qp('id') || ''; }
-  function pname(){ return qp('projectName') || qp('name') || ''; }
-  function lsKey(){ var id=pid(); return 'std_'+TOOL+'_'+(id||'standalone'); }
-  function ghPath(){ var id=pid(); return id ? ('data/'+TOOL+'/'+id+'.json') : null; }
+  function fields(){ return Array.prototype.slice.call(document.querySelectorAll('input, select, textarea')); }
+  function fkey(el,i){ return el.id ? ('#'+el.id) : ('@'+i); }
+  function storeKey(){ return 'HIMEC_SAVE::' + (location.pathname || document.title || 'tool'); }
 
-  function genericData(){
-    var o={__std:true, t:Date.now(), fields:{}};
-    document.querySelectorAll('input[id],select[id],textarea[id]').forEach(function(el){
-      var ty=(el.type||'').toLowerCase();
-      if(ty==='button'||ty==='submit'||ty==='reset'||ty==='file') return;
-      o.fields[el.id]=(ty==='checkbox'||ty==='radio') ? el.checked : el.value;
+  function himecSave(){
+    try{
+      var data={};
+      fields().forEach(function(el,i){
+        var k=fkey(el,i);
+        if(el.type==='checkbox'||el.type==='radio'){ data[k]={t:'chk', v:el.checked}; }
+        else { data[k]={t:'val', v:el.value}; }
+      });
+      localStorage.setItem(storeKey(), JSON.stringify(data));
+      alert('현재 화면의 입력값이 저장되었습니다.');
+    }catch(e){ alert('저장 중 오류가 발생했습니다: '+e.message); }
+  }
+
+  function himecRestore(){
+    try{
+      var raw=localStorage.getItem(storeKey()); if(!raw) return;
+      var data=JSON.parse(raw);
+      fields().forEach(function(el,i){
+        var rec=data[fkey(el,i)]; if(!rec) return;
+        if(rec.t==='chk'){ el.checked=!!rec.v; el.dispatchEvent(new Event('change',{bubbles:true})); }
+        else { el.value=rec.v; el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }
+      });
+    }catch(e){}
+  }
+
+  function closeMenu(){ var m=document.getElementById('himecExportMenu'); if(m) m.parentNode.removeChild(m); document.removeEventListener('click', outside, true); }
+  function outside(e){ var m=document.getElementById('himecExportMenu'); if(m && !m.contains(e.target)) closeMenu(); }
+
+  function himecExport(btn){
+    if(document.getElementById('himecExportMenu')){ closeMenu(); return; }
+    var m=document.createElement('div'); m.className='himec-menu'; m.id='himecExportMenu';
+    m.innerHTML =
+      '<button data-x="pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF로 저장</button>'+
+      '<button data-x="xls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>Excel로 내보내기</button>';
+    document.body.appendChild(m);
+    var r=btn.getBoundingClientRect();
+    var left=window.scrollX+r.right-m.offsetWidth; if(left<6) left=6;
+    m.style.top=(window.scrollY+r.bottom+6)+'px';
+    m.style.left=left+'px';
+    m.addEventListener('click', function(e){
+      var t=e.target.closest('button'); if(!t) return;
+      var x=t.getAttribute('data-x'); closeMenu();
+      if(x==='pdf') himecPDF(); else himecExcel();
     });
-    return o;
-  }
-  function genericRestore(o){
-    if(!o||!o.fields) return;
-    Object.keys(o.fields).forEach(function(id){
-      var el=document.getElementById(id); if(!el) return;
-      var ty=(el.type||'').toLowerCase();
-      if(ty==='checkbox'||ty==='radio') el.checked=!!o.fields[id];
-      else el.value=o.fields[id];
-      try{ el.dispatchEvent(new Event('input',{bubbles:true}));
-           el.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){}
-    });
-  }
-  function lsSave(){
-    try{ localStorage.setItem(lsKey(), JSON.stringify(genericData())); return true; }
-    catch(e){ console.warn('[STD] LS save fail', e); return false; }
-  }
-  function lsLoad(){
-    try{ var r=localStorage.getItem(lsKey()); return r? JSON.parse(r):null; }catch(e){ return null; }
-  }
-  function ghSync(){
-    var p=ghPath();
-    if(p && typeof window.ghSaveFile==='function'){
-      return Promise.resolve(window.ghSaveFile(p, genericData(), 'STD save '+TOOL+' '+pid()))
-        .then(function(){ return true; })
-        .catch(function(e){ console.warn('[STD] GH save fail', e); return false; });
-    }
-    return Promise.resolve(null);                 // GitHub 미사용 페이지
-  }
-  function toast(msg, type){
-    if(typeof window._showToast==='function'){ try{ window._showToast(msg, type||'success'); return; }catch(e){} }
-    if(typeof window.showToast==='function'){ try{ window.showToast(msg, type||'success'); return; }catch(e){} }
-    var el=document.getElementById('__stdToast');
-    if(!el){ el=document.createElement('div'); el.id='__stdToast';
-      el.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:99999;opacity:0;transition:opacity .2s';
-      document.body.appendChild(el); }
-    el.textContent=msg; el.style.opacity='1';
-    clearTimeout(el.__t); el.__t=setTimeout(function(){ el.style.opacity='0'; }, 1800);
+    setTimeout(function(){ document.addEventListener('click', outside, true); }, 0);
   }
 
-  var dirty=false;
-  document.addEventListener('input', function(){ dirty=true; }, true);
-  document.addEventListener('change', function(){ dirty=true; }, true);
+  function himecPDF(){
+    /* 화면 비율 그대로 인쇄 → 브라우저 인쇄 대화상자에서 'PDF로 저장' 선택 */
+    window.print();
+  }
+  function himecExcel(){
+    alert('Excel 내보내기는 추후 별도 양식으로 제공될 예정입니다.');
+  }
 
-  function save(pageSaver, opts){
-    opts=opts||{};
-    lsSave();                                     // 1) 항상 localStorage 백업
-    var hasPage=(typeof pageSaver==='function');
-    if(hasPage){                                  // 2a) 리치 저장(페이지 고유 LS+GitHub)
-      return Promise.resolve().then(pageSaver).then(function(){ dirty=false; return {page:true}; })
-        .catch(function(e){ console.warn('[STD] pageSaver fail', e); dirty=false; return {page:false}; });
-    }
-    return ghSync().then(function(gh){             // 2b) 제네릭 GitHub 동기화(가능 시)
-      dirty=false;
-      if(!opts.silent) toast(gh===false?'로컬에 저장되었습니다 (클라우드 동기화 실패)':'저장되었습니다.', gh===false?'warn':'success');
-      return {gh:gh};
-    });
+  function himecMain(){
+    location.href = '../dashboard.html';
   }
-  function load(pageLoader){
-    if(typeof pageLoader==='function'){ try{ return pageLoader(); }catch(e){ console.warn('[STD] pageLoader fail', e); } }
-    var o=lsLoad(); if(o) genericRestore(o); dirty=false; return o;
-  }
-  function goMain(pageSaver){
-    var url=(typeof window.dashboardUrl!=='undefined' && window.dashboardUrl) ? window.dashboardUrl : '../dashboard.html';
-    Promise.resolve(save(pageSaver, {silent:true})).then(function(){ location.href=url; }, function(){ location.href=url; });
-  }
-  window.addEventListener('beforeunload', function(){ try{ lsSave(); }catch(e){} });
 
-  window.STD={ save:save, load:load, goMain:goMain, lsSave:lsSave, lsLoad:lsLoad,
-               genericData:genericData, genericRestore:genericRestore,
-               projectId:pid, projectName:pname, key:lsKey, ghPath:ghPath, isDirty:function(){return dirty;} };
+  window.himecMain=himecMain;
+
+  if(document.readyState==='loading'){
+    window.addEventListener('DOMContentLoaded', function(){ setTimeout(himecRestore, 60); });
+  } else { setTimeout(himecRestore, 60); }
 })();
 </script>
+
 </body>
 </html>
