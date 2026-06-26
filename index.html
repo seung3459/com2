@@ -229,15 +229,19 @@
         return;
       }
 
-      // 기본: ID 칸에 '이메일'을 입력하는 방식
-      let email = idValue;
-
       /* ----------------------------------------------------------------
-         [선택] 짧은 ID(예: "himec")로 로그인하고 싶다면 아래 줄의 주석을 해제하세요.
-         단, 이 경우 Supabase에 사용자를 만들 때 이메일을
-         "himec@himec.app" 형태로 등록해야 합니다.
+         ID(예: "himec")로 로그인하는 방식.
+         사용자가 입력한 ID 뒤에 아래 도메인을 자동으로 붙여서
+         Supabase에는 "himec@himec.app" 형태로 전달합니다.
+         (사용자는 이메일을 볼 필요도, 입력할 필요도 없습니다.)
+         → Supabase에 계정을 만들 때 이메일을 "ID@himec.app" 형식으로 등록하세요.
       ---------------------------------------------------------------- */
-      // email = idValue + "@himec.app";
+      const ID_DOMAIN = "@himec.app";   // 원하면 도메인만 바꾸세요 (예: "@himec.co.kr")
+
+      let email = idValue;
+      if (idValue.indexOf("@") === -1) {  // 이미 @가 있으면(이메일이면) 그대로 사용
+        email = idValue + ID_DOMAIN;
+      }
 
       loginBtn.disabled = true;
       loginBtn.textContent = "확인 중...";
