@@ -3,8 +3,9 @@
 <head>
   <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
   <script src="/js/supabase-config.js"></script>
+  <!-- ▼ 로그인 가드 + 로그아웃 (설정 파일보다 뒤, sync보다 앞) -->
+  <script src="/js/auth-guard.js"></script>
   <script src="/js/himec-supabase-sync.js"></script>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HIMEC - 기계설비 노후화 진단 시스템</title>
@@ -1294,7 +1295,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
     <button class="main-tab" onclick="switchMainTab(this, 7)"><span class="side-ico">&#9636;</span><span class="side-label">Project Tracker</span></button>
     <button class="main-tab" onclick="switchMainTab(this, 1)"><span class="side-ico">&#10052;</span><span class="side-label">HVAC Diagram</span></button>
     <div class="side-group" id="sideGrp2">
-      <button class="main-tab has-children" onclick="sideOpenDiag(2,'subRow_3',this)"><span class="side-ico">&#10102;</span><span class="side-label">1st Diagnosis</span><span class="side-arrow">&#9662;</span></button>
+      <button class="main-tab has-children" onclick="sideOpenDiag(2,'subRow_3',this)"><span class="side-ico">&#9205;</span><span class="side-label">1st Diagnosis</span><span class="side-arrow">&#9662;</span></button>
       <div class="side-children">
         <button class="side-sub" onclick="sideSelectEquip(2,'subRow_3',0,this)">Heat source</button>
         <button class="side-sub" onclick="sideSelectEquip(2,'subRow_3',1,this)">HVAC</button>
@@ -1304,7 +1305,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
       </div>
     </div>
     <div class="side-group" id="sideGrp3">
-      <button class="main-tab has-children" onclick="sideOpenDiag(3,'subRow_4',this)"><span class="side-ico">&#10103;</span><span class="side-label">2nd Diagnosis</span><span class="side-arrow">&#9662;</span></button>
+      <button class="main-tab has-children" onclick="sideOpenDiag(3,'subRow_4',this)"><span class="side-ico">&#9205;</span><span class="side-label">2nd Diagnosis</span><span class="side-arrow">&#9662;</span></button>
       <div class="side-children">
         <button class="side-sub" onclick="sideSelectEquip(3,'subRow_4',0,this)">Heat source</button>
         <button class="side-sub" onclick="sideSelectEquip(3,'subRow_4',1,this)">HVAC</button>
@@ -1312,7 +1313,7 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
         <button class="side-sub" onclick="sideSelectEquip(3,'subRow_4',3,this)">Piping</button>
       </div>
     </div>
-    <button class="main-tab" onclick="switchMainTab(this, 4)"><span class="side-ico">&#9638;</span><span class="side-label">Summary</span></button>
+    <button class="main-tab" onclick="switchMainTab(this, 4)"><span class="side-ico">&#9776;</span><span class="side-label">Summary</span></button>
     <button class="main-tab" onclick="switchMainTab(this, 5)"><span class="side-ico">&#8721;</span><span class="side-label">Total Results</span></button>
   </nav>
 </aside>
