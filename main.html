@@ -3,6 +3,8 @@
 <head>
   <!-- HIMEC Supabase Sync (저장소 계층 전용 / UI·로직 무변경) -->
   <script src="/js/supabase-config.js"></script>
+  <!-- ▼ 로그인 가드 + 로그아웃 (설정 파일보다 뒤, sync보다 앞) -->
+  <script src="/js/auth-guard.js"></script>
   <script src="/js/himec-supabase-sync.js"></script>
 
 <meta charset="UTF-8">
@@ -852,6 +854,13 @@ body{padding-bottom:56px;}
 </style>
 </head>
 <body>
+
+<!-- ▼ 로그아웃 버튼 (우측 상단 고정) -->
+<button onclick="himecLogout()"
+  style="position:fixed;top:16px;right:16px;z-index:1000;background:#fff;border:1px solid #ccc;color:#777;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+  로그아웃
+</button>
+
 
 <!-- ▶ 인트로 페이지 (전체 화면) -->
 <div id="intro" class="page active intro-page">
