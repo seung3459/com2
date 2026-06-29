@@ -1281,6 +1281,20 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   /* column resize handle */
   #mainPanel7 .pt-col-resizer { position:absolute; top:0; right:0; width:6px; height:100%; cursor:col-resize; z-index:30; }
 
+  /* === HIMEC 아이콘 버튼 (Tool-01 통일 스타일) === */
+  .header-right{ gap:6px !important; }
+  .header-right button{
+    width:34px !important; height:34px !important; padding:0 !important;
+    background:#ffffff !important; color:#555 !important;
+    border:1px solid #d0d0d0 !important; border-radius:8px !important;
+    display:inline-flex !important; align-items:center; justify-content:center;
+    box-sizing:border-box;
+  }
+  .header-right button:hover{ background:#f5f5f5 !important; border-color:#bbb !important; }
+  .header-right button svg{ width:18px; height:18px; display:block; stroke:#555; }
+  .header-right button.btn-save:hover svg{ stroke:#e85d24; }
+  .header-right button.btn-file:hover svg{ stroke:#e85d24; }
+  @media print{ .header-right{ display:none !important; } }
 </style>
 </head>
 <body>
@@ -1325,9 +1339,9 @@ input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-i
   <h1>HIMEC − Mechanical Facility Aging Diagnosis System</h1>
   <div class="sub">(주)하이멕 − 기계설비 노후화 진단</div>
   <div class="header-right">
-    <button class="btn-save" onclick="appSaveData()">Save</button>
-    <button class="btn-file" onclick="appExportFile()">File Trans</button>
-    <button class="btn-main" onclick="appGoMain()">Main</button>
+    <button class="btn-main" onclick="appGoMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+    <button class="btn-save" onclick="appSaveData()" title="저장 / 불러오기" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+    <button class="btn-file" onclick="appExportFile()" title="파일 내보내기 (Excel / PDF)" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
   </div>
 </div>
 
