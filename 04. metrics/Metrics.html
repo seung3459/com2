@@ -31,9 +31,27 @@ html,body{font-family:'Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif
 .btn-main{background:#555;}
 
 /* Tabs */
-.tabs{display:flex;gap:12px;padding:16px 24px 4px;}
+.tabs{display:flex;align-items:center;gap:12px;padding:16px 24px 4px;}
 .tab{padding:9px 22px;border:1px solid #bbb;border-radius:22px;background:#e9e9e9;font-size:13px;font-weight:600;color:#333;cursor:pointer;}
 .tab.active{background:var(--active);color:#fff;border-color:var(--active);}
+
+/* Tab-row search (프로젝트 검색용, "Project 이력" 버튼 높이 우측) */
+.tab-search{margin-left:auto;position:relative;}
+.tab-search input{
+  width:300px;max-width:42vw;height:38px;padding:0 14px 0 36px;
+  border:1px solid #bbb;border-radius:22px;background:#fff;font-size:13px;color:#333;
+  font-family:inherit;outline:none;transition:border-color .12s,box-shadow .12s;
+}
+.tab-search input:focus{border-color:var(--active);box-shadow:0 0 0 2px rgba(26,138,150,.15);}
+.tab-search input::placeholder{color:#aaa;}
+.tab-search .ico{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#999;font-size:14px;pointer-events:none;}
+.tab-search .cnt{position:absolute;right:-2px;top:50%;transform:translate(100%,-50%);margin-left:10px;font-size:11.5px;color:#888;white-space:nowrap;padding-left:10px;}
+@media(max-width:760px){
+  .tabs{flex-wrap:wrap;}
+  .tab-search{margin-left:0;width:100%;}
+  .tab-search input{width:100%;max-width:none;}
+  .tab-search .cnt{position:static;transform:none;display:block;margin:4px 0 0 4px;}
+}
 
 /* Filter bar */
 .filterbar{display:flex;align-items:center;gap:10px;padding:14px 24px;font-size:12px;color:#555;flex-wrap:wrap;}
@@ -82,20 +100,26 @@ tr.subtotal td{background:#fff !important;font-weight:700;border-top:2px solid #
   </div>
 
   <div class="tabs">
-    <div class="tab active" data-tab="reset"   onclick="switchTab('reset',this)">초기화</div>
+    <div class="tab active" data-tab="search"  onclick="switchTab('search',this)">프로젝트 검색</div>
     <div class="tab"        data-tab="history" onclick="switchTab('history',this)">Project 이력</div>
     <div class="tab"        data-tab="result"  onclick="switchTab('result',this)">진단 결과</div>
+    <div class="tab-search">
+      <span class="ico">&#128269;</span>
+      <input type="text" id="proj-q" placeholder="프로젝트명 · 건물명으로 검색" oninput="onSearchInput()" />
+      <span class="cnt" id="proj-cnt"></span>
+    </div>
   </div>
 
-  <!-- ===== TAB 1: 초기화 ===== -->
-  <div id="tab-reset" class="tabpane">
+  <!-- ===== TAB 1: 프로젝트 검색 ===== -->
+  <div id="tab-search" class="tabpane">
     <div class="filterbar">
       <label>Filter Index 01</label>
-      <select id="f1-year" onchange="renderReset()"></select>
+      <select id="f1-year" onchange="renderSearch()"></select>
       <label style="margin-left:18px;">Filter Index 02</label>
-      <select id="f1-act" onchange="renderReset()"></select>
+      <select id="f1-act" onchange="renderSearch()"></select>
+      <span id="proj-src" style="margin-left:auto;color:#999;font-size:11.5px;"></span>
     </div>
-    <div class="body"><div id="reset-table"></div></div>
+    <div class="body"><div id="search-table"></div></div>
   </div>
 
   <!-- ===== TAB 2: Project 이력 ===== -->
@@ -114,7 +138,9 @@ tr.subtotal td{background:#fff !important;font-weight:700;border-top:2px solid #
   <!-- ===== TAB 3: 진단 결과 ===== -->
   <div id="tab-result" class="tabpane" style="display:none;">
     <div class="filterbar">
-      <label>장비 Filter</label>
+      <label>구분</label>
+      <select id="f3-source" onchange="renderResult()"></select>
+      <label style="margin-left:18px;">장비 Filter</label>
       <select id="f3-equip" onchange="renderResult()"></select>
       <label style="margin-left:18px;">진단 결과</label>
       <select id="f3-type" onchange="renderResult()"></select>
@@ -134,28 +160,25 @@ tr.subtotal td{background:#fff !important;font-weight:700;border-top:2px solid #
 <script>
 
 /* =========================================================
-   DATA  ── 실제 운영 시 이 부분을 DB/API 조회로 교체하세요.
-   예) const projects = await fetch('/api/projects').then(r=>r.json());
+   DATA
+   - 프로젝트/금액 : 실제 데이터 연동 (app_state → 로컬 폴백)
+     · 프로젝트 목록 = gh_file_data/projects.json
+     · 금액(fee, 단위 백만원) = manage(himec_pm_tool_v23).s1 에서 _syncId로 조인 → ×1,000,000(원)
+   - 진단 결과(설비 단위) : 아직 예시. 다음 단계에서 진단 blob 연동.
+   - 분석툴 별도 분석 : 추후 연동 (source:'analysis')
    ========================================================= */
-const projects = [
-  {no:1, year:2026, name:'영락교회 노후 진단 용역',            activity:'노후진단', amount:50000000,  report:'Y'},
-  {no:2, year:2025, name:'무역센터 기계설비 정밀진단용역',     activity:'노후진단', amount:500000000, report:'Y'},
-  {no:3, year:2025, name:'OO빌딩 에너지 진단 용역',            activity:'에너지진단', amount:250000000, report:'Y'},
-  {no:4, year:2026, name:'XX병원 에너지 진단 용역',            activity:'에너지진단', amount:430000000, report:'N'},
-  {no:5, year:2027, name:'△△공장 노후 진단 용역',             activity:'노후진단', amount:200000000, report:'N'},
-  {no:6, year:2027, name:'□□센터 에너지 진단 용역',           activity:'에너지진단', amount:200000000, report:'N'},
-];
+let projects = [];   // ← loadData()에서 실제 데이터로 채움
+let DATA_SOURCE = '';
 
-const EQUIPS = ['압축식냉동기','흡수식냉동기','Heat source','HVAC','Pump','Plumbing','piping'];
+let EQUIPS = [];   // ← 실제 진단 데이터에서 동적 구성
 
-// 장비별 진단결과 (1차 등급 / 2차 성능 / 종합 진단 / 성능측정)
-const diagResults = [
-  {no:1, year:2026, project:'영락교회 노후 진단 용역',        equip:'압축식냉동기', first:'B', second:'양호', result:'재사용', perf:'COP 4.2 / 정상'},
-  {no:2, year:2025, project:'무역센터 기계설비 정밀진단용역', equip:'압축식냉동기', first:'C', second:'불량', result:'교체',   perf:'COP 2.8 / 저하'},
-  {no:3, year:2026, project:'영락교회 노후 진단 용역',        equip:'흡수식냉동기', first:'A', second:'양호', result:'재사용', perf:'효율 92% / 정상'},
-  {no:4, year:2025, project:'무역센터 기계설비 정밀진단용역', equip:'Pump',        first:'B', second:'양호', result:'재사용', perf:'유량 98% / 정상'},
-  {no:5, year:2025, project:'무역센터 기계설비 정밀진단용역', equip:'HVAC',        first:'C', second:'보통', result:'부분교체', perf:'풍량 85% / 저하'},
-  {no:6, year:2027, project:'△△공장 노후 진단 용역',         equip:'piping',      first:'D', second:'불량', result:'교체',   perf:'부식 심함'},
+// 장비별 진단결과 (source: 'diagnosis'=진단 / 'analysis'=분석만)  ← 실제 데이터로 채움
+let diagResults = [];
+
+const SOURCE_FILTERS=[
+  {key:'all', label:'전체 (진단+분석)'},
+  {key:'diagnosis', label:'진단만'},
+  {key:'analysis', label:'분석만'},
 ];
 
 /* ========================= 유틸 ========================= */
@@ -163,31 +186,250 @@ const won = n => n.toLocaleString('ko-KR');
 const eok = n => (n/100000000);
 function uniq(arr){return [...new Set(arr)];}
 
+/* ===================== 실제 데이터 연동 (프로젝트 + 금액) ===================== */
+const _CFG = window.HIMEC_SUPABASE_CONFIG || null;
+let _sb = null;
+function _ensureSb(){
+  return new Promise(res=>{
+    if(window.supabase && window.supabase.createClient) return res(true);
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+    s.onload=()=>res(true); s.onerror=()=>res(false);
+    document.head.appendChild(s);
+  });
+}
+async function loadAppState(){
+  // 1) 클라우드(app_state) 우선
+  if(_CFG && _CFG.SUPABASE_URL && _CFG.SUPABASE_ANON_KEY && _CFG.SUPABASE_URL.indexOf('YOUR-')===-1){
+    if(await _ensureSb()){
+      try{
+        if(!_sb) _sb=window.supabase.createClient(_CFG.SUPABASE_URL,_CFG.SUPABASE_ANON_KEY);
+        const r=await _sb.from('app_state').select('key,data');
+        if(!r.error && r.data){
+          const m={}; r.data.forEach(row=>m[row.key]=row.data);
+          return {source:'클라우드', rows:m};
+        }
+      }catch(e){}
+    }
+  }
+  // 2) 로컬 폴백
+  const rows={};
+  try{
+    const pj=localStorage.getItem('gh_file_data/projects.json'); if(pj) rows['gh_file_data/projects.json']=JSON.parse(pj);
+    const mg=localStorage.getItem('himec_pm_tool_v23'); if(mg) rows['manage']=JSON.parse(mg);
+    const tr=localStorage.getItem('himec_tool_results'); if(tr) rows['himec_tool_results']=JSON.parse(tr);
+    const tp=localStorage.getItem('himec_tool_projects'); if(tp) rows['himec_tool_projects']=JSON.parse(tp);
+    // 로컬엔 진단이 단일 키(HIMEC_SAVE_DATA)만 — 현재 프로젝트 1건
+    const sd=localStorage.getItem('HIMEC_SAVE_DATA');
+    if(sd){ const pid=localStorage.getItem('activeProjectId')||'default'; rows['diagnosis_'+pid]=JSON.parse(sd); }
+  }catch(e){}
+  return {source:'로컬', rows:rows};
+}
+// 프로젝트 목록 + 금액(fee 백만원 → 원) 빌드
+function buildProjects(state){
+  const rows=state.rows;
+  const pjBlob=rows['gh_file_data/projects.json'];
+  const list=(pjBlob && pjBlob.projects)?pjBlob.projects:[];
+  const manage=rows['manage'];
+  // _syncId → fee(백만원) 맵
+  const feeMap={};
+  if(manage && manage.s1){
+    Object.keys(manage.s1).forEach(y=>{
+      (manage.s1[y]||[]).forEach(p=>{ if(p && p._syncId) feeMap[p._syncId]=(+p.fee||0); });
+    });
+  }
+  return list.map((p,i)=>{
+    const sid=p._syncId||p.id;
+    const feeMil=feeMap[sid];
+    const hasDoc=p.documents && Object.keys(p.documents).length>0;
+    return {
+      no:i+1,
+      year:p.year||'',
+      name:p.name||'(이름없음)',
+      activity:p.activity||'미선택',
+      amount:(typeof feeMil==='number')?Math.round(feeMil*1000000):0,
+      report:hasDoc?'Y':'N',
+      _syncId:sid, status:p.status||''
+    };
+  });
+}
+function setDataSrc(){
+  const el=document.getElementById('proj-src');
+  if(el) el.textContent = DATA_SOURCE ? ('출처: '+DATA_SOURCE+' · '+projects.length+'건') : '';
+}
+
+/* ===================== 진단 결과(설비 단위) 실제 연동 ===================== */
+/* diagnosis.html에서 추출한 진단 항목 가중치 + 등급식 (동일 결과 재현) */
+const RATE_SCORE={A:1.0,B:0.6,C:0.2};
+const DSPEC={
+  coldSource:[['usage_years',.30],['maint_history',.15],['inspection_state',.10],['install_env',.10],['appearance',.10],['temp_measure',.15],['piping_conn',.05],['mcc_panel',.05]],
+  heatSource:[['usage_years',.30],['maint_history',.10],['inspection_state',.10],['install_env',.10],['replenishment_water',.07],['appearance',.08],['piping_conn',.05],['supply_pressure',.10],['safety',.10]],
+  heatex:[['usage_years',.35],['maint_history',.10],['inspection_state',.10],['body',.15],['coil',.15],['valves',.05],['temp_press',.05]],
+  coolingTower:[['usage_years',.25],['maint_history',.10],['inspection_state',.10],['install_env',.10],['fill_state',.10],['casing_ladder_hatch',.10],['fan_state',.07],['control_state',.08],['piping_accessory',.10]],
+  ahu:[['usage_years',.45],['maint_history',.10],['inspection_state',.05],['install_env',.05],['external_state',.05],['internal_state',.10],['fan_state',.10],['control_state',.10]],
+  fan:[['usage_years',.40],['maint_history',.10],['inspection_state',.10],['install_env',.15],['Casing',.05],['impller',.05],['motor',.10],['control_state',.05]],
+  fcu:[['usage_years',.45],['maint_history',.10],['inspection_state',.05],['appearance',.20],['coil',.10],['piping',.05],['fan',.05]],
+  pump:[['usage_years',.30],['maint_history',.10],['inspection_state',.10],['install_env',.10],['motor',.15],['packing_seal',.10],['casing_vibration',.10],['piping_gauge',.05]],
+  header:[['usage_years',.10],['maint_history',.10],['inspection_state',.15],['pipe_connection',.20],['Casing',.10],['valve',.05],['temp_press',.30]],
+  snpump:[['usage_years',.30],['maint_history',.10],['inspection_state',.10],['install_env',.10],['motor',.15],['packing_seal',.10],['casing_vibration',.10],['piping_gauge',.05]],
+  tank:[['usage_years',.35],['maint_history',.07],['install_env',.08],['inspection_state',.15],['external_state',.10],['safety',.10],['insulation',.05],['hotwater_temp',.05],['pump',.05]],
+  plumbing:[['usage_years',.35],['maint_history',.10],['inspection_state',.15],['external_state',.15],['piping',.15],['safety',.10]],
+  pipe:[['usage_years',.20],['corrosion',.25],['leakage',.25],['insulation',.15],['support',.10],['valve',.05]]
+};
+const TYPE_LABEL={coldSource:'냉열원',heatSource:'온열원',coolingTower:'냉각탑',heatex:'열교환기',ahu:'공조기',fan:'급·배기팬',fcu:'팬코일 유닛',pump:'펌프',header:'헤더',tank:'탱크',snpump:'위생펌프',plumbing:'위생도기',pipe:'배관설비'};
+function calcGrade(diag,type){
+  const items=DSPEC[type]||DSPEC.coldSource; let tot=0,n=0;
+  items.forEach(it=>{ const c=diag&&diag[it[0]]; const r=c&&c.rate; if(r&&RATE_SCORE[r]!==undefined){tot+=it[1]*RATE_SCORE[r];n++;} });
+  if(n===0) return '-';
+  const s=Math.round(tot*100);
+  return s<=40?'C':(s<=60?'B':'A');
+}
+/* ── 분석툴 결과 중앙 매핑 (여기만 고치면 됨 / 툴 파일은 손대지 않음) ──
+   key = 툴 파일명(확장자 제외). metrics[].id = 결과값이 들어있는 화면 요소 id.
+   grade(선택) = 저하율 칸 기준 임시 등급(thresholds: [A미만, B미만], % ) — 수치는 조정 가능. */
+const TOOL_MAP = {
+  'Tool-201__Chiller_Efficiency':   { equip:'냉열원', metrics:[], note:'다중설비 동적표 — 결과칸 확인 후 매핑 예정' },
+  'Tool-202__Boiler_Heat_Balance_Analysis':{ equip:'온열원', metrics:[{name:'직접법효율',id:'m-effd',unit:'%'},{name:'간접법효율',id:'m-effi',unit:'%'},{name:'연소효율',id:'m-effc',unit:'%'},{name:'공기비',id:'m-airr'}], grade:{id:'m-effi',thresholds:[90,80],mode:'value'} },
+  'Tool-203__Cooling_Tower_Efficiency':{ equip:'냉각탑',  metrics:[{name:'성능',id:'val-perf',unit:'%'}] },
+  'Tool-204__Heat_Exchanger_Performance':{ equip:'열교환기', metrics:[{name:'유효열교환량',id:'m-q'},{name:'총괄열전달계수U',id:'m-u'},{name:'유효도',id:'m-eps'},{name:'LMTD',id:'m-lmtd'}] },
+  'Tool-303__Fan_Efficiency':       { equip:'급·배기팬', metrics:[{name:'팬효율(급기)',id:'calc-sa-eff',unit:'%'},{name:'팬효율(환기)',id:'calc-ra-eff',unit:'%'}], grade:{id:'val-drop-sa',thresholds:[10,25],mode:'drop'} },
+  'Tool-304__Energy_Recovery_Ventilator_Performance':{ equip:'전열교환기', metrics:[{name:'현열효율',id:'m-es',unit:'%'},{name:'전열효율',id:'m-et',unit:'%'},{name:'잠열효율',id:'m-el',unit:'%'}] },
+  'Tool-401__Pump_Efficiency':      { equip:'펌프',       metrics:[{name:'측정효율',id:'val-meas-eff',unit:'%'}], grade:{id:'val-eff-drop',thresholds:[10,25],mode:'drop'} },
+  'Tool-601__Pipe_diameter_selection':{ equip:'배관설비', metrics:[{name:'여유율',id:'val-margin',unit:'%'},{name:'판정',id:'verdictValue'}], grade:{id:'verdictValue',mode:'verdict'} },
+  // 비대상(성능/상태 평가 아님): 101·102 부하/기상, 301·302 차트, 305 덕트사이징, 501·502 산정, 701 트래커, 702 LCC
+};
+function _num(v){ const n=parseFloat(String(v==null?'':v).replace(/[,\s%]/g,'')); return isFinite(n)?n:null; }
+function _grade(map,f){
+  if(!map||!map.grade) return '-';
+  const g=map.grade;
+  if(g.mode==='verdict'){
+    const t=String(f[g.id]||'');
+    if(/부적정|불량|교체/.test(t)) return 'C';
+    if(/적정/.test(t)) return 'A';
+    if(/과대|과소|주의|보통/.test(t)) return 'B';
+    return '-';
+  }
+  const v=_num(f[g.id]); if(v==null) return '-';
+  const thr=g.thresholds||[];
+  if(g.mode==='value') return v>=thr[0]?'A':(v>=thr[1]?'B':'C');   // 높을수록 좋음
+  return v<thr[0]?'A':(v<thr[1]?'B':'C');                          // drop: 낮을수록 좋음
+}
+// himec_tool_results + himec_tool_projects(연도) → source:'analysis' 행
+function buildAnalysisResults(state){
+  const rows=state.rows;
+  const reg=rows['himec_tool_results']||{};
+  const toolPj=rows['himec_tool_projects']||{};
+  const byId={};
+  Object.keys(toolPj).forEach(tid=>{ (toolPj[tid]||[]).forEach(p=>{ if(p&&p.id) byId[p.id]={year:p.year||'',name:p.name||''}; }); });
+  const out=[]; let no=0;
+  Object.keys(reg).forEach(pid=>{
+    const byTool=reg[pid]||{}; const meta=byId[pid]||{};
+    Object.keys(byTool).forEach(tkey=>{
+      const rec=byTool[tkey]||{}; const f=rec.fields||{}; const map=TOOL_MAP[tkey];
+      const pname=rec.projectName||meta.name||pid; const year=meta.year||'';
+      let equip='(분석)', perf='분석 실행', grade='-';
+      if(map){
+        equip=map.equip||'(분석)';
+        const parts=(map.metrics||[]).map(m=>{ const v=f[m.id]; return (v!=null&&v!=='')?(m.name+' '+v+(m.unit||'')):null; }).filter(Boolean);
+        perf=parts.length?parts.join(' / '):'분석 실행';
+        grade=_grade(map,f);
+      }
+      out.push({ no:++no, year:String(year), project:pname, equip:equip, first:'-', second:grade, result:'-', perf:perf, source:'analysis' });
+    });
+  });
+  return out;
+}
+
+// app_state의 diagnosis_* blob → diagResults 행
+function buildDiagResults(state){
+  const rows=state.rows;
+  // 프로젝트 메타(이름/연도) by id
+  const meta={};
+  const pjBlob=rows['gh_file_data/projects.json'];
+  ((pjBlob&&pjBlob.projects)?pjBlob.projects:[]).forEach(p=>{ const id=p.id||p._syncId; if(id) meta[id]={name:p.name||'',year:p.year||''}; });
+
+  const out=[]; let no=0;
+  Object.keys(rows).forEach(key=>{
+    if(key.indexOf('diagnosis_')!==0) return;
+    const pid=key.slice('diagnosis_'.length);
+    const blob=rows[key];
+    if(!blob||blob._version!==1) return;
+    const ov=blob.projectOverview||{};
+    const m=meta[pid]||{};
+    const pname=m.name||ov.projectName||pid;
+    const year=m.year||'';
+    // 2차 측정: type → 건수
+    const d2=blob.diagnosis2nd||{};
+    const d2cnt={}; Object.keys(d2).forEach(t=>{ const td=(d2[t]&&d2[t].tabData)||{}; d2cnt[t]=Object.keys(td).length; });
+    // 1차: 설비 단위
+    const cd=(blob.diagnosis1st&&blob.diagnosis1st._cardData)||{};
+    Object.keys(cd).forEach(type=>{
+      const units=cd[type]||{};
+      Object.keys(units).forEach(idStr=>{
+        const unit=units[idStr]||{};
+        const grade=calcGrade(unit._diag||{},type);
+        const label=(TYPE_LABEL[type]||type)+' '+idStr+'호기';
+        out.push({
+          no:++no, year:String(year), project:pname,
+          equip:label,
+          first:grade,
+          second:'-',          // 2차 판정값 미저장
+          result:'-',          // 진단결과(재사용/교체) 미저장
+          perf:(d2cnt[type]>0)?('2차 측정 '+d2cnt[type]+'건'):'-',
+          source:'diagnosis'
+        });
+      });
+    });
+  });
+  return out;
+}
+
 /* ===================== 탭 전환 ===================== */
 function switchTab(tab, el){
   document.querySelectorAll('.tabpane').forEach(p=>p.style.display='none');
   document.getElementById('tab-'+tab).style.display='block';
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
+  if(tab==='search')  renderSearch();
   if(tab==='history') renderHistory();
   if(tab==='result')  renderResult();
   if(typeof postH==='function') postH();
 }
 
-/* ===================== TAB1: 초기화 ===================== */
-function initResetFilters(){
+/* ===================== TAB1: 프로젝트 검색 ===================== */
+function initSearchFilters(){
   const y=document.getElementById('f1-year'), a=document.getElementById('f1-act');
   y.innerHTML='<option value="">수행년도 전체</option>'+uniq(projects.map(p=>p.year)).sort().map(v=>`<option>${v}</option>`).join('');
   a.innerHTML='<option value="">Activity 전체</option>'+uniq(projects.map(p=>p.activity)).map(v=>`<option>${v}</option>`).join('');
 }
-function renderReset(){
+function renderSearch(){
   const fy=document.getElementById('f1-year').value, fa=document.getElementById('f1-act').value;
-  const rows=projects.filter(p=>(!fy||p.year==fy)&&(!fa||p.activity===fa));
+  const q=(document.getElementById('proj-q').value||'').trim().toLowerCase();
+  const rows=projects.filter(p=>{
+    if(fy && p.year!=fy) return false;
+    if(fa && p.activity!==fa) return false;
+    if(q){
+      const hay=(p.name+' '+p.activity+' '+p.year).toLowerCase();
+      if(hay.indexOf(q)===-1) return false;
+    }
+    return true;
+  });
   let h='<table><thead><tr><th>No</th><th>수행년도</th><th>프로젝트명</th><th>Activity</th><th>계약 금액 (원)</th><th>보고서</th></tr></thead><tbody>';
   if(!rows.length) h+='<tr><td colspan="6" class="empty">조건에 맞는 데이터가 없습니다.</td></tr>';
   rows.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td>${p.year}</td><td class="left">${p.name}</td><td>${p.activity}</td><td class="right">${won(p.amount)}</td><td>${p.report==='Y'?'다운로드':'-'}</td></tr>`; });
   h+='</tbody></table>';
-  document.getElementById('reset-table').innerHTML=h;
+  document.getElementById('search-table').innerHTML=h;
+  const cnt=document.getElementById('proj-cnt');
+  if(cnt) cnt.textContent = (q||fy||fa) ? rows.length+'건' : '';
+}
+// 검색창 입력 → 항상 '프로젝트 검색' 탭에서 결과 보이도록
+function onSearchInput(){
+  const pane=document.getElementById('tab-search');
+  if(pane && pane.style.display==='none'){
+    switchTab('search', document.querySelector('.tab[data-tab="search"]'));
+  } else {
+    renderSearch();
+  }
 }
 
 /* ===================== TAB2: Project 이력 ===================== */
@@ -258,21 +500,29 @@ const COLDEF={
   perf  :{th:'성능 측정 결과 (Analysis)', get:r=>r.perf},
 };
 function initResultFilters(){
+  const src=document.getElementById('f3-source');
   const e=document.getElementById('f3-equip'), t=document.getElementById('f3-type');
+  src.innerHTML=SOURCE_FILTERS.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
   e.innerHTML='<option value="">장비 전체</option>'+EQUIPS.map(v=>`<option>${v}</option>`).join('');
   t.innerHTML=RESULT_TYPES.map(rt=>`<option value="${rt.key}">${rt.label}</option>`).join('');
 }
 function renderResult(){
+  const src=document.getElementById('f3-source').value||'all';
   const eq=document.getElementById('f3-equip').value;
   const typeKey=document.getElementById('f3-type').value||'all';
   const type=RESULT_TYPES.find(t=>t.key===typeKey);
-  const rows=diagResults.filter(r=>!eq||r.equip===eq);
-  let h='<table><thead><tr><th>No</th><th>수행년도</th><th>프로젝트명</th><th>장비</th>';
+  const rows=diagResults.filter(r=>{
+    if(src!=='all' && (r.source||'diagnosis')!==src) return false;
+    if(eq && r.equip!==eq) return false;
+    return true;
+  });
+  let h='<table><thead><tr><th>No</th><th>수행년도</th><th>프로젝트명</th><th>장비</th><th>구분</th>';
   type.cols.forEach(c=>h+=`<th>${COLDEF[c].th}</th>`);
   h+='<th>상세</th></tr></thead><tbody>';
-  if(!rows.length) h+=`<tr><td colspan="${4+type.cols.length+1}" class="empty">조건에 맞는 데이터가 없습니다.</td></tr>`;
+  if(!rows.length) h+=`<tr><td colspan="${5+type.cols.length+1}" class="empty">조건에 맞는 데이터가 없습니다.</td></tr>`;
   rows.forEach((r,i)=>{
-    h+=`<tr><td>${i+1}</td><td>${r.year}</td><td class="left">${r.project}</td><td>${r.equip}</td>`;
+    const srcLabel=(r.source==='analysis')?'분석':'진단';
+    h+=`<tr><td>${i+1}</td><td>${r.year}</td><td class="left">${r.project}</td><td>${r.equip}</td><td>${srcLabel}</td>`;
     type.cols.forEach(c=>h+=`<td>${COLDEF[c].get(r)}</td>`);
     h+='<td>보기</td></tr>';
   });
@@ -289,8 +539,18 @@ function GoMain(){ if(window.STD){ STD.goMain((typeof hddSaveData==='function')?
 window.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveData();} });
 
 /* ===================== 초기화 ===================== */
-window.addEventListener('DOMContentLoaded',()=>{
-  initResetFilters(); renderReset();
+window.addEventListener('DOMContentLoaded', async ()=>{
+  // 실제 데이터 로드 (프로젝트+금액 / 진단 결과)
+  try{
+    const state = await loadAppState();
+    projects    = buildProjects(state);
+    const diag  = buildDiagResults(state);
+    const anal  = buildAnalysisResults(state);
+    diagResults = diag.concat(anal).map((r,i)=>({...r, no:i+1}));
+    DATA_SOURCE = state.source;
+  }catch(e){ projects=[]; diagResults=[]; DATA_SOURCE='연동 실패'; }
+  EQUIPS = uniq(diagResults.map(r=>r.equip)).sort();
+  initSearchFilters(); renderSearch(); setDataSrc();
   initResultFilters();
   if(typeof postH==='function') postH();
 });
