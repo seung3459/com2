@@ -1,21 +1,32 @@
 /* =====================================================================
- * HIMEC · localStorage ⇆ Supabase 동기화 어댑터
+ * HIMEC · localStorage ⇆ Supabase(app_state) 동기화 어댑터  [v3]
  * ---------------------------------------------------------------------
- * 목적 : 기존 화면(JS/UI)을 건드리지 않고 "Local → Local + Supabase".
- * 방식 : localStorage.setItem/removeItem 을 가로채(monkey-patch) 추적
- *        대상 6키를 DB 11테이블로 미러링한다. 기존 코드는 그대로
- *        localStorage 를 쓰면 되고, 클라우드 반영은 자동.
+ * 목적 : 기존 화면(JS/UI)을 일절 건드리지 않고 "Local → Local + Cloud".
+ * 방식 : localStorage.setItem 을 가로채(monkey-patch) 추적 대상 키를
+ *        public.app_state (key PK / data jsonb / updated_at) 한 곳으로
+ *        upsert 미러링한다. 페이지 진입 시 로컬이 비어 있으면 app_state
+ *        에서 1회 복원한다.
  *
- * 추적 키 → 테이블 매핑
- *   HIMEC_SAVE_DATA      → diagnoses + equipment_units + equipment_diag_items
- *   himec_pm_tool_v23    → pm_records (s1 / newp / carry)
- *   gh_file_data/projects.json → projects
- *   himec_tool_projects  → tool_runs (도구·프로젝트 레지스트리)
- *   himec_metrics        → diagnosis_results (+ projects 보강)
- *   std_<tool>_<pid>     → tool_runs (개별 도구 실행 결과, 패턴)
- *   activeProjectId      → 제외(세션값). 단 project sync_id 매칭에 사용.
+ * ▣ 왜 app_state 인가
+ *   - 이 프로젝트의 라이브 DB에 실제로 존재하고, anon 쓰기 정책
+ *     (temp anon all)이 허용된 유일한 범용 저장소이기 때문.
+ *   - 기존에 'manage', 'diagnosis_<projectId>' 가 이미 이 방식으로
+ *     저장돼 있어 규칙을 그대로 잇는다.
  *
- * ※ 이 파일은 저장소 계층만 담당. UI/계산 로직은 일절 변경하지 않음.
+ * ▣ localStorage 키 → app_state.key 매핑
+ *   himec_pm_tool_v23           → 'manage'
+ *   HIMEC_SAVE_DATA             → 'diagnosis_<activeProjectId|default>'
+ *   HIMEC_SAVE::<경로>          → (그대로)   ← Tool-201/202/204/303/304 …
+ *   HIMEC_CHILLER_SAVE          → (그대로)   ← Tool-201
+ *   std_<tool>_<pid>            → (그대로)
+ *   himec_metrics               → (그대로)
+ *   gh_file_data/projects.json  → (그대로)
+ *   himec_tool_projects         → (그대로)
+ *   HIMEC_SUMMARY_STATE/…NOTES/…ETC → (그대로)
+ *   activeProjectId             → 제외(세션값). 단 diagnosis 키 산정에 사용.
+ *
+ * ※ 이 파일은 저장소 계층만 담당. UI/계산 로직은 변경하지 않음.
+ *   드롭인 교체: 경로(/js/himec-supabase-sync.js)·로드 순서 동일.
  * ===================================================================== */
 (function (w, d) {
   'use strict';
@@ -25,523 +36,177 @@
   var CFG = w.HIMEC_SUPABASE_CONFIG || {};
   var ENABLED = CFG.ENABLE_SYNC !== false &&
                 CFG.SUPABASE_URL && CFG.SUPABASE_URL.indexOf('YOUR-') === -1;
+  var DEBOUNCE = CFG.WRITE_DEBOUNCE_MS || 1500;
+  var HYDRATE  = CFG.HYDRATE_ON_EMPTY !== false;
+  var TABLE    = 'app_state';
 
-  function log() {
-    if (CFG.DEBUG && w.console) {
-      var a = ['[himec-sync]'].concat([].slice.call(arguments));
-      console.log.apply(console, a);
-    }
-  }
-  function warn() {
-    if (w.console) console.warn.apply(console, ['[himec-sync]'].concat([].slice.call(arguments)));
-  }
+  function log()  { if (CFG.DEBUG && w.console) console.log.apply(console, ['[himec-sync]'].concat([].slice.call(arguments))); }
+  function warn() { if (w.console) console.warn.apply(console, ['[himec-sync]'].concat([].slice.call(arguments))); }
 
-  /* ---------------------------------------------------------------
-   * 0. 원본 localStorage 메서드 보존 (재귀 호출 방지)
-   * --------------------------------------------------------------- */
+  /* --- 원본 localStorage 메서드 보존(재귀/루프 방지) --- */
   var _ls = w.localStorage;
-  var _origSet = _ls.setItem.bind(_ls);
+  var _origSet    = _ls.setItem.bind(_ls);
+  var _origGet    = _ls.getItem.bind(_ls);
   var _origRemove = _ls.removeItem.bind(_ls);
-  var _origGet = _ls.getItem.bind(_ls);
 
-  /* ---------------------------------------------------------------
-   * 1. Supabase 클라이언트 비동기 로드
-   * --------------------------------------------------------------- */
+  /* --- Supabase 클라이언트 비동기 로드 --- */
   var sb = null;
-  var sbReady = (function () {
-    return new Promise(function (resolve) {
-      if (!ENABLED) { resolve(null); return; }
-      function init() {
-        try {
-          sb = w.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
-            auth: { persistSession: true, autoRefreshToken: true }
-          });
-          log('client ready');
-          resolve(sb);
-        } catch (e) { warn('client init fail', e); resolve(null); }
-      }
-      if (w.supabase && w.supabase.createClient) { init(); return; }
-      var s = d.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-      s.async = true;
-      s.onload = init;
-      s.onerror = function () { warn('supabase-js CDN load failed; Local-only mode'); resolve(null); };
-      d.head.appendChild(s);
-    });
-  })();
-
+  var sbReady = new Promise(function (resolve) {
+    if (!ENABLED) { resolve(null); return; }
+    function init() {
+      try {
+        sb = w.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
+          auth: { persistSession: true, autoRefreshToken: true }
+        });
+        log('client ready'); resolve(sb);
+      } catch (e) { warn('client init fail', e); resolve(null); }
+    }
+    if (w.supabase && w.supabase.createClient) { init(); return; }
+    var s = d.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+    s.async = true; s.onload = init;
+    s.onerror = function () { warn('supabase-js CDN load failed; Local-only'); resolve(null); };
+    d.head.appendChild(s);
+  });
   function withClient(fn) {
-    return sbReady.then(function (client) { return client ? fn(client) : null; })
+    return sbReady.then(function (c) { return c ? fn(c) : null; })
                   .catch(function (e) { warn('op error', e); return null; });
   }
 
-  var companyId = (typeof w.himecCompanyId === 'function')
-    ? w.himecCompanyId() : (CFG.DEFAULT_COMPANY_ID || null);
-
-  /* ---------------------------------------------------------------
-   * 2. 유틸
-   * --------------------------------------------------------------- */
+  /* --- 유틸 --- */
   function jparse(s, fb) { try { return JSON.parse(s); } catch (e) { return fb; } }
-  function num(v) { var n = parseFloat(v); return isNaN(n) ? null : n; }
   function nowIso() { return new Date().toISOString(); }
-
-  // DB enum 허용값 — 목록에 없으면 보내지 않음(undefined) → 400 방지
-  var STATUS_ENUM   = ['미계약', '계약', '수행', '종료'];
-  var ACTIVITY_ENUM = ['노후진단', '에너지진단', 'TAB', '연구'];
-  function enumOr(v, allowed) { return allowed.indexOf(v) !== -1 ? v : undefined; }
-
-  // 프로젝트 sync_id → projects.id 캐시/조회/생성
-  var _projCache = {};
-  function resolveProject(client, syncId, fallbackName, year) {
-    if (!syncId) return Promise.resolve(null);
-    if (_projCache[syncId]) return Promise.resolve(_projCache[syncId]);
-    return client.from('projects').select('id').eq('company_id', companyId)
-      .eq('sync_id', syncId).limit(1).maybeSingle()
-      .then(function (r) {
-        if (r && r.data && r.data.id) { _projCache[syncId] = r.data.id; return r.data.id; }
-        return client.from('projects').insert({
-          company_id: companyId, sync_id: syncId,
-          name: fallbackName || syncId, year: year || new Date().getFullYear()
-        }).select('id').single().then(function (ins) {
-          var id = ins && ins.data ? ins.data.id : null;
-          if (id) _projCache[syncId] = id;
-          return id;
-        });
-      })
-      .catch(function () { return null; });
+  function activeProjectId() {
+    try { return _origGet('activeProjectId') || null; } catch (e) { return null; }
   }
 
   /* ---------------------------------------------------------------
-   * 3. 키별 변환기(transform) — 각 키를 DB row 로
-   *    "replace 시맨틱": 해당 데이터셋 scope 를 지우고 다시 넣어
-   *    Local==Cloud 를 보장(테스트 단계에 가장 안전).
+   * 추적 대상 판별 + app_state.key 매핑
    * --------------------------------------------------------------- */
-
-  // 3-1) himec_metrics → diagnosis_results (+ projects 보강)
-  function syncMetrics(client, raw) {
-    var o = jparse(raw, null); if (!o) return Promise.resolve();
-    var results = Array.isArray(o.diagResults) ? o.diagResults : [];
-    var rows = results.map(function (r) {
-      return {
-        company_id: companyId,
-        project_id: null,            // 이름 기반, 매칭은 추후 트리거/뷰에서
-        year: r.year != null ? parseInt(r.year, 10) : null,
-        equip: String(r.equip || ''),
-        first_grade: r.first || null,
-        second_perf: r.second || null,
-        result: r.result || null,
-        perf: r.perf || null,
-        subtotal: num(r.amount)
-      };
-    });
-    return client.from('diagnosis_results').delete().eq('company_id', companyId)
-      .then(function () {
-        return rows.length ? chunkInsert(client, 'diagnosis_results', rows) : null;
-      });
-  }
-
-  // 3-2) gh_file_data/projects.json → projects
-  function syncProjects(client, raw) {
-    var o = jparse(raw, null); if (!o) return Promise.resolve();
-    var list = Array.isArray(o.projects) ? o.projects : (Array.isArray(o) ? o : []);
-    var ops = list.map(function (p) {
-      var syncId = String(p.id || p.sync_id || p.name || '');
-      var rowName = p.name || syncId;
-      return client.from('projects').select('id').eq('company_id', companyId)
-        .eq('sync_id', syncId).limit(1).maybeSingle()
-        .then(function (r) {
-          var payload = {
-            company_id: companyId, sync_id: syncId, name: rowName,
-            year: p.year != null ? parseInt(p.year, 10) : new Date().getFullYear(),
-            status: enumOr(p.status, STATUS_ENUM),
-            activity: enumOr(p.activity, ACTIVITY_ENUM),
-            fee: num(p.fee != null ? p.fee : p.amount),
-            out_cost: num(p.out_cost),
-            month: p.month != null ? parseInt(p.month, 10) : null
-          };
-          if (r && r.data && r.data.id) {
-            return client.from('projects').update(payload).eq('id', r.data.id);
-          }
-          return client.from('projects').insert(payload);
-        });
-    });
-    return Promise.all(ops);
-  }
-
-  // 3-3) himec_pm_tool_v23 → pm_records (s1/newp/carry)
-  function syncPm(client, raw) {
-    var S = jparse(raw, null); if (!S) return Promise.resolve();
-    var rows = [];
-    ['s1', 'newp', 'carry'].forEach(function (kind) {
-      var arr = S[kind];
-      if (!Array.isArray(arr)) return;
-      arr.forEach(function (it) {
-        rows.push({
-          company_id: companyId,
-          project_id: null,
-          kind: kind,
-          year: it.year != null ? parseInt(it.year, 10) : new Date().getFullYear(),
-          name: it.name || null,
-          fee: num(it.fee != null ? it.fee : it.amount),
-          out_cost: num(it.out_cost != null ? it.out_cost : it.cost),
-          status: enumOr(it.status, STATUS_ENUM) || null,
-          month: it.month != null ? parseInt(it.month, 10) : null,
-          payload: it
-        });
-      });
-    });
-    return client.from('pm_records').delete().eq('company_id', companyId)
-      .then(function () { return rows.length ? chunkInsert(client, 'pm_records', rows) : null; });
-  }
-
-  // 3-4) himec_tool_projects → tool_runs (레지스트리: {toolId:[{id,name,year}]})
-  function syncToolRegistry(client, raw) {
-    var o = jparse(raw, {}); if (!o || typeof o !== 'object') return Promise.resolve();
-    var rows = [];
-    Object.keys(o).forEach(function (toolId) {
-      var arr = Array.isArray(o[toolId]) ? o[toolId] : [];
-      arr.forEach(function (p) {
-        rows.push({
-          company_id: companyId, project_id: null,
-          tool_id: String(toolId),
-          tool_category: 'registry',
-          title: p.name || null,
-          inputs: { project_id: p.id || null, year: p.year || null },
-          results: p
-        });
-      });
-    });
-    return client.from('tool_runs').delete()
-      .eq('company_id', companyId).eq('tool_category', 'registry')
-      .then(function () { return rows.length ? chunkInsert(client, 'tool_runs', rows) : null; });
-  }
-
-  // 3-5) std_<tool>_<pid> → tool_runs (개별 도구 실행 결과)
-  function syncToolRun(client, key, raw) {
-    var m = /^std_([^_]+)_(.+)$/.exec(key);
-    if (!m) return Promise.resolve();
-    var toolId = m[1], pidPart = m[2];
-    var data = jparse(raw, raw);
-    var syncId = (pidPart && pidPart !== 'standalone') ? pidPart : null;
-    return resolveProject(client, syncId, 'TOOL ' + toolId, null).then(function (projId) {
-      var row = {
-        company_id: companyId, project_id: projId,
-        tool_id: 'Tool-' + toolId, tool_category: 'standalone',
-        title: 'Tool ' + toolId + (syncId ? (' · ' + syncId) : ''),
-        inputs: { storage_key: key, project_sync_id: syncId },
-        results: (data && typeof data === 'object') ? data : { raw: String(raw) }
-      };
-      // 같은 도구+프로젝트는 1행 유지(replace)
-      var q = client.from('tool_runs').delete()
-        .eq('company_id', companyId).eq('tool_id', row.tool_id).eq('tool_category', 'standalone');
-      q = projId ? q.eq('project_id', projId) : q.is('project_id', null);
-      return q.then(function () { return client.from('tool_runs').insert(row); });
-    });
-  }
-
-  // 3-6) HIMEC_SAVE_DATA → diagnoses + equipment_units + equipment_diag_items
-  var D1_TYPES = ['coldSource','heatSource','heatex','coolingTower','ahu','fan',
-                  'fcu','pump','header','tank','snpump','plumbing','pipe'];
-  function syncDiagnosis(client, raw) {
-    var o = jparse(raw, null); if (!o) return Promise.resolve();
-    var syncId = (typeof w.himecActiveProjectSyncId === 'function' && w.himecActiveProjectSyncId())
-              || (o.projectOverview && o.projectOverview.projectName) || 'HIMEC';
-    var pname = (o.projectOverview && o.projectOverview.projectName) || syncId;
-    return resolveProject(client, syncId, pname, null).then(function (projId) {
-      if (!projId) return null;
-      // diagnoses (phase 1) upsert by (project_id, phase)
-      return client.from('diagnoses').upsert({
-          project_id: projId, phase: 1, version: o._version || 1,
-          overview: o.projectOverview || {}, saved_at: o._savedAt || nowIso()
-        }, { onConflict: 'project_id,phase' })
-        .select('id').single()
-        .then(function (dr) {
-          var diagId = dr && dr.data ? dr.data.id : null;
-          if (!diagId) return null;
-          // 기존 units 제거 후 재구성(replace)
-          return client.from('equipment_units').delete().eq('diagnosis_id', diagId)
-            .then(function () { return buildUnits(client, diagId, o); });
-        });
-    });
-  }
-
-  function buildUnits(client, diagId, o) {
-    var d1 = (o.diagnosis1st && o.diagnosis1st._cardData) || {};
-    var d2raw = o.diagnosis2nd || {};
-    var unitRows = [], diagItemPlan = [];
-    D1_TYPES.forEach(function (type) {
-      var byId = d1[type]; if (!byId) return;
-      Object.keys(byId).forEach(function (idStr) {
-        var card = byId[idStr] || {};
-        var measurements = {}, diagItems = card._diag || {};
-        Object.keys(card).forEach(function (k) {
-          if (k.charAt(0) === 'f') measurements[k] = card[k];
-        });
-        var uIndex = parseInt(idStr, 10) || 1;
-        unitRows.push({
-          diagnosis_id: diagId, equip_type: type,
-          equip_subtype: (o.diagnosis1st._unitSubtype &&
-                          o.diagnosis1st._unitSubtype[type] &&
-                          o.diagnosis1st._unitSubtype[type][idStr]) || null,
-          unit_index: uIndex,
-          nameplate: card._nameplate || {},
-          measurements: measurements,
-          opinion: card._opinion || null,
-          photos: (o.diagnosis1st._unitPhotos &&
-                   o.diagnosis1st._unitPhotos[type] &&
-                   o.diagnosis1st._unitPhotos[type][idStr]) || [],
-          d2_data: d2raw[type] && d2raw[type][idStr] ? d2raw[type][idStr] : null,
-          _items: Object.keys(diagItems).map(function (key) {
-            var it = diagItems[key] || {};
-            return { item_key: key, rate: it.rate || null, content: it.content || null, note: it.note || null };
-          })
-        });
-      });
-    });
-    if (!unitRows.length) return null;
-    var plans = unitRows.map(function (u) { return u._items; });
-    unitRows.forEach(function (u) { delete u._items; });
-    return chunkInsertReturning(client, 'equipment_units', unitRows).then(function (inserted) {
-      if (!inserted) return null;
-      var itemRows = [];
-      inserted.forEach(function (row, i) {
-        (plans[i] || []).forEach(function (it) {
-          if (!it.item_key) return;
-          itemRows.push({
-            unit_id: row.id, item_key: it.item_key,
-            rate: it.rate, content: it.content, note: it.note
-          });
-        });
-      });
-      return itemRows.length ? chunkInsert(client, 'equipment_diag_items', itemRows) : null;
-    });
-  }
-
-  /* ---------------------------------------------------------------
-   * 4. 청크 INSERT (대용량/요청 크기 고려)
-   * --------------------------------------------------------------- */
-  function chunkInsert(client, table, rows, size) {
-    size = size || 200;
-    var chain = Promise.resolve();
-    for (var i = 0; i < rows.length; i += size) {
-      (function (slice) {
-        chain = chain.then(function () { return client.from(table).insert(slice); });
-      })(rows.slice(i, i + size));
-    }
-    return chain;
-  }
-  function chunkInsertReturning(client, table, rows, size) {
-    size = size || 200;
-    var out = [];
-    var chain = Promise.resolve();
-    for (var i = 0; i < rows.length; i += size) {
-      (function (slice) {
-        chain = chain.then(function () {
-          return client.from(table).insert(slice).select('*').then(function (r) {
-            if (r && r.data) out = out.concat(r.data);
-          });
-        });
-      })(rows.slice(i, i + size));
-    }
-    return chain.then(function () { return out; });
-  }
-
-  /* ---------------------------------------------------------------
-   * 5. 디스패처 + 디바운스
-   * --------------------------------------------------------------- */
-  var DISPATCH = {
-    'himec_metrics': syncMetrics,
-    'gh_file_data/projects.json': syncProjects,
-    'himec_pm_tool_v23': syncPm,
-    'himec_tool_projects': syncToolRegistry,
-    'HIMEC_SAVE_DATA': syncDiagnosis
+  var EXACT_KEYS = {
+    'himec_pm_tool_v23': 1, 'HIMEC_SAVE_DATA': 1, 'himec_metrics': 1,
+    'gh_file_data/projects.json': 1, 'himec_tool_projects': 1,
+    'HIMEC_SUMMARY_STATE': 1, 'HIMEC_SUBJECT_NOTES': 1, 'HIMEC_SUBJECT_ETC': 1,
+    'HIMEC_CHILLER_SAVE': 1
   };
-  function routeKey(key) {
-    if (DISPATCH[key]) return DISPATCH[key];
-    if (/^std_[^_]+_/.test(key)) return function (c, raw) { return syncToolRun(c, key, raw); };
-    return null;
+  function isTracked(key) {
+    if (key === 'activeProjectId') return false;
+    if (EXACT_KEYS[key]) return true;
+    if (key.indexOf('HIMEC_SAVE::') === 0) return true;   // 범용 도구(202/204/303/304…)
+    if (/^std_[^_]+_/.test(key)) return true;             // 개별 도구 실행 결과
+    return false;
   }
-
-  var _timers = {};
-  function scheduleMirror(key, value) {
-    if (key === 'activeProjectId') return; // 세션값 제외
-    var fn = routeKey(key);
-    if (!fn) return;
-    clearTimeout(_timers[key]);
-    _timers[key] = setTimeout(function () {
-      withClient(function (client) {
-        log('mirror →', key);
-        return fn(client, value);
-      });
-    }, CFG.WRITE_DEBOUNCE_MS || 1500);
+  // localStorage 키 → app_state.key
+  function toStateKey(lsKey) {
+    if (lsKey === 'himec_pm_tool_v23') return 'manage';
+    if (lsKey === 'HIMEC_SAVE_DATA')   return 'diagnosis_' + (activeProjectId() || 'default');
+    return lsKey; // 그 외는 그대로
   }
 
   /* ---------------------------------------------------------------
-   * 6. localStorage 후킹 (Local 은 항상 먼저 저장 → 그 후 Cloud 미러)
+   * 쓰기: 디바운스 upsert → app_state
+   * --------------------------------------------------------------- */
+  var _timers = {};
+  function scheduleMirror(lsKey, rawValue) {
+    if (!isTracked(lsKey)) return;
+    clearTimeout(_timers[lsKey]);
+    _timers[lsKey] = setTimeout(function () {
+      var stateKey = toStateKey(lsKey);
+      var parsed = jparse(rawValue, null);
+      var dataVal = (parsed !== null) ? parsed : { __raw: String(rawValue) };
+      withClient(function (client) {
+        log('mirror →', lsKey, '⇒ app_state[' + stateKey + ']');
+        return client.from(TABLE).upsert(
+          { key: stateKey, data: dataVal, updated_at: nowIso() },
+          { onConflict: 'key' }
+        ).then(function (r) {
+          if (r && r.error) warn('upsert err', stateKey, r.error.message || r.error);
+        });
+      });
+    }, DEBOUNCE);
+  }
+
+  /* ---------------------------------------------------------------
+   * localStorage 후킹 (로컬 우선 저장 → 그 후 클라우드 미러)
    * --------------------------------------------------------------- */
   try {
     _ls.setItem = function (key, value) {
-      _origSet(key, value);             // 1) 로컬 우선 저장(기존 동작 보존)
+      _origSet(key, value);
       try { scheduleMirror(key, value); } catch (e) { warn('mirror sched fail', e); }
     };
     _ls.removeItem = function (key) {
-      _origRemove(key);
-      // 삭제 미러는 데이터 유실 위험이 있어 기본 비활성(필요 시 확장)
+      _origRemove(key); // 삭제 미러는 데이터 유실 위험으로 기본 비활성
     };
   } catch (e) { warn('hook install fail', e); }
 
   /* ---------------------------------------------------------------
-   * 7. 최초 1회 클라우드 → 로컬 복원 (로컬이 빈 경우)
-   *    가장 최근 백업 스냅샷을 그대로 복원하여 6키 동기화.
+   * 복원: 로컬이 빈 키에 한해 app_state 에서 1회 채움
+   *   - app_state 전체(소량)를 한 번 읽어 역매핑으로 복원
+   *   - 복원 시 _origSet 사용(미러 루프 방지)
+   *   ※ 도구 페이지가 자체 로드에서 localStorage 를 먼저 읽으므로,
+   *     완전히 새 기기 첫 접속 시에는 복원 직후 새로고침 1회가 필요할 수 있음.
    * --------------------------------------------------------------- */
-  function hydrateIfEmpty() {
-    if (!CFG.HYDRATE_ON_EMPTY) return;
-    var anyLocal = ['HIMEC_SAVE_DATA','himec_pm_tool_v23','gh_file_data/projects.json',
-                    'himec_tool_projects','himec_metrics']
-                   .some(function (k) { return !!_origGet(k); });
-    if (anyLocal) return;
+  function fromState(dataVal) {
+    if (dataVal && typeof dataVal === 'object' && '__raw' in dataVal && Object.keys(dataVal).length === 1)
+      return dataVal.__raw;            // 원시 문자열로 저장됐던 값
+    return JSON.stringify(dataVal);
+  }
+  function hydrate() {
+    if (!HYDRATE) return;
     withClient(function (client) {
-      var base = companyId + '/' + (CFG.BACKUP_PREFIX || '_backups') + '/';
-      return client.storage.from(CFG.BACKUP_BUCKET || 'project-docs').list(
-        companyId + '/' + (CFG.BACKUP_PREFIX || '_backups'),
-        { limit: 100, sortBy: { column: 'name', order: 'desc' } }
-      ).then(function (r) {
+      return client.from(TABLE).select('key,data').then(function (r) {
         if (!r || !r.data || !r.data.length) return;
-        var latest = r.data.filter(function (f) { return /\.json$/.test(f.name); })[0];
-        if (!latest) return;
-        return client.storage.from(CFG.BACKUP_BUCKET || 'project-docs')
-          .download(base + latest.name)
-          .then(function (dl) { return dl && dl.data ? dl.data.text() : null; })
-          .then(function (txt) {
-            if (!txt) return;
-            var snap = jparse(txt, null);
-            if (!snap || !snap.keys) return;
-            Object.keys(snap.keys).forEach(function (k) {
-              if (snap.keys[k] != null) _origSet(k, snap.keys[k]); // 후킹 우회(루프 방지)
-            });
-            log('hydrated from', latest.name);
-          });
-      });
-    });
-  }
+        var rows = r.data, byKey = {};
+        rows.forEach(function (row) { byKey[row.key] = row.data; });
 
-  /* ---------------------------------------------------------------
-   * 8. 10분 간격 백업 (파일 크기 고려)
-   *    - 6키 스냅샷 → Storage(project-docs)/{company}/_backups/<ts>.json
-   *    - 직전과 동일하면 skip (해시 비교)
-   *    - BACKUP_MAX_INLINE_BYTES 초과 시 base64 사진을 분리(마커 치환)
-   *    - storage_files 메타 1행 기록, 오래된 백업 정리
-   * --------------------------------------------------------------- */
-  var BK_KEYS = ['HIMEC_SAVE_DATA','himec_pm_tool_v23','gh_file_data/projects.json',
-                 'himec_tool_projects','himec_metrics',
-                 'HIMEC_SUMMARY_STATE','HIMEC_SUBJECT_NOTES','HIMEC_SUBJECT_ETC'];
-  var _lastHash = null;
+        // 1) 고정 매핑 키 복원 (로컬이 비어 있을 때만)
+        if (!_origGet('himec_pm_tool_v23') && byKey['manage'] != null)
+          _origSet('himec_pm_tool_v23', fromState(byKey['manage']));
 
-  function hashStr(s) { // 경량 해시(djb2)
-    var h = 5381; for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-    return String(h >>> 0);
-  }
-  function stripBigBase64(snapStr) {
-    // data:[mime];base64,.... 형태의 큰 값 치환 (백업 용량 절감)
-    return snapStr.replace(/"data:[^"]{2000,}"/g, '"[omitted-base64]"');
-  }
+        if (!_origGet('HIMEC_SAVE_DATA')) {
+          var dk = 'diagnosis_' + (activeProjectId() || 'default');
+          if (byKey[dk] != null) _origSet('HIMEC_SAVE_DATA', fromState(byKey[dk]));
+        }
 
-  function doBackup() {
-    if (!ENABLED) return;
-    var keys = {};
-    BK_KEYS.forEach(function (k) { var v = _origGet(k); if (v != null) keys[k] = v; });
-    var snap = { _type: 'himec-backup', _at: nowIso(), company_id: companyId, keys: keys };
-    var str = JSON.stringify(snap);
-    if (str.length > (CFG.BACKUP_MAX_INLINE_BYTES || 3145728)) {
-      // 용량 초과 → 사진(base64) 분리 버전으로 축소
-      var slim = JSON.parse(JSON.stringify(snap));
-      Object.keys(slim.keys).forEach(function (k) {
-        slim.keys[k] = stripBigBase64(slim.keys[k]);
-      });
-      slim._note = 'large-payload: base64 stripped';
-      str = JSON.stringify(slim);
-    }
-    var h = hashStr(str);
-    if (h === _lastHash) { log('backup skip (unchanged)'); return; }
-
-    withClient(function (client) {
-      var ts = nowIso().replace(/[:.]/g, '-');
-      var path = companyId + '/' + (CFG.BACKUP_PREFIX || '_backups') + '/' + ts + '.json';
-      var blob = new Blob([str], { type: 'application/json' });
-      return client.storage.from(CFG.BACKUP_BUCKET || 'project-docs')
-        .upload(path, blob, { upsert: true, contentType: 'application/json' })
-        .then(function (up) {
-          if (up && up.error) { warn('backup upload err', up.error); return; }
-          _lastHash = h;
-          log('backup saved', path, (str.length / 1024).toFixed(1) + 'KB');
-          // 메타 기록
-          client.from('storage_files').insert({
-            company_id: companyId, project_id: null, doc_type: 'backup',
-            bucket: CFG.BACKUP_BUCKET || 'project-docs', path: path,
-            original_name: ts + '.json', size_bytes: str.length
-          }).then(function () {}, function () {});
-          // 오래된 백업 정리
-          return cleanupBackups(client);
+        // 2) 그대로-매핑 키 복원 (고정/패턴 모두 동일 키명)
+        rows.forEach(function (row) {
+          var k = row.key;
+          if (k === 'manage' || k.indexOf('diagnosis_') === 0) return; // 위에서 처리
+          if (!isTracked(k)) return;            // app_state 의 다른 데이터는 건드리지 않음
+          if (_origGet(k) != null) return;      // 로컬에 이미 있으면 보존
+          _origSet(k, fromState(row.data));
+          log('hydrated ←', k);
         });
+      });
     });
   }
 
-  function cleanupBackups(client) {
-    var keep = CFG.BACKUP_KEEP || 24;
-    var folder = companyId + '/' + (CFG.BACKUP_PREFIX || '_backups');
-    return client.storage.from(CFG.BACKUP_BUCKET || 'project-docs')
-      .list(folder, { limit: 1000, sortBy: { column: 'name', order: 'desc' } })
-      .then(function (r) {
-        if (!r || !r.data) return;
-        var olds = r.data.filter(function (f) { return /\.json$/.test(f.name); }).slice(keep);
-        if (!olds.length) return;
-        var paths = olds.map(function (f) { return folder + '/' + f.name; });
-        return client.storage.from(CFG.BACKUP_BUCKET || 'project-docs').remove(paths);
-      });
-  }
-
   /* ---------------------------------------------------------------
-   * 9. 부팅
+   * 부팅 + 외부 핸들
    * --------------------------------------------------------------- */
   function boot() {
-    if (!ENABLED) { log('sync disabled (config placeholder or ENABLE_SYNC=false)'); return; }
-    sbReady.then(function (client) {
-      if (!client) return;
-      hydrateIfEmpty();
-      setInterval(doBackup, CFG.BACKUP_INTERVAL_MS || 600000);
-      // 페이지 이탈 직전 마지막 백업 시도(best-effort)
-      w.addEventListener('beforeunload', function () { try { doBackup(); } catch (e) {} });
-    });
+    if (!ENABLED) { log('sync disabled'); return; }
+    sbReady.then(function (c) { if (c) hydrate(); });
   }
   if (d.readyState === 'loading') d.addEventListener('DOMContentLoaded', boot);
   else boot();
 
-  /* tool_runs(registry) → { toolId: [{id,name,year}, ...] } 재구성
-     dashboard.html 등에서 클라우드 목록을 불러올 때 사용. */
-  function loadToolRegistry() {
-    return withClient(function (client) {
-      return client.from('tool_runs')
-        .select('tool_id,results')
-        .eq('company_id', companyId)
-        .eq('tool_category', 'registry')
-        .then(function (r) {
-          if (!r || !r.data || !r.data.length) return null; // 없으면 null → 호출측에서 localStorage 폴백
-          var reg = {};
-          r.data.forEach(function (row) {
-            var t = row.tool_id; if (!t) return;
-            (reg[t] = reg[t] || []).push(row.results || {});
-          });
-          return reg;
-        });
-    });
-  }
-
-  /* 외부에서 수동 트리거용 핸들 노출 */
   w.HIMEC_SYNC = {
-    backupNow: doBackup,
-    mirrorKey: function (k) { scheduleMirror(k, _origGet(k)); },
     isEnabled: function () { return ENABLED; },
     ready: function () { return sbReady; },
-    loadToolRegistry: loadToolRegistry
+    // 특정 키를 지금 즉시 미러(디바운스 후 실행)
+    mirrorKey: function (k) { scheduleMirror(k, _origGet(k)); },
+    // 추적 대상 전체를 한 번에 미러
+    syncNow: function () {
+      try {
+        for (var i = 0; i < _ls.length; i++) {
+          var k = _ls.key(i);
+          if (k && isTracked(k)) scheduleMirror(k, _origGet(k));
+        }
+      } catch (e) { warn('syncNow fail', e); }
+    },
+    // 구버전 대시보드 호환: 클라우드 레지스트리 미사용 → null(=localStorage 폴백)
+    loadToolRegistry: function () { return Promise.resolve(null); },
+    backupNow: function () {}  // 구버전 호환 no-op (app_state 행 자체가 백업을 대체)
   };
 })(window, document);
