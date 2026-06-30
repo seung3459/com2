@@ -199,31 +199,41 @@ function _ensureSb(){
   });
 }
 async function loadAppState(){
-  // 1) 클라우드(app_state) 우선
-  if(_CFG && _CFG.SUPABASE_URL && _CFG.SUPABASE_ANON_KEY && _CFG.SUPABASE_URL.indexOf('YOUR-')===-1){
-    if(await _ensureSb()){
-      try{
-        if(!_sb) _sb=window.supabase.createClient(_CFG.SUPABASE_URL,_CFG.SUPABASE_ANON_KEY);
-        const r=await _sb.from('app_state').select('key,data');
-        if(!r.error && r.data){
-          const m={}; r.data.forEach(row=>m[row.key]=row.data);
-          return {source:'클라우드', rows:m};
-        }
-      }catch(e){}
-    }
-  }
-  // 2) 로컬 폴백
   const rows={};
+  // 1) 로컬 먼저 채움 (오프라인/폴백 보장)
   try{
     const pj=localStorage.getItem('gh_file_data/projects.json'); if(pj) rows['gh_file_data/projects.json']=JSON.parse(pj);
     const mg=localStorage.getItem('himec_pm_tool_v23'); if(mg) rows['manage']=JSON.parse(mg);
     const tr=localStorage.getItem('himec_tool_results'); if(tr) rows['himec_tool_results']=JSON.parse(tr);
     const tp=localStorage.getItem('himec_tool_projects'); if(tp) rows['himec_tool_projects']=JSON.parse(tp);
-    // 로컬엔 진단이 단일 키(HIMEC_SAVE_DATA)만 — 현재 프로젝트 1건
-    const sd=localStorage.getItem('HIMEC_SAVE_DATA');
-    if(sd){ const pid=localStorage.getItem('activeProjectId')||'default'; rows['diagnosis_'+pid]=JSON.parse(sd); }
+    // 진단: 프로젝트별 로컬 키(HIMEC_SAVE_DATA_<id>) 전부 수집
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k && k.indexOf('HIMEC_SAVE_DATA_')===0){
+        const pid=k.slice('HIMEC_SAVE_DATA_'.length);
+        try{ rows['diagnosis_'+pid]=JSON.parse(localStorage.getItem(k)); }catch(e){}
+      }
+    }
+    // 구버전 단일 키 호환
+    const sdOld=localStorage.getItem('HIMEC_SAVE_DATA');
+    if(sdOld){ const pid=localStorage.getItem('activeProjectId')||'default'; if(!rows['diagnosis_'+pid]) rows['diagnosis_'+pid]=JSON.parse(sdOld); }
   }catch(e){}
-  return {source:'로컬', rows:rows};
+  let source = Object.keys(rows).length ? '로컬' : '';
+  // 2) 클라우드(app_state) 오버레이 — 가능하면 최신값으로 덮어씀
+  if(_CFG && _CFG.SUPABASE_URL && _CFG.SUPABASE_ANON_KEY && _CFG.SUPABASE_URL.indexOf('YOUR-')===-1 && navigator.onLine!==false){
+    if(await _ensureSb()){
+      try{
+        if(!_sb) _sb=window.supabase.createClient(_CFG.SUPABASE_URL,_CFG.SUPABASE_ANON_KEY);
+        try{ await _sb.auth.getSession(); }catch(e){}   // 세션 복원 보장(anon 레이스→RLS 0행 방지)
+        const r=await _sb.from('app_state').select('key,data');
+        if(!r.error && r.data && r.data.length){
+          r.data.forEach(row=>{ rows[row.key]=row.data; });
+          source = (source==='로컬') ? '클라우드+로컬' : '클라우드';
+        }
+      }catch(e){}
+    }
+  }
+  return {source: source||'없음', rows:rows};
 }
 // 프로젝트 목록 + 금액(fee 백만원 → 원) 빌드
 function buildProjects(state){
@@ -298,6 +308,11 @@ const TOOL_MAP = {
   'Tool-601__Pipe_diameter_selection':{ equip:'배관설비', metrics:[{name:'여유율',id:'val-margin',unit:'%'},{name:'판정',id:'verdictValue'}], grade:{id:'verdictValue',mode:'verdict'} },
   // 비대상(성능/상태 평가 아님): 101·102 부하/기상, 301·302 차트, 305 덕트사이징, 501·502 산정, 701 트래커, 702 LCC
 };
+/* 파일명 형식(밑줄/공백/점) 차이를 흡수하기 위해 'Tool-번호'로 매핑을 인덱싱 */
+const _toolNo = k => { const m=String(k||'').match(/Tool[-_\s]*0*(\d+)/i); return m?m[1]:null; };
+const TOOL_MAP_BY_NO = {};
+Object.keys(TOOL_MAP).forEach(k=>{ const n=_toolNo(k); if(n) TOOL_MAP_BY_NO[n]=TOOL_MAP[k]; });
+function _toolMapFor(tkey){ return TOOL_MAP[tkey] || TOOL_MAP_BY_NO[_toolNo(tkey)] || null; }
 function _num(v){ const n=parseFloat(String(v==null?'':v).replace(/[,\s%]/g,'')); return isFinite(n)?n:null; }
 function _grade(map,f){
   if(!map||!map.grade) return '-';
@@ -325,7 +340,7 @@ function buildAnalysisResults(state){
   Object.keys(reg).forEach(pid=>{
     const byTool=reg[pid]||{}; const meta=byId[pid]||{};
     Object.keys(byTool).forEach(tkey=>{
-      const rec=byTool[tkey]||{}; const f=rec.fields||{}; const map=TOOL_MAP[tkey];
+      const rec=byTool[tkey]||{}; const f=rec.fields||{}; const map=_toolMapFor(tkey);
       const pname=rec.projectName||meta.name||pid; const year=meta.year||'';
       let equip='(분석)', perf='분석 실행', grade='-';
       if(map){
@@ -334,13 +349,17 @@ function buildAnalysisResults(state){
         perf=parts.length?parts.join(' / '):'분석 실행';
         grade=_grade(map,f);
       }
-      out.push({ no:++no, year:String(year), project:pname, equip:equip, first:'-', second:grade, result:'-', perf:perf, source:'analysis' });
+      out.push({ no:++no, year:String(year), project:pname, equip:equip, unit:'', first:'-', second:grade, result:'-', perf:perf, phase:'2', source:'analysis' });
     });
   });
   return out;
 }
 
 // app_state의 diagnosis_* blob → diagResults 행
+/* 2차 정밀진단 type → 1차 장비종류 라벨 매핑 / 성능판정 라벨 */
+const D2_TO_LABEL={ d2Ahu:'공조기', d2Fan:'급·배기팬', d2Pump:'펌프', d2CoolingTower:'냉각탑' };
+const PERF2={ good:'양호', maintenance:'보통', replace:'불량' };
+
 function buildDiagResults(state){
   const rows=state.rows;
   // 프로젝트 메타(이름/연도) by id
@@ -358,30 +377,51 @@ function buildDiagResults(state){
     const m=meta[pid]||{};
     const pname=m.name||ov.projectName||pid;
     const year=m.year||'';
-    // 2차 측정: type → 건수
-    const d2=blob.diagnosis2nd||{};
-    const d2cnt={}; Object.keys(d2).forEach(t=>{ const td=(d2[t]&&d2[t].tabData)||{}; d2cnt[t]=Object.keys(td).length; });
-    // 1차: 설비 단위
+
+    // 1차: 설비 단위 (등급 A/B/C)
     const cd=(blob.diagnosis1st&&blob.diagnosis1st._cardData)||{};
     Object.keys(cd).forEach(type=>{
       const units=cd[type]||{};
       Object.keys(units).forEach(idStr=>{
         const unit=units[idStr]||{};
         const grade=calcGrade(unit._diag||{},type);
-        const label=(TYPE_LABEL[type]||type)+' '+idStr+'호기';
         out.push({
           no:++no, year:String(year), project:pname,
-          equip:label,
+          equip:(TYPE_LABEL[type]||type),     // 장비 종류 단위
+          unit:idStr+'호기',
           first:grade,
-          second:'-',          // 2차 판정값 미저장
-          result:'-',          // 진단결과(재사용/교체) 미저장
-          perf:(d2cnt[type]>0)?('2차 측정 '+d2cnt[type]+'건'):'-',
-          source:'diagnosis'
+          second:'-', result:'-', perf:'-',
+          phase:'1', source:'diagnosis'
+        });
+      });
+    });
+
+    // 2차: 정밀진단 단위 (양호/보통/불량) — d2Ahu/d2Fan/d2Pump/d2CoolingTower
+    const d2=blob.diagnosis2nd||{};
+    Object.keys(d2).forEach(t=>{
+      const label=D2_TO_LABEL[t]; if(!label) return;
+      const td=(d2[t]&&d2[t].tabData)||{};
+      Object.keys(td).forEach(idStr=>{
+        const u=td[idStr]; if(!u) return;     // 빈 탭은 건너뜀
+        const pc=u._perfCheck||'';
+        const perfTxt=u['inp-performance-result']||'';
+        const ename=u['inp-equip']||(idStr+'호기');
+        out.push({
+          no:++no, year:String(year), project:pname,
+          equip:label,                         // 1차와 동일 종류 라벨로 통일
+          unit:ename,
+          first:'-',
+          second:PERF2[pc]||'-',               // 양호/보통/불량
+          result:'-',
+          perf:perfTxt||'-',
+          phase:'2', source:'diagnosis'
         });
       });
     });
   });
-  return out;
+  // 프로젝트 → 장비종류 → 구분 순 정렬 (1차·2차가 종류별로 모여 보이도록)
+  out.sort((a,b)=> (a.project+a.equip+a.phase).localeCompare(b.project+b.equip+b.phase,'ko'));
+  return out.map((r,i)=>({...r, no:i+1}));
 }
 
 /* ===================== 탭 전환 ===================== */
@@ -514,15 +554,21 @@ function renderResult(){
   const rows=diagResults.filter(r=>{
     if(src!=='all' && (r.source||'diagnosis')!==src) return false;
     if(eq && r.equip!==eq) return false;
+    // 선택한 구분(1차/2차/성능)에 실제 값이 있는 행만 — '둘 다(all)'는 전부
+    if(typeKey!=='all'){
+      const has=type.cols.some(c=>{ const v=COLDEF[c].get(r); return v!=null && v!=='' && v!=='-'; });
+      if(!has) return false;
+    }
     return true;
   });
-  let h='<table><thead><tr><th>No</th><th>수행년도</th><th>프로젝트명</th><th>장비</th><th>구분</th>';
+  let h='<table><thead><tr><th>No</th><th>수행년도</th><th>프로젝트명</th><th>장비</th><th>호기/장비명</th><th>구분</th>';
   type.cols.forEach(c=>h+=`<th>${COLDEF[c].th}</th>`);
   h+='<th>상세</th></tr></thead><tbody>';
-  if(!rows.length) h+=`<tr><td colspan="${5+type.cols.length+1}" class="empty">조건에 맞는 데이터가 없습니다.</td></tr>`;
+  const span=6+type.cols.length+1;
+  if(!rows.length) h+=`<tr><td colspan="${span}" class="empty">조건에 맞는 데이터가 없습니다.</td></tr>`;
   rows.forEach((r,i)=>{
-    const srcLabel=(r.source==='analysis')?'분석':'진단';
-    h+=`<tr><td>${i+1}</td><td>${r.year}</td><td class="left">${r.project}</td><td>${r.equip}</td><td>${srcLabel}</td>`;
+    const srcLabel=(r.source==='analysis')?'분석':('진단'+(r.phase?(' '+r.phase+'차'):''));
+    h+=`<tr><td>${i+1}</td><td>${r.year}</td><td class="left">${r.project}</td><td>${r.equip}</td><td class="left">${r.unit||'-'}</td><td>${srcLabel}</td>`;
     type.cols.forEach(c=>h+=`<td>${COLDEF[c].get(r)}</td>`);
     h+='<td>보기</td></tr>';
   });
