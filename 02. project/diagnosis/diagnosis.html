@@ -13183,6 +13183,11 @@ document.addEventListener('keydown', function(e){
   }
   if (d.readyState === 'complete') boot();
   else w.addEventListener('load', boot);
+
+  // 클라우드 복원 완료 후 한 번 더 자동복원(초기 레이스/세션 지연 대비)
+  w.addEventListener('himec:hydrated', function () {
+    if (typeof w._restoreAllData === 'function') setTimeout(autoRestore, 60);
+  });
 })(window, document);
 </script>
 
