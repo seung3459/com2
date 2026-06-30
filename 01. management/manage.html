@@ -478,6 +478,23 @@ function optM(v){let s='';for(let i=1;i<=12;i++)s+='<option value="'+i+'"'+(i==v
 
 function renderAll(){buildYearSel();syncHead();renderS1();renderProjs();renderAgg();}
 renderAll();
+
+/* 클라우드 복원 완료 시: 메모리(S)를 다시 읽고 재렌더 (모바일 교차기기 노출) */
+window.addEventListener('himec:hydrated', function(){
+  try{
+    var _raw = localStorage.getItem(LS_KEY);
+    if(_raw){
+      var _o = JSON.parse(_raw);
+      if(_o && typeof _o === 'object'){
+        S = _o;
+        if(!S.aggGoal) S.aggGoal = {};
+        if(!S.cumMonth) S.cumMonth = 12;
+        S.curMode = 'goal';
+        renderAll();
+      }
+    }
+  }catch(e){}
+});
 </script>
 <div id="budgetModal" class="bg-modal" style="display:none" onclick="if(event.target===this)closeBudget()">
   <div class="bg-box">
