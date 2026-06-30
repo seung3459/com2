@@ -6,6 +6,8 @@
   <!-- ▼ 로그인 가드 + 로그아웃 (설정 파일보다 뒤, sync보다 앞) -->
   <script src="/js/auth-guard.js"></script>
   <script src="/js/himec-supabase-sync.js"></script>
+  <!-- ▼ 사진 저장 헬퍼 (Storage 업로드 + 서명 URL) / sync 뒤 -->
+  <script src="/js/himec-photo-store.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HIMEC - 기계설비 노후화 진단 시스템</title>
@@ -2614,15 +2616,30 @@ function confirmAdd() {
   function handleOverviewPhoto(event){
     const file = event.target.files[0];
     if(!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e){
+    if(!file.type || !file.type.startsWith('image/')){ if(typeof showToast==='function') showToast('❌ 이미지 파일만 선택 가능합니다'); return; }
+    var doDisplay = function(dataURL){
       const img = document.getElementById('overviewPhotoImg');
-      img.src = e.target.result;
+      img.src = dataURL;
       img.style.display = 'block';
+      img.removeAttribute('data-path');           // 새 사진 → 기존 경로 무효화
       document.getElementById('overviewPhotoEmpty').style.display = 'none';
       document.getElementById('overviewPhotoBox').style.border = 'none';
+      // Storage 업로드 → 성공 시 경로만 보관(저장 blob엔 base64 대신 경로 사용)
+      if(window.HIMEC_PHOTO){
+        HIMEC_PHOTO.upload(dataURL, 'overview').then(function(path){
+          if(path) img.dataset.path = path;       // 실패(null)면 base64 폴백 유지
+        }).catch(function(){});
+      }
     };
-    reader.readAsDataURL(file);
+    // resizeImage 가 있으면 리사이즈(용량↓), 없으면 원본 dataURL
+    if(typeof resizeImage === 'function'){
+      resizeImage(file, (typeof PHOTO_MAX_SIZE!=='undefined'?PHOTO_MAX_SIZE:1200), (typeof PHOTO_QUALITY!=='undefined'?PHOTO_QUALITY:0.75))
+        .then(doDisplay).catch(function(){ var r=new FileReader(); r.onload=function(e){doDisplay(e.target.result);}; r.readAsDataURL(file); });
+    } else {
+      const reader = new FileReader();
+      reader.onload = function(e){ doDisplay(e.target.result); };
+      reader.readAsDataURL(file);
+    }
   }
 
   function updateOverviewTitle(){
@@ -3680,9 +3697,12 @@ function handlePhotoInput(input, type, id, idx){
   if(!file.type.startsWith('image/')){ showToast('❌ 이미지 파일만 선택 가능합니다'); return; }
   resizeImage(file, PHOTO_MAX_SIZE, PHOTO_QUALITY).then(dataURL=>{
     if(!unitPhotos[`${type}_${id}`]){
-      unitPhotos[`${type}_${id}`] = new Array(PHOTO_COUNT).fill(null).map(()=>({img:null, desc:''}));
+      unitPhotos[`${type}_${id}`] = new Array(PHOTO_COUNT).fill(null).map(()=>({img:null, path:null, desc:''}));
     }
-    unitPhotos[`${type}_${id}`][idx].img = dataURL;
+    var slotData = unitPhotos[`${type}_${id}`][idx] || {desc:''};
+    slotData.img = dataURL;     // 즉시 미리보기(세션용)
+    slotData.path = null;       // 새 사진 → 기존 경로 무효화(업로드 성공 시 채움)
+    unitPhotos[`${type}_${id}`][idx] = slotData;
     const slot = document.getElementById(`${type}_${id}_slot_${idx}`);
     if(slot){
       const wrap = document.createElement('div');
@@ -3690,14 +3710,25 @@ function handlePhotoInput(input, type, id, idx){
       slot.parentElement.replaceChild(wrap.firstElementChild, slot);
     }
     input.value = '';
-    showToast(`✅ 사진 ${idx+1} 업로드 완료`);
     updateSummary(type, id);
+    // Storage 업로드 → 성공 시 경로 저장(blob엔 base64 대신 경로만 들어감)
+    if(window.HIMEC_PHOTO){
+      showToast(`⏳ 사진 ${idx+1} 업로드 중…`);
+      HIMEC_PHOTO.upload(dataURL, `${type}_${id}_${idx}`).then(function(path){
+        var cur = unitPhotos[`${type}_${id}`] && unitPhotos[`${type}_${id}`][idx];
+        if(cur && path){ cur.path = path; showToast(`✅ 사진 ${idx+1} 저장 완료`); }
+        else { showToast(`✅ 사진 ${idx+1} (로컬 보관 · 다음 온라인 저장 시 반영)`); }
+      }).catch(function(){ showToast(`✅ 사진 ${idx+1} (로컬 보관)`); });
+    } else {
+      showToast(`✅ 사진 ${idx+1} 업로드 완료`);
+    }
   }).catch(err=>{ console.error(err); showToast('❌ 이미지 처리 실패'); });
 }
 
 function removePhoto(type, id, idx){
   if(!unitPhotos[`${type}_${id}`]) return;
   unitPhotos[`${type}_${id}`][idx].img = null;
+  unitPhotos[`${type}_${id}`][idx].path = null;
   const slot = document.getElementById(`${type}_${id}_slot_${idx}`);
   if(slot){
     const wrap = document.createElement('div');
@@ -3710,6 +3741,36 @@ function removePhoto(type, id, idx){
 function updatePhotoMeta(type, id, idx, field, value){
   if(!unitPhotos[`${type}_${id}`]) return;
   unitPhotos[`${type}_${id}`][idx][field] = value;
+}
+
+/* 복원 후 사진 화면 재렌더 — path는 서명 URL 발급(일괄), base64는 그대로.
+   _restoreAllData / autoRestore 가 unitPhotos 를 채운 직후 호출. */
+function _himecRestorePhotos(){
+  function renderAllGrids(){
+    Object.keys(unitPhotos).forEach(function(key){
+      var m = key.match(/^(.+)_(\d+)$/);
+      if(!m) return;
+      var grid = document.getElementById(key + '_photoGrid');
+      if(!grid) return;                 // 카드가 아직 없으면 건너뜀
+      var slots = '';
+      for(var i=0;i<PHOTO_COUNT;i++){ slots += renderPhotoSlot(m[1], parseInt(m[2],10), i); }
+      grid.innerHTML = slots;
+    });
+  }
+  // 서명 URL이 필요한 path 수집(img 가 비어있고 path 만 있는 것)
+  var paths = [];
+  Object.keys(unitPhotos).forEach(function(key){
+    (unitPhotos[key]||[]).forEach(function(ph){ if(ph && ph.path && !ph.img) paths.push(ph.path); });
+  });
+  if(!paths.length || !window.HIMEC_PHOTO){ renderAllGrids(); return; }
+  HIMEC_PHOTO.signMany(paths).then(function(map){
+    Object.keys(unitPhotos).forEach(function(key){
+      (unitPhotos[key]||[]).forEach(function(ph){
+        if(ph && ph.path && !ph.img && map[ph.path]) ph.img = map[ph.path];
+      });
+    });
+    renderAllGrids();
+  }).catch(function(){ renderAllGrids(); });
 }
 
 function resizeImage(file, maxSize, quality){
@@ -3951,7 +4012,7 @@ function addUnit(type){
   const id = unitCount[type];
   const container = document.getElementById(type+'Units');
   if(hasSubtype(type)) unitSubtype[`${type}_${id}`] = subtypeMap[type][0].key;
-  unitPhotos[`${type}_${id}`] = new Array(PHOTO_COUNT).fill(null).map(()=>({img:null, desc:''}));
+  unitPhotos[`${type}_${id}`] = new Array(PHOTO_COUNT).fill(null).map(()=>({img:null, path:null, desc:''}));
   container.insertAdjacentHTML('beforeend', renderCard(type, id));
   refreshCardLabels(type);
   updateCount(type);
@@ -9297,7 +9358,11 @@ function _collectAllData() {
   });
   var ovImg = document.getElementById('overviewPhotoImg');
   if (ovImg && ovImg.src && ovImg.style.display !== 'none') {
-    allData.projectOverview._photo = ovImg.src;
+    if (ovImg.dataset && ovImg.dataset.path) {
+      allData.projectOverview._photoPath = ovImg.dataset.path;   // 클라우드: 경로만
+    } else {
+      allData.projectOverview._photo = ovImg.src;                // 폴백: base64
+    }
   }
 
   /* --- 1st Diagnosis --- */
@@ -9308,7 +9373,18 @@ function _collectAllData() {
     allData.diagnosis1st._unitSubtype = JSON.parse(JSON.stringify(unitSubtype));
   }
   if (typeof unitPhotos !== 'undefined') {
-    allData.diagnosis1st._unitPhotos = JSON.parse(JSON.stringify(unitPhotos));
+    // 사진: 경로(path)가 있으면 base64(img)는 빼고 경로만 저장 → blob 경량화.
+    //       경로가 없으면(업로드 실패/오프라인/구 데이터) base64를 폴백으로 보존.
+    var _up = {};
+    Object.keys(unitPhotos).forEach(function (key) {
+      var arr = unitPhotos[key] || [];
+      _up[key] = arr.map(function (ph) {
+        if (!ph) return { img: null, path: null, desc: '' };
+        if (ph.path) return { path: ph.path, desc: ph.desc || '', img: null };
+        return { path: null, desc: ph.desc || '', img: ph.img || null };
+      });
+    });
+    allData.diagnosis1st._unitPhotos = _up;
   }
 
   var d1Types = ['coldSource','heatSource','heatex','coolingTower','ahu','fan','fcu','pump','header','tank','snpump','plumbing'];
@@ -9382,13 +9458,20 @@ function _restoreAllData(allData) {
       el.value = ov[fid];
     }
   });
-  if (ov._photo) {
+  if (ov._photoPath || ov._photo) {
     var ovImg = document.getElementById('overviewPhotoImg');
     if (ovImg) {
-      ovImg.src = ov._photo;
-      ovImg.style.display = 'block';
-      var emptyEl = document.getElementById('overviewPhotoEmpty');
-      if (emptyEl) emptyEl.style.display = 'none';
+      var ovEmpty = document.getElementById('overviewPhotoEmpty');
+      function _ovShow(url){ ovImg.src = url; ovImg.style.display = 'block'; if (ovEmpty) ovEmpty.style.display = 'none'; }
+      if (ov._photoPath && window.HIMEC_PHOTO) {
+        ovImg.dataset.path = ov._photoPath;
+        HIMEC_PHOTO.signOne(ov._photoPath).then(function (url) {
+          if (url) _ovShow(url);
+          else if (ov._photo) _ovShow(ov._photo);   // 서명 실패 시 base64라도
+        }).catch(function () { if (ov._photo) _ovShow(ov._photo); });
+      } else if (ov._photo) {
+        _ovShow(ov._photo);
+      }
     }
   }
   if (typeof updateOverviewTitle === 'function') updateOverviewTitle();
@@ -9450,6 +9533,10 @@ function _restoreAllData(allData) {
     Object.keys(d1._unitPhotos).forEach(function(key) {
       unitPhotos[key] = d1._unitPhotos[key];
     });
+    // ▼ 복원 직후 사진을 화면에 다시 그린다.
+    //   (카드는 위에서 addUnit 으로 만들어지며 빈 슬롯이 그려진 상태 →
+    //    여기서 path 는 서명 URL 발급, base64 는 그대로 → 슬롯 재렌더)
+    if (typeof _himecRestorePhotos === 'function') _himecRestorePhotos();
   }
 
   /* --- 2nd Diagnosis 복원 --- */
