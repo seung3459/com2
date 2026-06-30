@@ -85,7 +85,7 @@
    * --------------------------------------------------------------- */
   var EXACT_KEYS = {
     'himec_pm_tool_v23': 1, 'HIMEC_SAVE_DATA': 1, 'himec_metrics': 1,
-    'gh_file_data/projects.json': 1, 'himec_tool_projects': 1,
+    'gh_file_data/projects.json': 1, 'himec_tool_projects': 1, 'himec_tool_results': 1,
     'HIMEC_SUMMARY_STATE': 1, 'HIMEC_SUBJECT_NOTES': 1, 'HIMEC_SUBJECT_ETC': 1,
     'HIMEC_CHILLER_SAVE': 1
   };
