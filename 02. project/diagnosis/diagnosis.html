@@ -9578,12 +9578,30 @@ function appDoSaveLocal() {
   var cloud = H.cloud ? H.cloud() : Promise.resolve(null);
   cloud.then(function (c) {
     if (!c) { show('저장 완료 (로컬만 · 오프라인). 온라인 상태에서 다시 저장하면 클라우드에 반영됩니다.', '#16a34a'); return; }
-    return c.from('app_state').upsert(
-      { key: H.cloudKey ? H.cloudKey(p) : ('diagnosis_' + p), data: data, updated_at: new Date().toISOString() },
-      { onConflict: 'key' }
-    ).then(function (r) {
-      if (r && r.error) show('로컬 저장됨 · 클라우드 실패: ' + (r.error.message || r.error), '#d97706');
-      else show('저장 완료! (로컬 + 클라우드, ' + new Date().toLocaleString('ko-KR') + ')', '#16a34a');
+    var key = H.cloudKey ? H.cloudKey(p) : ('diagnosis_' + p);
+    var baseTs = H.getBaseTs ? H.getBaseTs(p) : null;
+    var newTs = new Date().toISOString();
+    function ok(stored) { if (H.setBaseTs) H.setBaseTs(p, stored || newTs); show('저장 완료! (로컬 + 클라우드, ' + new Date().toLocaleString('ko-KR') + ')', '#16a34a'); }
+    function fail(msg) { show('로컬 저장됨 · 클라우드 실패: ' + msg, '#d97706'); }
+    function insert() {  // 최초 저장(클라우드 행 없음)
+      return c.from('app_state').upsert({ key: key, data: data, updated_at: newTs }, { onConflict: 'key' }).select('updated_at').then(function (r) {
+        if (r && r.error) { fail(r.error.message || r.error); return; }
+        ok(r && r.data && r.data[0] && r.data[0].updated_at);
+      });
+    }
+    if (!baseTs) return insert();
+    // 조건부 기록: 내가 연 이후 클라우드가 바뀌지 않았을 때만 덮어씀
+    return c.from('app_state').update({ data: data, updated_at: newTs }).eq('key', key).eq('updated_at', baseTs).select('updated_at').then(function (r) {
+      if (r && r.error) { fail(r.error.message || r.error); return; }
+      if (r && r.data && r.data.length === 1) { ok(r.data[0].updated_at); return; }
+      // 0행 → 행이 없어서(최초)인지, 충돌인지 확인
+      return c.from('app_state').select('updated_at').eq('key', key).maybeSingle().then(function (r2) {
+        if (r2 && r2.data) {
+          show('⚠️ 다른 사용자가 이 프로젝트를 수정했습니다. 새로고침해 최신 내용을 불러온 뒤 다시 저장하세요. (덮어쓰기 방지로 클라우드 저장을 중단함 · 로컬에는 저장됨)', '#dc2626');
+        } else {
+          return insert();
+        }
+      });
     });
   }).catch(function (err) { show('로컬 저장됨 · 클라우드 오류: ' + ((err && err.message) || err), '#d97706'); });
 }
@@ -9641,10 +9659,11 @@ function appDoLoadLocal() {
   var cloud = H.cloud ? H.cloud() : Promise.resolve(null);
   cloud.then(function (c) {
     if (!c) { show('저장된 데이터가 없습니다. (오프라인)', '#dc2626'); return; }
-    return c.from('app_state').select('data').eq('key', H.cloudKey ? H.cloudKey(p) : ('diagnosis_' + p)).maybeSingle().then(function (r) {
+    return c.from('app_state').select('data,updated_at').eq('key', H.cloudKey ? H.cloudKey(p) : ('diagnosis_' + p)).maybeSingle().then(function (r) {
       if (r && r.error) { show('클라우드 조회 실패: ' + (r.error.message || r.error), '#dc2626'); return; }
       var row = r && r.data;
       if (!row || !row.data) { show('저장된 데이터가 없습니다.', '#dc2626'); return; }
+      if (row.updated_at && H.setBaseTs) H.setBaseTs(p, row.updated_at);   // 충돌 감지 기준선
       var data = row.data; // jsonb → 객체
       applyPkg(data, '클라우드');
       try { localStorage.setItem(localKey, JSON.stringify(data)); } catch (e) {}
@@ -13112,9 +13131,12 @@ document.addEventListener('keydown', function(e){
     return data;
   }
 
+  var _baseTs = {};   // 프로젝트별 마지막으로 읽은 클라우드 updated_at (충돌 감지 기준선)
   w.HIMEC_DIAG = {
     pid: pid, localKey: localKey, cloudKey: cloudKey, cloud: cloud,
-    readSub: readSub, writeSub: writeSub, subEmpty: subEmpty, pack: pack
+    readSub: readSub, writeSub: writeSub, subEmpty: subEmpty, pack: pack,
+    getBaseTs: function (p) { return _baseTs[p || pid()] || null; },
+    setBaseTs: function (p, ts) { _baseTs[p || pid()] = ts || null; }
   };
 
   /* ---------------- 자동 복원 (페이지 진입 시) ---------------- */
@@ -13140,9 +13162,11 @@ document.addEventListener('keydown', function(e){
     // 2) 클라우드가 더 최신이면 교체. 하위 모듈은 로컬이 비었을 때만 클라우드 동봉본 주입.
     cloud().then(function (c) {
       if (!c) return;
-      return c.from('app_state').select('data').eq('key', cloudKey(p)).maybeSingle().then(function (r) {
-        if (!r || r.error || !r.data || !r.data.data) return;
+      return c.from('app_state').select('data,updated_at').eq('key', cloudKey(p)).maybeSingle().then(function (r) {
+        if (!r || r.error || !r.data) return;
+        if (r.data.updated_at) _baseTs[p] = r.data.updated_at;   // 충돌 감지 기준선 확보
         var remote = r.data.data;
+        if (!remote) return;
         if (!local || savedAt(remote) > savedAt(local)) {
           if (applyPackage(remote, subEmpty(p))) {
             try { localStorage.setItem(localKey(p), JSON.stringify(remote)); } catch (e) {}
