@@ -606,7 +606,7 @@ function GoMain(){ if(window.STD){ STD.goMain((typeof hddSaveData==='function')?
 window.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveData();} });
 
 /* ===================== 초기화 ===================== */
-window.addEventListener('DOMContentLoaded', async ()=>{
+async function _metricsRefresh(){
   // 실제 데이터 로드 (프로젝트+금액 / 진단 결과)
   try{
     const state = await loadAppState();
@@ -620,7 +620,10 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   initSearchFilters(); renderSearch(); setDataSrc();
   initResultFilters();
   if(typeof postH==='function') postH();
-});
+}
+window.addEventListener('DOMContentLoaded', _metricsRefresh);
+// 클라우드 복원 완료 시 다시 로드/렌더 (모바일 교차기기 노출)
+window.addEventListener('himec:hydrated', _metricsRefresh);
 
 </script>
 </body>
