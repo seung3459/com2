@@ -25,10 +25,19 @@ html,body{font-family:'Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif
 .header h1{font-size:20px;font-weight:700;color:#222;}
 .header .sub{font-size:11px;color:#888;margin-top:2px;}
 .header h2{font-size:16px;font-weight:700;color:#222;margin-top:6px;}
-.header-right{position:absolute;top:14px;right:24px;display:flex;gap:8px;}
-.header-right button{padding:8px 0;width:90px;border:none;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;color:#fff;}
-.btn-save,.btn-file{background:var(--accent);}
-.btn-main{background:#555;}
+.header-right{position:absolute;top:14px;right:24px;display:flex;gap:6px;}
+.header-right button{
+  width:34px;height:34px;padding:0;
+  background:#ffffff;color:#555;
+  border:1px solid #d0d0d0;border-radius:8px;
+  display:inline-flex;align-items:center;justify-content:center;
+  box-sizing:border-box;cursor:pointer;
+}
+.header-right button:hover{background:#f5f5f5;border-color:#bbb;}
+.header-right button svg{width:18px;height:18px;display:block;stroke:#555;}
+.header-right button.btn-save:hover svg{stroke:#e85d24;}
+.header-right button.btn-file:hover svg{stroke:#e85d24;}
+@media print{.header-right{display:none;}}
 
 /* Tabs */
 .tabs{display:flex;align-items:center;gap:12px;padding:16px 24px 4px;}
@@ -93,9 +102,9 @@ tr.subtotal td{background:#fff !important;font-weight:700;border-top:2px solid #
     <div class="sub">(주)하이멕 &ndash; 기계설비 노후화 진단</div>
     <h2>Metrics</h2>
     <div class="header-right">
-      <button class="btn-save" onclick="saveData()">Save</button>
-      <button class="btn-file" onclick="exportFile()">File Trans</button>
-      <button class="btn-main" onclick="GoMain()">Main</button>
+      <button class="btn-main" onclick="GoMain()" title="Main" aria-label="Main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+      <button class="btn-save" onclick="saveData()" title="저장" aria-label="저장"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+      <button class="btn-file" onclick="exportFile()" title="파일 내보내기" aria-label="파일 내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><polyline points="3 8 3 4 21 4 21 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></button>
     </div>
   </div>
 
@@ -349,7 +358,7 @@ function buildAnalysisResults(state){
         perf=parts.length?parts.join(' / '):'분석 실행';
         grade=_grade(map,f);
       }
-      out.push({ no:++no, year:String(year), project:pname, equip:equip, unit:'', first:'-', second:grade, result:'-', perf:perf, phase:'2', source:'analysis' });
+      out.push({ no:++no, year:String(year), project:pname, equip:equip, unit:'', first:'-', second:grade, result:'-', perf:perf, _pid:pid, phase:'2', source:'analysis' });
     });
   });
   return out;
@@ -391,7 +400,7 @@ function buildDiagResults(state){
           unit:idStr+'호기',
           first:grade,
           second:'-', result:'-', perf:'-',
-          phase:'1', source:'diagnosis'
+          _pid:pid, phase:'1', source:'diagnosis'
         });
       });
     });
@@ -414,7 +423,7 @@ function buildDiagResults(state){
           second:PERF2[pc]||'-',               // 양호/보통/불량
           result:'-',
           perf:perfTxt||'-',
-          phase:'2', source:'diagnosis'
+          _pid:pid, phase:'2', source:'diagnosis'
         });
       });
     });
@@ -570,13 +579,25 @@ function renderResult(){
     const srcLabel=(r.source==='analysis')?'분석':('진단'+(r.phase?(' '+r.phase+'차'):''));
     h+=`<tr><td>${i+1}</td><td>${r.year}</td><td class="left">${r.project}</td><td>${r.equip}</td><td class="left">${r.unit||'-'}</td><td>${srcLabel}</td>`;
     type.cols.forEach(c=>h+=`<td>${COLDEF[c].get(r)}</td>`);
-    h+='<td>보기</td></tr>';
+    const detail = (r.source==='diagnosis' && r._pid)
+      ? `<a href="javascript:void(0)" onclick="openDiag('${String(r._pid).replace(/'/g,"\\'")}','${r.phase||'1'}')">보기</a>`
+      : '-';
+    h+=`<td>${detail}</td></tr>`;
   });
   h+='</tbody></table>';
   document.getElementById('result-table').innerHTML=h;
 }
 
 /* ===================== 공통 버튼 ===================== */
+/* 진단 페이지 경로 — 배포 폴더 구조에 맞게 한 줄만 조정 (diag_dashboard와 동일 기준) */
+const DIAG_URL = '../02.project/diagnosis/diagnosis.html';
+function openDiag(pid, phase){
+  try{
+    if(pid) localStorage.setItem('activeProjectId', pid);                 // 진단 페이지가 이 프로젝트를 복원
+    localStorage.setItem('HIMEC_DIAG_JUMP', JSON.stringify({phase:String(phase||'1')}));  // 기본 1차
+  }catch(e){}
+  window.location.href = DIAG_URL;
+}
 function saveData(){ try{localStorage.setItem('himec_metrics',JSON.stringify({projects,diagResults}));}catch(e){} alert('저장되었습니다.'); }
 function exportFile(){ alert('파일 변환 기능 (구현 예정)'); }
 // ===== Main 화면 이동 =====
