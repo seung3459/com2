@@ -13065,11 +13065,32 @@ document.addEventListener('keydown', function(e){
     }).catch(function () {});
   }
 
+  // Metrics '상세 보기' → 해당 진단 탭으로 이동 (기본 1차)
+  function jumpIfRequested() {
+    var hint = null;
+    try { hint = localStorage.getItem('HIMEC_DIAG_JUMP'); } catch (e) {}
+    if (!hint) return;
+    try { localStorage.removeItem('HIMEC_DIAG_JUMP'); } catch (e) {}
+    var phase = '1';
+    try { var h = JSON.parse(hint); if (h && h.phase) phase = String(h.phase); } catch (e) {}
+    var label = (phase === '2') ? '2nd Diagnosis' : '1st Diagnosis';
+    try {
+      var sps = d.querySelectorAll('.main-tab .side-label');
+      for (var i = 0; i < sps.length; i++) {
+        if ((sps[i].textContent || '').trim() === label) {
+          var btn = sps[i].closest('button');
+          if (btn) btn.click();
+          break;
+        }
+      }
+    } catch (e) {}
+  }
+
   // 페이지/전역 함수 준비 후 실행
   function boot() {
     var tries = 0;
     (function wait() {
-      if (typeof w._restoreAllData === 'function') { setTimeout(autoRestore, 120); return; }
+      if (typeof w._restoreAllData === 'function') { setTimeout(autoRestore, 120); setTimeout(jumpIfRequested, 450); return; }
       if (tries++ < 60) setTimeout(wait, 60);
     })();
   }
