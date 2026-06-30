@@ -825,6 +825,14 @@ window.addEventListener('DOMContentLoaded', async function(){
   await loadProjectsList();
   renderProjectsTable();
 });
+
+/* 클라우드 복원 완료 시: 프로젝트 목록을 다시 읽고 재렌더 (모바일 교차기기 노출) */
+window.addEventListener('himec:hydrated', async function(){
+  try{
+    await loadProjectsList();
+    renderProjectsTable();
+  }catch(e){ if(window.console) console.warn('hydrated reload fail', e); }
+});
 </script>
 </body>
 </html>
