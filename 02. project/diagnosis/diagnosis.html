@@ -9472,20 +9472,33 @@ function appSaveData() {
 }
 
 function appDoSaveLocal() {
+  var msg = document.getElementById('saveStatusMsg');
+  function show(t, c) { if (msg) { msg.textContent = t; msg.style.color = c; msg.style.display = 'block'; } }
+  var H = window.HIMEC_DIAG || {};
+  var p = H.pid ? H.pid() : (localStorage.getItem('activeProjectId') || 'default');
+  var localKey = H.localKey ? H.localKey(p) : ('HIMEC_SAVE_DATA_' + p);
+  var data, json;
   try {
-    var data = _collectAllData();
-    var json = JSON.stringify(data);
-    localStorage.setItem('HIMEC_SAVE_DATA', json);
-    var msg = document.getElementById('saveStatusMsg');
-    msg.textContent = '저장 완료! (' + new Date().toLocaleString('ko-KR') + ', ' + (json.length / 1024).toFixed(1) + 'KB)';
-    msg.style.color = '#16a34a';
-    msg.style.display = 'block';
-  } catch(e) {
-    var msg = document.getElementById('saveStatusMsg');
-    msg.textContent = '저장 실패: ' + e.message;
-    msg.style.color = '#dc2626';
-    msg.style.display = 'block';
+    data = H.pack ? H.pack() : _collectAllData();      // 메인 blob + 하위 모듈(요약/진단대상) 동봉
+    json = JSON.stringify(data);
+    localStorage.setItem(localKey, json);              // 1) 로컬(프로젝트별) — 오프라인 대비
+  } catch (e) {
+    show('저장 실패: ' + e.message, '#dc2626');
+    return;
   }
+  show('저장 완료 (로컬) · 클라우드 동기화 중… (' + new Date().toLocaleString('ko-KR') + ', ' + (json.length / 1024).toFixed(1) + 'KB)', '#16a34a');
+  // 2) Supabase app_state[diagnosis_<projectId>] 로 upsert (오프라인이면 로컬만)
+  var cloud = H.cloud ? H.cloud() : Promise.resolve(null);
+  cloud.then(function (c) {
+    if (!c) { show('저장 완료 (로컬만 · 오프라인). 온라인 상태에서 다시 저장하면 클라우드에 반영됩니다.', '#16a34a'); return; }
+    return c.from('app_state').upsert(
+      { key: H.cloudKey ? H.cloudKey(p) : ('diagnosis_' + p), data: data, updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    ).then(function (r) {
+      if (r && r.error) show('로컬 저장됨 · 클라우드 실패: ' + (r.error.message || r.error), '#d97706');
+      else show('저장 완료! (로컬 + 클라우드, ' + new Date().toLocaleString('ko-KR') + ')', '#16a34a');
+    });
+  }).catch(function (err) { show('로컬 저장됨 · 클라우드 오류: ' + ((err && err.message) || err), '#d97706'); });
 }
 
 function appDoSaveFile() {
@@ -9513,25 +9526,43 @@ function appDoSaveFile() {
 }
 
 function appDoLoadLocal() {
-  try {
-    var json = localStorage.getItem('HIMEC_SAVE_DATA');
-    if (!json) {
-      var msg = document.getElementById('loadStatusMsg');
-      msg.textContent = '저장된 데이터가 없습니다.';
-      msg.style.color = '#dc2626';
-      msg.style.display = 'block';
-      return;
-    }
-    var data = JSON.parse(json);
+  var msg = document.getElementById('loadStatusMsg');
+  function show(t, c) { if (msg) { msg.textContent = t; msg.style.color = c; msg.style.display = 'block'; } }
+  var H = window.HIMEC_DIAG || {};
+  var p = H.pid ? H.pid() : (localStorage.getItem('activeProjectId') || 'default');
+  var localKey = H.localKey ? H.localKey(p) : ('HIMEC_SAVE_DATA_' + p);
+  function applyPkg(data, label) {
     if (_restoreAllData(data)) {
-      var msg = document.getElementById('loadStatusMsg');
-      msg.textContent = '불러오기 완료! (저장 시점: ' + new Date(data._savedAt).toLocaleString('ko-KR') + ')';
-      msg.style.color = '#2563eb';
-      msg.style.display = 'block';
+      // 하위 모듈(요약/진단대상)은 로컬 키가 비어 있을 때만 클라우드 동봉본으로 채움(진행 중 편집 보호)
+      if (data._sub && H.writeSub && H.subEmpty && H.subEmpty(p)) {
+        H.writeSub(data._sub, p);
+        if (typeof window.__himecTotalsReload === 'function') window.__himecTotalsReload();
+      }
+      show('불러오기 완료 (' + label + ') — 저장 시점: ' + (data._savedAt ? new Date(data._savedAt).toLocaleString('ko-KR') : '-'), '#2563eb');
     }
-  } catch(e) {
-    alert('불러오기 실패: ' + e.message);
   }
+  // 1) 로컬(프로젝트별)
+  var json = null;
+  try { json = localStorage.getItem(localKey); } catch (e) {}
+  if (json) {
+    try { applyPkg(JSON.parse(json), '로컬'); }
+    catch (e) { show('로컬 데이터 손상: ' + e.message, '#dc2626'); }
+    return;
+  }
+  // 2) 로컬에 없으면 클라우드
+  show('로컬에 없음 — 클라우드에서 불러오는 중…', '#2563eb');
+  var cloud = H.cloud ? H.cloud() : Promise.resolve(null);
+  cloud.then(function (c) {
+    if (!c) { show('저장된 데이터가 없습니다. (오프라인)', '#dc2626'); return; }
+    return c.from('app_state').select('data').eq('key', H.cloudKey ? H.cloudKey(p) : ('diagnosis_' + p)).maybeSingle().then(function (r) {
+      if (r && r.error) { show('클라우드 조회 실패: ' + (r.error.message || r.error), '#dc2626'); return; }
+      var row = r && r.data;
+      if (!row || !row.data) { show('저장된 데이터가 없습니다.', '#dc2626'); return; }
+      var data = row.data; // jsonb → 객체
+      applyPkg(data, '클라우드');
+      try { localStorage.setItem(localKey, JSON.stringify(data)); } catch (e) {}
+    });
+  }).catch(function (err) { show('불러오기 실패: ' + ((err && err.message) || err), '#dc2626'); });
 }
 
 function appDoLoadFile(event) {
@@ -12528,7 +12559,7 @@ document.addEventListener('keydown', function(e){
     { cat:'자동제어설비', items:[ {gu:'자동제어', d1:null, d2:null} ]}
   ];
 
-  var STORE_KEY = 'HIMEC_SUMMARY_STATE';
+  var STORE_KEY = 'HIMEC_SUMMARY_STATE_' + (function(){ try{ return localStorage.getItem('activeProjectId') || 'default'; }catch(e){ return 'default'; } })();
   function loadStore(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); }catch(e){ return {}; } }
   function saveStore(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} }
   var state = loadStore();
@@ -12801,7 +12832,7 @@ document.addEventListener('keydown', function(e){
   /*  - Summary와 동일한 GROUPS·진단연동 로직을 재사용해              */
   /*    1·2차 진단 결과가 있는 장비를 장비구분별로 자동 집계          */
   /* ============================================================= */
-  var SUBJ_KEY = 'HIMEC_SUBJECT_NOTES';
+  var SUBJ_KEY = 'HIMEC_SUBJECT_NOTES_' + (function(){ try{ return localStorage.getItem('activeProjectId') || 'default'; }catch(e){ return 'default'; } })();
   function loadSubj(){ try{ return JSON.parse(localStorage.getItem(SUBJ_KEY) || '{}'); }catch(e){ return {}; } }
   var subjState = loadSubj();
   function subjK(cat, gu){ return cat + '||' + gu; }
@@ -12825,7 +12856,7 @@ document.addEventListener('keydown', function(e){
   }
 
   /* ---------- 기타(직접 기입) 저장소 ---------- */
-  var SUBJ_ETC_KEY = 'HIMEC_SUBJECT_ETC';
+  var SUBJ_ETC_KEY = 'HIMEC_SUBJECT_ETC_' + (function(){ try{ return localStorage.getItem('activeProjectId') || 'default'; }catch(e){ return 'default'; } })();
   function loadSubjEtc(){ try{ var a = JSON.parse(localStorage.getItem(SUBJ_ETC_KEY) || '[]'); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
   var subjEtc = loadSubjEtc();
   function saveSubjEtc(){ try{ localStorage.setItem(SUBJ_ETC_KEY, JSON.stringify(subjEtc)); }catch(e){} }
@@ -12938,7 +12969,113 @@ document.addEventListener('keydown', function(e){
     renderSubject();
   }, 2000);
 
+  /* 클라우드 복원 시 외부에서 요약/진단대상 화면을 갱신할 수 있도록 훅 노출 */
+  window.__himecTotalsReload = function () {
+    try { state = loadStore(); } catch (e) {}
+    try { subjState = loadSubj(); } catch (e) {}
+    try { subjEtc = loadSubjEtc(); } catch (e) {}
+    try { if (typeof render === 'function') render(); } catch (e) {}
+    try { if (typeof renderSubject === 'function') renderSubject(); } catch (e) {}
+  };
+
 })();
+</script>
+
+<!-- ===== 프로젝트별 저장/복원 (Local + Supabase app_state) · 자동 복원 ===== -->
+<script>
+(function (w, d) {
+  'use strict';
+
+  function pid() { try { return localStorage.getItem('activeProjectId') || 'default'; } catch (e) { return 'default'; } }
+  function localKey(p) { return 'HIMEC_SAVE_DATA_' + (p || pid()); }
+  function cloudKey(p) { return 'diagnosis_' + (p || pid()); }
+
+  // 로그인 세션이 붙은 Supabase 클라이언트 재사용. 오프라인/비활성이면 null.
+  function cloud() {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return Promise.resolve(null);
+      if (w.HIMEC_SYNC && typeof w.HIMEC_SYNC.ready === 'function') return w.HIMEC_SYNC.ready();
+    } catch (e) {}
+    return Promise.resolve(null);
+  }
+
+  // 하위 모듈(요약/진단대상 비고)을 프로젝트별 키로 읽고/쓰기
+  function readSub(p) {
+    p = p || pid();
+    function g(b) { try { return localStorage.getItem(b + '_' + p); } catch (e) { return null; } }
+    return { summary: g('HIMEC_SUMMARY_STATE'), notes: g('HIMEC_SUBJECT_NOTES'), etc: g('HIMEC_SUBJECT_ETC') };
+  }
+  function writeSub(sub, p) {
+    if (!sub) return;
+    p = p || pid();
+    function s(b, v) { if (v != null) { try { localStorage.setItem(b + '_' + p, v); } catch (e) {} } }
+    s('HIMEC_SUMMARY_STATE', sub.summary); s('HIMEC_SUBJECT_NOTES', sub.notes); s('HIMEC_SUBJECT_ETC', sub.etc);
+  }
+  function subEmpty(p) {
+    p = p || pid();
+    function g(b) { try { return localStorage.getItem(b + '_' + p); } catch (e) { return null; } }
+    return !g('HIMEC_SUMMARY_STATE') && !g('HIMEC_SUBJECT_NOTES') && !g('HIMEC_SUBJECT_ETC');
+  }
+
+  // 저장 패키지 = 메인 blob + 하위 모듈 동봉
+  function pack() {
+    var data = (typeof w._collectAllData === 'function') ? w._collectAllData() : null;
+    if (!data) return null;
+    data._sub = readSub();
+    return data;
+  }
+
+  w.HIMEC_DIAG = {
+    pid: pid, localKey: localKey, cloudKey: cloudKey, cloud: cloud,
+    readSub: readSub, writeSub: writeSub, subEmpty: subEmpty, pack: pack
+  };
+
+  /* ---------------- 자동 복원 (페이지 진입 시) ---------------- */
+  function savedAt(o) { try { return (o && o._savedAt) ? new Date(o._savedAt).getTime() : 0; } catch (e) { return 0; } }
+
+  function applyPackage(data, allowSub) {
+    if (!data || typeof w._restoreAllData !== 'function') return false;
+    var ok = false;
+    try { ok = w._restoreAllData(data); } catch (e) { return false; }
+    if (ok && allowSub && data._sub) {
+      writeSub(data._sub);
+      try { if (typeof w.__himecTotalsReload === 'function') w.__himecTotalsReload(); } catch (e) {}
+    }
+    return ok;
+  }
+
+  function autoRestore() {
+    var p = pid();
+    var local = null;
+    try { var j = localStorage.getItem(localKey(p)); if (j) local = JSON.parse(j); } catch (e) {}
+    // 1) 로컬이 있으면 즉시 복원(오프라인 대비). 하위 모듈은 자기 키로 이미 로드됨 → 건드리지 않음.
+    if (local) applyPackage(local, false);
+    // 2) 클라우드가 더 최신이면 교체. 하위 모듈은 로컬이 비었을 때만 클라우드 동봉본 주입.
+    cloud().then(function (c) {
+      if (!c) return;
+      return c.from('app_state').select('data').eq('key', cloudKey(p)).maybeSingle().then(function (r) {
+        if (!r || r.error || !r.data || !r.data.data) return;
+        var remote = r.data.data;
+        if (!local || savedAt(remote) > savedAt(local)) {
+          if (applyPackage(remote, subEmpty(p))) {
+            try { localStorage.setItem(localKey(p), JSON.stringify(remote)); } catch (e) {}
+          }
+        }
+      });
+    }).catch(function () {});
+  }
+
+  // 페이지/전역 함수 준비 후 실행
+  function boot() {
+    var tries = 0;
+    (function wait() {
+      if (typeof w._restoreAllData === 'function') { setTimeout(autoRestore, 120); return; }
+      if (tries++ < 60) setTimeout(wait, 60);
+    })();
+  }
+  if (d.readyState === 'complete') boot();
+  else w.addEventListener('load', boot);
+})(window, document);
 </script>
 
 <!-- ===== Side Nav 동기화 훅 (기존 함수 보존, 사이드바 하이라이트만 추가) ===== -->
