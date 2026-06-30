@@ -70,13 +70,26 @@
   function reveal() { root.style.visibility = "visible"; }
   function goLogin() { window.location.replace("/index.html"); }
 
-  var safety = setTimeout(reveal, 4000);
+  var safety = setTimeout(reveal, 6000);
+
+  // 인증 OK 후, 복원(hydrate)까지 기다렸다 화면 표시 → 모바일에서 빈 화면이
+  // 먼저 뜨는 것을 막는다. 복원이 지연되면 5초 뒤 그냥 표시(무한대기 방지).
+  function revealWhenReady() {
+    try {
+      if (window.HIMEC_SYNC && typeof window.HIMEC_SYNC.whenHydrated === "function") {
+        var t = setTimeout(reveal, 5000);
+        window.HIMEC_SYNC.whenHydrated().then(function () { clearTimeout(t); reveal(); });
+        return;
+      }
+    } catch (e) {}
+    reveal();
+  }
 
   ready(function () {
     getClient().auth.getSession().then(function (res) {
       clearTimeout(safety);
       if (res.data.session) {
-        reveal();
+        revealWhenReady();
       } else {
         goLogin();
       }
